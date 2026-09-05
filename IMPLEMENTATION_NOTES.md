@@ -212,3 +212,134 @@ build`, and a Playwright smoke test against `pnpm dev` all pass — see
 deploy: run `supabase db push` against a real project and `supabase test
 db` (the pgTAP smoke test in `supabase/tests/database/`), then work through
 `README.md`'s setup steps.
+
+## Candidate-flow engineer's decisions (steps 1-3, resume, privacy)
+
+### RLS/FK ordering for the first candidate+application insert
+
+`DATA_MODEL.md` §6.3's policy pattern has a real circularity for the *very
+first* signup that isn't fixable from `candidate` context no matter the
+statement order, verified against the local Postgres setup before writing
+any workaround:
+
+- `candidates`'s `WITH CHECK` requires an `applications` row already
+  existing with `id = app_app_id()` referencing that candidate.
+- `applications`'s `WITH CHECK` requires `id = app_app_id()` — fine once you
+  pre-generate the id and set `app.application_id` to it before inserting —
+  but the FK `applications.candidate_id -> candidates.id` requires the
+  candidate row to exist *first*.
+- So `candidates` needs `applications` to exist (RLS) before `applications`
+  can exist (FK needs `candidates` first). No ordering of two statements in
+  one `candidate`-context transaction satisfies both; I reproduced this
+  directly with `psql ... set role app_user ...` and got the RLS violation
+  before writing `submitPersonalDetails`.
+
+Resolution: `submitPersonalDetails` (candidate signup, and the duplicate
+lookups it needs first) runs in **`system` context**, which
+`ARCHITECTURE.md` §2 describes as reserved for "boot-time and health-sweep
+code paths" — this is a third, narrow use of it, justified the same way
+`cv_upsert` needed a `SECURITY DEFINER` escape hatch for an analogous
+bootstrapping problem (DATA_MODEL.md §3.9). Every operation on an
+*existing* application (job confirmation, briefing consent, resume-code
+lookup identity resolution) still uses `candidate`/appropriate context
+normally; only the one-time account-creation transaction is `system`. If a
+future engineer wants to close this off more tightly, the alternative is a
+`create_application()` `SECURITY DEFINER` function mirroring `cv_upsert`'s
+shape — not built here to avoid multiplying security-definer surface for a
+single call site without a second real need.
+
+### OTP storage — a small additive migration, not a new table
+
+CANDIDATE_FLOW.md §2.4's OTP fallback has no backing storage in
+`DATA_MODEL.md` (no dedicated table, no columns) — this looks like a gap
+left over from when the resume-code mechanism was added as the *primary*
+path (DECISIONS_LOG.md #2) and OTP became secondary. Rather than a new
+table, `supabase/migrations/0003_resume_otp.sql` adds three nullable/
+defaulted columns directly to `applications` (`otp_code_hash bytea`,
+`otp_expires_at timestamptz`, `otp_attempts smallint default 0`), mirroring
+how `resume_code_hash` already lives there — smallest reasonable, additive
+(expand-only per `ARCHITECTURE.md` §16's migration rule), no new grants
+needed (`applications` UPDATE is already granted to `app_user`).
+
+Simplification made without a spec answer: a candidate can have several
+applications (one per job), but an OTP request only takes an email, not a
+job. `requestOtp`/`verifyOtp` target the candidate's **single most recent**
+application. With one active job at launch this is a non-issue in practice;
+whoever adds a second job should revisit this (candidate needs a way to
+pick which job's flow to resume, or every application gets its own OTP
+simultaneously — either is a UI question the spec doesn't answer either).
+
+### Privacy request email verification — not built
+
+`DATA_MODEL.md` §3.20 says candidate-submitted `privacy_requests` rows are
+"email-verified with a one-click link." That needs a verification-token
+table/column and a `/privacy/verify?token=...` route that doesn't exist
+anywhere in the spec's schema. Built instead: the form inserts the row
+directly (rate-limited, 3/email/hour), reviewed by an admin from the
+inbox — which DATA_MODEL.md §3.20 already lists as the *other* legitimate
+way a row gets created ("either by an admin ... or by the candidate"). A
+malicious actor can file a bogus request under someone else's email, but
+they can't act on it — access/deletion still requires an admin to actually
+find and verify the requester out-of-band before acting, same as any
+unauthenticated contact form. Flagged here rather than silently shipping
+half of a described feature.
+
+### CSP blocked Next.js's own hydration scripts in production
+
+Found by actually clicking through the built app in a real browser (not
+just `curl`, which only sees the SSR HTML and can't tell hydration never
+ran). `src/middleware.ts`'s original CSP had `script-src 'self'` with no
+`'unsafe-inline'` and no nonce. Next.js's App Router streams RSC payloads
+via inline `<script>` tags it injects itself — that CSP directive blocks
+them outright. A plain HTTP check (`curl`, `/api/health`, a naive
+`fetch().then(r => r.text())`) still sees a 200 with full SSR markup, which
+is presumably why this shipped unnoticed in the foundation pass — dev mode
+also has enough differences in how it serves scripts that the breakage
+wasn't obvious there either in quick manual testing (see the next note).
+Fixed the standard, documented way (Next.js's own CSP guide): a random
+per-request nonce added to `script-src` alongside `'strict-dynamic'`;
+Next.js automatically applies that nonce to its own inline scripts once it
+sees one in the response's `Content-Security-Policy` header, no other code
+changes needed. This is shared infrastructure touched by necessity — it
+broke every route, not just the candidate-flow ones — and is unrelated to
+the admin-auth TODO block in the same file (left untouched).
+
+### dev-mode Server Action slowness (why e2e ran against a production build)
+
+While manually verifying the flow, `submitPersonalDetailsAction` under
+`next dev` intermittently took 30-90+ seconds to respond (confirmed via
+timing instrumentation that the actual DB work inside the action completes
+in single-digit milliseconds — the delay is entirely outside application
+code, between the action returning and Next finishing the HTTP response).
+The delay grew on successive requests in the same dev-server process,
+which stopped once I ran `pnpm build && pnpm start` instead (production:
+consistently fast, no HMR). I did not fully root-cause this — plausible
+candidates are Next 15.5's dev-mode on-demand compilation of the action's
+full server-side module graph (which pulls in `@supabase/supabase-js` and
+`resend` transitively, even on the common path that never touches either)
+combined with this sandbox running other unrelated Node processes
+concurrently, or Fast Refresh/HMR bookkeeping. Practical resolution: I
+verified the candidate flow's e2e suite (`tests/e2e/candidate-flow.spec.ts`)
+against a production build rather than `pnpm dev`. I did **not** flip
+`playwright.config.ts`'s checked-in `webServer` command from `pnpm dev` to
+`pnpm build && pnpm start` — that file's own comment already flags this as
+the intended switch "once there's a real backend to test against," which is
+now true for the candidate-flow routes but not yet for the assessment
+runner, and flipping shared CI config is a bigger decision (env vars,
+Postgres availability in CI) than this one engineer's pass should make
+unilaterally. Whoever owns CI next should make that switch — this note is
+the evidence for why.
+
+### e2e rate-limit budget
+
+`submitPersonalDetails`'s 5-signups/IP-prefix/hour limit (CANDIDATE_FLOW.md
+§2.2) applies per literal IP prefix, and every request from a local
+Playwright run shares one `signup:unknown` bucket (no `X-Forwarded-For` on
+localhost) — I hit this myself mid-session (confirmed via `select * from
+rate_limits` showing `tokens = 0`) after enough manual + debug-script
+signups. `tests/e2e/candidate-flow.spec.ts` is deliberately structured as
+one `test.step()`-annotated journey doing exactly one signup, reused for
+the resume-flow and step-order-guard assertions, rather than one signup per
+`test()` — this keeps a full nightly cross-browser run (4 projects × 1
+signup) comfortably under the limit. The terms-first landing-page tests
+(no signup) run freely across all browsers.

@@ -1,16 +1,20 @@
-// TODO(candidate-flow engineer): /resume — re-entry without email
-// (CANDIDATE_FLOW.md §2.4). Email + 8-char resume code (SHA-256 compared
-// against applications.resume_code_hash) OR email OTP -> re-issues the
-// app_session cookie -> redirects to the candidate's current step.
-// Rate-limited via the `rate_limits` table (5 resume attempts / email /
-// hour; 3 OTP requests / email / hour).
-export default function ResumePage() {
+import { ResumeForm } from "./resume-form";
+
+// CANDIDATE_FLOW.md §2.4 — /resume: re-entry that does not depend on email.
+export default async function ResumePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
+  const { email } = await searchParams;
+
   return (
     <main className="mx-auto max-w-md p-8">
       <h1 className="text-xl font-semibold">חזרה לתהליך</h1>
-      <p className="mt-2 text-neutral-500">
-        טופס אימייל + קוד חזרה ייבנה כאן — ראו CANDIDATE_FLOW.md §2.4.
-      </p>
+      <p className="mt-2 text-neutral-600">הזינו אימייל וקוד חזרה כדי להמשיך מאותה נקודה.</p>
+      <div className="mt-6">
+        <ResumeForm prefillEmail={email} />
+      </div>
     </main>
   );
 }

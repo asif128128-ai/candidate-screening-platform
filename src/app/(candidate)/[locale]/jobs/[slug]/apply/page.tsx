@@ -1,21 +1,32 @@
-// TODO(candidate-flow engineer): step 1 — פרטים אישיים (CANDIDATE_FLOW.md
-// §2). Form + `submitPersonalDetails` server action: zod validation,
-// E.164/lowercase normalization, async CV upload via cv_upsert(), duplicate
-// handling (§2.2), sets the app_session cookie, shows the resume code
-// (§2.4), redirects to /apply/{application_id}/job.
+import { getJobBySlug } from "@/db/queries/jobs";
+import { PersonalDetailsForm } from "./personal-details-form";
+
+// CANDIDATE_FLOW.md §2: step 1 — פרטים אישיים.
 export default async function ApplyStep1Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ email?: string }>;
 }) {
   const { slug } = await params;
+  const { email } = await searchParams;
+  const job = await getJobBySlug(slug);
+
+  if (!job) {
+    return (
+      <main className="mx-auto max-w-2xl p-8">
+        <h1 className="text-xl font-semibold">המשרה אינה פתוחה כרגע</h1>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-xl font-semibold">הגשת מועמדות — {slug}</h1>
-      <p className="mt-2 text-neutral-500">
-        טופס פרטים אישיים ייבנה כאן — ראו CANDIDATE_FLOW.md §2.
-      </p>
+      <h1 className="text-xl font-semibold">הגשת מועמדות — {job.title_he}</h1>
+      <div className="mt-6">
+        <PersonalDetailsForm jobSlug={slug} prefillEmail={email} />
+      </div>
     </main>
   );
 }

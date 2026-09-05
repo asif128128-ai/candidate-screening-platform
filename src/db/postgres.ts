@@ -52,9 +52,25 @@ async function withContext<T>(
   }) as Promise<T>;
 }
 
-/** Candidate-scoped transaction, restricted by RLS to `applicationId`'s own rows. */
+/**
+ * Candidate-scoped transaction, restricted by RLS to `applicationId`'s own
+ * rows. `applicationId` is optional for the handful of pre-application reads
+ * that are still semantically "candidate" but have no application yet (the
+ * public job landing page) — `jobs`/`assessment_configs` policies only check
+ * `app_ctx() = 'candidate'`, not the id (DATA_MODEL.md §6.3). It is NOT
+ * optional for anything that reads/writes an existing application's rows.
+ *
+ * candidate-flow engineer's note (see IMPLEMENTATION_NOTES.md "RLS/FK
+ * ordering for the first candidate+application insert"): creating the very
+ * first `candidates`/`applications` rows for a brand-new signup cannot run
+ * in `candidate` context at all — RLS on `candidates` requires an existing
+ * `applications` row referencing it, RLS on `applications` requires
+ * `id = app_app_id()`, and the FK requires `candidates` to exist first. That
+ * specific transaction uses `withSystem` instead; every other candidate-flow
+ * operation (an application that already exists) uses this function.
+ */
 export function withCandidate<T>(
-  applicationId: string,
+  applicationId: string | undefined,
   fn: (tx: postgres.TransactionSql) => Promise<T>,
 ): Promise<T> {
   return withContext("candidate", { applicationId }, fn);

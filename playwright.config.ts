@@ -15,6 +15,7 @@ export default defineConfig({
     locale: "he-IL",
     timezoneId: "Asia/Jerusalem",
     trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
   projects: [
     {
