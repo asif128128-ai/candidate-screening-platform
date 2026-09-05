@@ -511,3 +511,135 @@ firefox/webkit (only the no-signup landing-page tests were run
 cross-browser, deliberately — see IMPLEMENTATION_NOTES.md "e2e rate-limit
 budget"); k6 load scenarios (pre-launch, not this engineer's milestone);
 `pnpm bank:audit` (assessment-engine's).
+## Admin-UI engineer pass (this session)
+
+Everything under `src/app/admin/**`, the admin-auth block of
+`src/middleware.ts`, and `src/db/queries/*` is now implemented against
+`ADMIN_UX.md` in full, built and manually verified against a real local
+Postgres (`./scripts/local-pg-setup.sh` + the new `scripts/dev-seed.sql`,
+see below) with real seeded candidates/applications/results, not just
+empty-state screenshots. Decisions where the spec was silent, plus two real
+bugs found in the "already implemented" foundation layer while wiring this
+up, are in `IMPLEMENTATION_NOTES.md`'s matching new section — read that
+before touching any of this, especially the two bugs (they're security-
+relevant, not cosmetic).
+
+### What's built
+
+- **Admin auth** (`ADMIN_UX.md` §8, `ARCHITECTURE.md` §6): `src/middleware.ts`'s
+  admin block now verifies the Supabase session JWT locally (`src/lib/
+  admin-jwt.ts`, `jose`, HS256 + `SUPABASE_JWT_SECRET`) and requires `aal2`,
+  redirecting to `/admin/login` or `/admin/mfa/enroll` as appropriate. The
+  `admin_users` allowlist + `disabled_at` check (which needs Postgres, and
+  middleware/Edge runtime can't open a raw DB connection) lives in
+  `src/app/admin/(protected)/layout.tsx` via `src/lib/current-admin.ts` —
+  every protected page renders through that layout first. A session that's
+  a valid Supabase login but isn't an enabled admin is signed out via
+  `src/app/admin/login/deny/route.ts` (a Route Handler, since only that or a
+  Server Action can clear cookies) with the "אין לך הרשאה למערכת זו" message.
+  `/admin/login` (email+password) and `/admin/mfa/enroll` (TOTP enroll *and*
+  step-up verify, one route) call real `@supabase/ssr` + `supabase.auth.mfa.*`
+  APIs — see IMPLEMENTATION_NOTES.md for why the actual Supabase Auth calls
+  are unverified in this environment, and what *is* verified instead.
+- **Candidate list** (`ADMIN_UX.md` §3) — `src/app/admin/(protected)/
+  candidates/page.tsx`: header strip (5 counts + new-in-24h), all 7 quick
+  filter chips, the full advanced-filter panel (stage/integrity/band/rishon/
+  files/year/institution/date range/dup-phone/free-text — academic average
+  deliberately has no filter or sort affordance anywhere, per spec), sortable
+  columns, keyset pagination for numeric/date sort keys and offset pagination
+  for text sort keys (a documented, scoped-down split — see notes), bulk
+  stage change, CSV export (`/admin/candidates/export`, UTF-8 BOM), and
+  bulk archive-and-delete with typed-count confirmation, `hired`/
+  `keep_indefinitely` auto-exclusion, and a "select all N filtered (up to
+  5,000)" mode that re-resolves the id list server-side from the filter
+  state rather than trusting a client-supplied list.
+- **Candidate detail** (`ADMIN_UX.md` §4) — `.../candidates/[applicationId]/`:
+  profile card (personal/academic info, CV via 60s signed URL, LinkedIn/
+  GitHub, duplicate-phone cross-link, other applications, stage selector with
+  the closure-email checkbox, response-due chip, danger zone) + the five tabs
+  (סיכום/תוצאות המבחן/אמינות המבחן/הערות/היסטוריה), including the item table
+  with click-to-expand rendered content + candidate answer + correct answer,
+  the integrity timeline strip, "סמן כנבדק"/"התעלם מאותות פוקוס" (see notes
+  for the provisional recompute), notes CRUD, and full stage/consent/email
+  history.
+- **Jobs** (`ADMIN_UX.md` §5) — list, create, edit (shared `JobFormClient`),
+  slug auto-derived from the Hebrew title until hand-edited, the commercial
+  "כרטיס תנאים" fields, 3 editable confirmation sentences, assessment-config
+  picker, response window + closure-email toggle, active toggle, preview
+  link, delete-only-if-empty guard. `description_html` is rendered by a
+  small dependency-free markdown subset (`renderJobDescriptionHtml` in
+  `src/db/queries/jobs.ts` — paragraphs, `**bold**`, `- ` lists; unit-tested)
+  rather than a runtime markdown library, per `ARCHITECTURE.md` §7's bundle
+  budget.
+- **Pipeline stage transitions** (`ADMIN_UX.md` §3.4/§4.1, task item 4):
+  `changeStage()` in `src/db/queries/candidate-mutations.ts` writes
+  `applications.stage`/`stage_changed_at` and an `application_stage_history`
+  row in one transaction, queuing the `not_moving_forward` email (per the
+  job's default + the per-change checkbox) when moving to `rejected`. Usable
+  from the list (single row or bulk) and the detail page's profile card.
+- **Operational surfaces from `DECISIONS_LOG.md`** (task item 5): the
+  "עבר מועד התשובה" counter and per-row chip (#3, `isOverdueForReply()` in
+  `src/lib/admin-format.ts`, unit-tested); `admin_alerts`-sourced dismissable
+  banners at the top of every admin page (#7/#16, `AlertBanners` component +
+  `src/db/queries/alerts.ts`); a DB-size banner at 70% of the documented 8 GB
+  plan, computed live from `maintenance.db_size_bytes` (#19) shown both as a
+  banner and permanently in Settings; and bulk archive-and-delete (#19,
+  above).
+- **Multi-admin** (task item 6): `admin_users` table/invite/disable UI in
+  Settings (an admin cannot disable themselves, enforced server-side, not
+  just hidden in the UI); every stage-history row, note, and integrity
+  override shows the acting admin's real `display_name` (joined from
+  `admin_users`), never a generic/anonymous label — verified by seeding two
+  admins in `scripts/dev-seed.sql` and asserting this in
+  `tests/e2e/admin-candidates.spec.ts`.
+- **Bank analytics** (`ADMIN_UX.md` §6, not explicitly in the task's numbered
+  scope but listed as admin-owned in this file's placeholder table): a
+  simplified read-only version (per-template served/accuracy/skip/expiry,
+  alert-flagged rows highlighted) — the "צפה בדוגמה" sample-instance button
+  and median-time-used column are not built, since they need
+  `src/assessment/generator.ts`, which is still a stub (see
+  IMPLEMENTATION_NOTES.md).
+- **`scripts/dev-seed.sql`** (new, dev-only, not a migration): 10 candidates/
+  applications spanning every stage, integrity level, and edge case named in
+  this spec (duplicate phone, `לא בראשון`, overdue reply, hired +
+  `keep_indefinitely`, in-progress session, a full item/response/integrity-
+  event trail for one candidate), 2 admins, `admin_alerts`/`privacy_requests`/
+  `email_outbox` rows — used for every manual check below and by the e2e
+  suite. Run it after `./scripts/local-pg-setup.sh <db>`.
+- **Tests** (task item 7): `tests/unit/{admin-format,admin-jwt,candidate-
+  filters,job-description-html}.test.ts` (pure logic — JWT verification,
+  filter parse/serialize round-trips, overdue/DB-size/score-band math,
+  markdown rendering); `tests/integration/admin-rls-security.test.ts` (real
+  Postgres, asserts `admin_application_rows` RLS holds for candidate/no/
+  unknown-admin contexts — this is the test that caught bug #2 below);
+  `tests/e2e/admin-{auth,security,candidates,jobs}.spec.ts` (Playwright,
+  against the real seeded local Postgres — login-gate/MFA-gate/allowlist
+  redirects, viewing a candidate, changing pipeline stage, adding a note,
+  creating/editing/toggling a job, and the required security-boundary tests:
+  unauthenticated and non-allowlisted requests cannot reach candidate data
+  through any admin page **or** the CSV export API route). All pass; see
+  "Verified working" below for exact commands.
+
+### Verified working (this session, on top of the foundation-layer list above)
+
+```
+pnpm typecheck                                          # OK, 0 errors
+pnpm lint                                                # OK, 0 errors, 10 pre-existing warnings
+pnpm test                                                # OK, 44/44 (unit + integration)
+pnpm build                                               # OK, all routes compile
+PLAYWRIGHT_PORT=<free-port> pnpm exec playwright test \
+  --project=chromium tests/e2e/admin-*.spec.ts \
+  tests/e2e/smoke.spec.ts                                # OK, 24/24
+```
+Plus manual click-through of every admin screen against `pnpm dev` with
+`scripts/dev-seed.sql` loaded (candidate list/detail all 5 tabs, job create/
+edit, settings, bank, login, MFA enroll pages) — screenshotted and visually
+reviewed for RTL correctness (numbers/emails/phones in `<bdi>`/`ltr-inline`,
+form labels on the correct side, dialogs, the profile card on the RTL
+"start" side).
+
+`supabase test db` / pgTAP was still not run (no Supabase CLI in this
+environment either, same as the foundation layer) — the RLS-at-the-`app_user`-
+layer boundary that pgTAP would normally cover is instead exercised by
+`tests/integration/admin-rls-security.test.ts` against the local Postgres
+stand-in.
