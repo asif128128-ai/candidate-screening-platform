@@ -103,10 +103,16 @@ async function guardAdminRoute(req: NextRequest, nonce: string): Promise<NextRes
     return withSecurityHeaders(nextWithNonce(req, nonce), nonce);
   }
 
-  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+  const supabaseUrl = process.env.SUPABASE_URL;
   const raw = req.cookies.get(ADMIN_AUTH_COOKIE_NAME)?.value;
-  const token = jwtSecret ? extractAccessTokenFromCookieValue(raw) : null;
-  const claims = token && jwtSecret ? await verifyAdminAccessToken(token, jwtSecret) : null;
+  const token = supabaseUrl ? extractAccessTokenFromCookieValue(raw) : null;
+  const claims =
+    token && supabaseUrl
+      ? await verifyAdminAccessToken(token, {
+          supabaseUrl,
+          legacyJwtSecret: process.env.SUPABASE_JWT_SECRET,
+        })
+      : null;
 
   if (!claims || claims.exp * 1000 < Date.now()) {
     const url = req.nextUrl.clone();

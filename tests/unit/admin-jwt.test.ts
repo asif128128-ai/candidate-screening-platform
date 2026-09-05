@@ -7,6 +7,13 @@ import {
 
 const SECRET = "test-secret-at-least-32-chars-long-ok";
 
+// No real Supabase project reachable in unit tests — an unreachable host
+// makes JWKS lookup fail fast (connection refused, not a timeout) and fall
+// through to the legacy secret path, which is what these tests exercise.
+// See admin-jwt.ts's module comment for why JWKS is the primary path now
+// and this fallback exists.
+const UNREACHABLE_SUPABASE_URL = "http://127.0.0.1:1";
+
 async function sign(claims: Record<string, unknown>, expiresIn = "1h"): Promise<string> {
   return new SignJWT(claims)
     .setProtectedHeader({ alg: "HS256" })
@@ -21,10 +28,22 @@ function cookieValueFor(accessToken: string): string {
   return "base64-" + Buffer.from(JSON.stringify(session), "utf8").toString("base64url");
 }
 
+function verify(token: string, legacyJwtSecret: string | undefined = SECRET) {
+  return verifyAdminAccessToken(token, {
+    supabaseUrl: UNREACHABLE_SUPABASE_URL,
+    legacyJwtSecret,
+  });
+}
+
 // This is the security-critical logic behind src/middleware.ts's admin gate
-// (ARCHITECTURE.md §6: "verify the session JWT locally with
-// SUPABASE_JWT_SECRET, require aal2"). Pure and dependency-free enough to
-// unit test exhaustively without a browser or a live Supabase project.
+// (ARCHITECTURE.md §6: "verify the session JWT locally ... require aal2").
+// Pure and dependency-free enough to unit test exhaustively without a
+// browser or a live Supabase project — the JWKS-verification path itself
+// needs a real project's public key set, so it's covered separately by
+// manual verification against the actual deployed project rather than a
+// unit test (see IMPLEMENTATION_NOTES.md); what's tested here is the claims
+// extraction/validation logic, identical on both the JWKS and legacy paths
+// (`claimsFromPayload`), plus the fallback behavior itself.
 
 describe("extractAccessTokenFromCookieValue", () => {
   test("decodes the base64- prefixed JSON @supabase/ssr stores", () => {
@@ -44,39 +63,39 @@ describe("extractAccessTokenFromCookieValue", () => {
   });
 });
 
-describe("verifyAdminAccessToken", () => {
+describe("verifyAdminAccessToken (legacy HS256 fallback path — JWKS unreachable)", () => {
   test("accepts a validly-signed aal2 token and returns its claims", async () => {
     const token = await sign({ email: "admin@example.co.il", aal: "aal2" });
-    const claims = await verifyAdminAccessToken(token, SECRET);
+    const claims = await verify(token);
     expect(claims).toMatchObject({ email: "admin@example.co.il", aal: "aal2" });
   });
 
   test("defaults aal to aal1 when the claim is missing (never trust-by-default to aal2)", async () => {
     const token = await sign({ email: "admin@example.co.il" });
-    const claims = await verifyAdminAccessToken(token, SECRET);
+    const claims = await verify(token);
     expect(claims?.aal).toBe("aal1");
   });
 
   test("rejects a token signed with the wrong secret", async () => {
     const token = await sign({ email: "admin@example.co.il", aal: "aal2" });
-    const claims = await verifyAdminAccessToken(token, "a-completely-different-secret-value");
+    const claims = await verify(token, "a-completely-different-secret-value");
     expect(claims).toBeNull();
   });
 
   test("rejects an expired token", async () => {
     const token = await sign({ email: "admin@example.co.il", aal: "aal2" }, "-1s");
-    const claims = await verifyAdminAccessToken(token, SECRET);
+    const claims = await verify(token);
     expect(claims).toBeNull();
   });
 
   test("rejects a token with no email claim", async () => {
     const token = await sign({ aal: "aal2" });
-    const claims = await verifyAdminAccessToken(token, SECRET);
+    const claims = await verify(token);
     expect(claims).toBeNull();
   });
 
   test("rejects garbage input without throwing", async () => {
-    await expect(verifyAdminAccessToken("not-a-jwt", SECRET)).resolves.toBeNull();
+    await expect(verify("not-a-jwt")).resolves.toBeNull();
   });
 
   test("rejects an unsigned/none-alg token (alg confusion attempt)", async () => {
@@ -85,6 +104,13 @@ describe("verifyAdminAccessToken", () => {
       JSON.stringify({ email: "admin@example.co.il", aal: "aal2", sub: "x", exp: 9999999999 }),
     ).toString("base64url");
     const forged = `${header}.${payload}.`;
-    await expect(verifyAdminAccessToken(forged, SECRET)).resolves.toBeNull();
+    await expect(verify(forged)).resolves.toBeNull();
+  });
+
+  test("returns null (does not throw) when JWKS is unreachable and no legacy secret is configured", async () => {
+    const token = await sign({ email: "admin@example.co.il", aal: "aal2" });
+    await expect(
+      verifyAdminAccessToken(token, { supabaseUrl: UNREACHABLE_SUPABASE_URL }),
+    ).resolves.toBeNull();
   });
 });

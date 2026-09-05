@@ -35,7 +35,10 @@ export const resolveAdminSession = cache(async (): Promise<AdminSessionResolutio
   const token = extractAccessTokenFromCookieValue(raw);
   if (!token) return { status: "no_session" };
 
-  const claims = await verifyAdminAccessToken(token, env.SUPABASE_JWT_SECRET);
+  const claims = await verifyAdminAccessToken(token, {
+    supabaseUrl: env.SUPABASE_URL,
+    legacyJwtSecret: env.SUPABASE_JWT_SECRET,
+  });
   if (!claims || claims.aal !== "aal2" || claims.exp * 1000 < Date.now()) {
     return { status: "no_session" };
   }

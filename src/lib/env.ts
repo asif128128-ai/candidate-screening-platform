@@ -15,7 +15,11 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_JWT_SECRET: z.string().min(1),
+  // Admin JWT verification is now JWKS-based (src/lib/admin-jwt.ts) —
+  // Supabase projects created after mid-2026 default to asymmetric (ES256)
+  // signing, which has no shared secret at all. This remains only as a
+  // fallback for a fully legacy (HS256-only) project.
+  SUPABASE_JWT_SECRET: z.string().min(1).optional(),
   CANDIDATE_COOKIE_SECRET: z.string().min(16),
   // ARCHITECTURE.md §5.2/§6, DATA_MODEL.md §3.11: HMAC key for the per-serve
   // `item_token` (assessment hot path). Deliberately a separate secret from
