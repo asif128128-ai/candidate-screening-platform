@@ -213,6 +213,14 @@ test.describe(hasDb ? "assessment runner (real Postgres)" : "assessment runner (
     }
     const practice = page.getByTestId("practice-scene-continue");
     if (await practice.isVisible().catch(() => false)) {
+      // Red-team finding #6: the practice scene's copy says "לא מתוזמן, לא
+      // נספר" (not timed, not counted) — it must never auto-advance the
+      // candidate on its own. Assert it's still there after a real wait,
+      // and that no leftover countdown text is rendered, before dismissing
+      // it explicitly via the continue button.
+      await expect(page.getByText(/אוטומטית/)).toHaveCount(0);
+      await page.waitForTimeout(2000);
+      await expect(practice).toBeVisible();
       await practice.click();
       await page.waitForTimeout(300);
     }

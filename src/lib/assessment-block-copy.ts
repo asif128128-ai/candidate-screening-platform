@@ -65,4 +65,16 @@ export function blockKeyForPosition(position: number): string {
 }
 
 export const BLOCK_INTRO_AUTO_ADVANCE_MS = 45_000;
-export const PRACTICE_SCENE_AUTO_ADVANCE_MS = 90_000;
+// Red-team finding #6: PRACTICE_SCENE_AUTO_ADVANCE_MS (90s) used to silently
+// force-advance the candidate out of the pre-investigation practice scene
+// into the real, scored assessment, directly contradicting that scene's own
+// copy ("לא מתוזמן, לא נספר" — "not timed, not counted"). Removed rather
+// than disclosed (ASSESSMENT_DESIGN.md §2's whole point for this scene is
+// removing time pressure for candidates who need longer to get comfortable
+// with the multi-tab investigation UI — DECISIONS_LOG.md #1) — see
+// src/app/(candidate)/[locale]/apply/[applicationId]/assessment/practice-scene.tsx.
+// Safe to remove entirely: the practice scene is a client-only phase before
+// any server call, so no server-side clock (item deadline or session wall
+// clock) starts until the candidate actually clicks through — lingering
+// here has no effect beyond eating into the candidate's own overall session
+// time budget, which is their choice to make.
