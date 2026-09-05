@@ -188,3 +188,133 @@ from here:
    `TEST_STRATEGY.md` §2, wire the remaining sweep invariant checks, wire
    the `/api/health` storage check, and run the k6 load scenarios
    (`TEST_STRATEGY.md` §8) before the human pilot (§9).
+
+## Assessment engine (`src/assessment/*`, `src/assessment/bank/**`) — done
+
+Everything the assessment-engine placeholder table pointed at is implemented,
+pure, and tested: `generator.ts`, `scoring.ts`, `integrity.ts`, `timing.ts`,
+the 52-template bank (14 speed + 12 reasoning + 14 tech + 12 investigation
+scenarios × 3 cause variants = 36 stories), `scripts/bank-audit.ts`, and
+`supabase/migrations/0003_sweep_checks.sql`. Decisions made where the spec
+was silent or two docs disagreed are in `IMPLEMENTATION_NOTES.md`'s
+"Assessment engine" section — read that before changing scoring/integrity
+math, since several of them (guess-penalty scope, blind-guess handling,
+confidence-on-skip) are easy to get wrong a second way that also looks
+plausible.
+
+### What was verified, this session
+```
+pnpm typecheck                          # OK, 0 errors
+pnpm lint                               # OK, 0 errors (2 pre-existing warnings, unrelated)
+pnpm test                               # OK, 157/157 (vitest) — see tests/unit/assessment/*
+pnpm run bank:audit                     # OK, 20,000 sessions, all invariants hold, ~0.76ms/session
+./scripts/local-pg-setup.sh screening_test   # OK, all 3 migrations apply cleanly
+```
+The 4 new sweep invariant checks (below) were also exercised by hand against
+that local Postgres with synthetic `assessment_items`/`assessment_results`/
+`integrity_events` rows crafted to cross each threshold in both directions —
+see the shell transcript in this session's history if you need to reproduce
+the fixtures; they weren't kept as a committed script since they mutate a
+throwaway local DB, not `supabase/migrations/`.
+
+### Exact interface for the candidate-flow / runner-UI engineer
+
+You (whoever builds `src/app/(candidate)/[locale]/.../assessment/page.tsx`
+and `src/app/api/assessment/{current,answer,events}/route.ts`) are the
+consumer of these four pure modules. Nothing here does I/O; you own reading
+from and writing to Postgres.
+
+**1. Session start — `generateSession` (`src/assessment/generator.ts`)**
+```ts
+function generateSession(
+  blueprint: Blueprint,       // assessment_configs.blueprint, parsed
+  seed: bigint,                // assessment_sessions.seed
+  options?: { scenarioUsageCounts?: Record<string, number> },
+): GeneratedItem[]             // exactly 27 for the seed blueprint, positions 1..27
+```
+Call this **exactly once**, when `startAssessment` creates the session, and
+insert the result 1:1 into `assessment_items` (`position`, `block_key`,
+`pillar`, `template_id`, `template_version`, `variant_seed`, `kind`,
+`difficulty`, `time_limit_s`, `content`, `answer_key`). Never call it again
+for that session — `items_served_once` assumes content is fixed once
+written, and `generateSession` is only deterministic *given the same seed*,
+which you must not re-derive differently later.
+`options.scenarioUsageCounts` is the cohort-balancing hook
+(ASSESSMENT_DESIGN.md §3.3.1): pass `{ [template_id]: count }` from a cheap
+`SELECT template_id, COUNT(*) FROM assessment_items WHERE session_id IN
+(SELECT id FROM assessment_sessions WHERE application_id IN (SELECT id FROM
+applications WHERE job_id = $1)) AND template_id LIKE 'investigate.%' GROUP
+BY template_id` (or similar, indexed by `items_template_idx`) run once per
+`startAssessment` call. Omitting it (or passing `{}`) still works, just
+without balancing.
+
+**2. Per-answer — `scoreItem` (`src/assessment/scoring.ts`)**
+```ts
+function scoreItem(kind: ItemKind, answer: CandidateAnswer | null, key: AnswerKey): { sI: number; isCorrect: boolean }
+```
+Call this in `POST /api/assessment/answer` once the answer is validated
+against the materialized options (per `ARCHITECTURE.md` §6, unknown option
+ids are already rejected before this point). Store `isCorrect` into
+`assessment_responses.is_correct` and `sI` into `.partial_credit`. The
+`CandidateAnswer` shape is a discriminated union keyed by `kind` — see the
+exported `SingleChoiceAnswer` / `MultiChoiceAnswer` / `NumericAnswer` /
+`ShortTextAnswer` / `OrderingAnswer` / `InvestigationAnswer` types. For
+`ordering`, both the candidate's answer and `answerKey.correctOrder` are
+arrays of **indices into `content.items`** (the shuffled, candidate-facing
+array), not the items themselves. For `investigation`, **`isCorrect` reflects
+sub-question 1 (root cause) only** — that's the intentional headline
+correctness shown as ✔/✘ per item (`SCORING.md` §8); `sI` is the full
+0.5/0.25/0.25 composite.
+
+**3. Session finalization — `scoreSession` and `computeIntegrity`**
+Call both once, in the same transaction that calls `finalize_session()` and
+writes `assessment_results`. They are independent — integrity is never an
+input to scoring, and vice versa (`SCORING.md` principles / `ANTI_CHEATING.md`
+§5).
+```ts
+function scoreSession(input: ScoreSessionInput): ScoreSessionResult
+// input.items: ScoringItem[] — one per assessment_items row, plus (investigation
+//   only) `artifactKeys: string[]` = content.tabs.map(t => t.key). Without this
+//   field the "click-through" efficiency cap (SCORING.md §3.3) is silently
+//   skipped rather than mis-measured — see IMPLEMENTATION_NOTES.md.
+// input.responses: ScoringResponse[] — one per assessment_responses row, plus
+//   (investigation only) `firstAnswerSelectMs?: number | null` — see below.
+// input.events: ScoringEvent[] — ONLY kind 'artifact_open' (with `artifactKey`)
+//   and 'network_retry', filtered from integrity_events, with `position` (the
+//   item's position, not its uuid) and `atMs` (= meta.ms_since_render).
+```
+```ts
+function computeIntegrity(items: IntegrityItem[], responses: IntegrityResponse[], events: IntegrityEvent[]): ComputeIntegrityResult
+// events here is the FULL integrity_events list for the session (all kinds),
+// again keyed by `position` (nullable for session-level events like
+// ip_change/ua_change/instance_conflict) rather than item_id, and using
+// `durationMs` for the completed-span events (visibility_visible,
+// window_focus) per ANTI_CHEATING.md §3's `duration_ms` column.
+// `IntegrityResponse.decisiveArtifactOpened` should come from
+// `scoreSession`'s per-item process computation (not recomputed) — see the
+// worked pattern in tests/unit/assessment/scoring.test.ts and
+// integrity.test.ts for how the two modules' outputs compose in practice.
+```
+Write `scoreSession`'s output into `assessment_results.score_*`,
+`.confidence`, `.breakdown` (already shaped per `SCORING.md` §7) and
+`.median_response_ms`; write `computeIntegrity`'s into `.integrity_risk`,
+`.integrity_score`, `.integrity_reasons`.
+
+**4. Timing (`src/assessment/timing.ts`)** — `computeDeadline(servedAt, timeLimitS)`
+for `GET /current`'s first serve; `evaluateSubmission(deadlineAt, receivedAt)`
+for `POST /answer`'s late/expired decision (returns `{lateByMs}` or `null`);
+`computeSkewMs`/`clientRemainingMs` for the client timer display;
+`detectOutageWindow`/`outageOverlapMs` reproduce exactly what
+`apply_outage_credit()` does in SQL, in case you ever need the same math in
+TypeScript (e.g. for a health-check dry-run) — the actual credit application
+stays in the DB function, per `ARCHITECTURE.md` §5.2.
+
+### New sweep invariant checks (`supabase/migrations/0003_sweep_checks.sql`)
+`run_maintenance_sweep()` now also inserts `admin_alerts` rows for:
+`template_accuracy` (last 50 servings outside [10%, 95%]),
+`template_expiry_strong` (expiry rate > 35% among score_overall ≥ 65
+sessions), `scenario_drift` (per-job first-50-vs-last-50 accuracy on
+`investigate.*` templates rising > 25 points), and `outage_credit`
+(sessions credited for downtime in the last 24h, from `server_outage`
+integrity events). `db_size` is intentionally left alone — see
+`IMPLEMENTATION_NOTES.md`.

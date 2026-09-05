@@ -1,0 +1,177 @@
+// investigate.sso_login_subset — ASSESSMENT_DESIGN.md §3.3. Some employees
+// can't log in to a SaaS since Monday.
+import type { Cause, InvestigationScenario } from "../../types";
+import type { Rng } from "../../rng";
+import { buildInvestigationItem, genericAntiPatterns, type VariantWorld } from "./helpers";
+
+const TICKET = 'כרטיס תמיכה — "כמה עובדים לא מצליחים להתחבר לכלי ה-SaaS מאז יום שני. אחרים מצליחים בלי בעיה."';
+
+function buildA(rng: Rng): VariantWorld {
+  const domainOld = "example.co.il";
+  const domainNew = rng.pick(["example-labs.co.il", "example-tech.co.il"]);
+
+  return {
+    ticket: TICKET,
+    tabs: [
+      {
+        key: "users",
+        label: "טבלת משתמשים חוסמים",
+        body: `דנה   dana@${domainNew}    נכשל\nיוסי   yossi@${domainOld}   הצליח\nמאיה   maya@${domainNew}    נכשל\nאורי   ori@${domainOld}     הצליח`,
+      },
+      {
+        key: "idp",
+        label: "הגדרות IdP — דומיינים מורשים",
+        body: `דומיינים מורשים לכניסה: ${domainOld}\n(עודכן לאחרונה: לפני 3 חודשים)`,
+      },
+      {
+        key: "errlog",
+        label: "לוג שגיאות אימות",
+        body: `יום שני 09:14  dana@${domainNew}  DENIED domain_not_allowed\nיום שני 09:20  maya@${domainNew}  DENIED domain_not_allowed\nיום שני 09:31  yossi@${domainOld}  OK`,
+      },
+      {
+        key: "chat",
+        label: "צ'אט IT",
+        decoy: true,
+        body: "עידו: שמתם לב שהאתר קצת איטי היום? כנראה עומס רגיל של תחילת שבוע.",
+      },
+    ],
+    decisiveArtifactKeyQ1: "idp",
+    decisiveArtifactKeyQ3: "idp",
+    q1Options: [
+      { text: "הסיסמאות של העובדים שלא מצליחים להתחבר פגו" },
+      {
+        text: `הדומיין החדש (${domainNew}) לא נמצא ברשימת הדומיינים המורשים ב-IdP`,
+        correct: true,
+      },
+      { text: "השרת של ה-IdP איטי היום בגלל עומס" },
+      { text: "יש בעיה כללית בשירות ה-SaaS עצמו" },
+    ],
+    q3Prompt: "לפני כמה זמן עודכנה לאחרונה רשימת הדומיינים המורשים ב-IdP?",
+    q3Fact: "3 חודשים",
+    correctActionText: `להוסיף את ${domainNew} לרשימת הדומיינים המורשים ב-IdP ולוודא שהעובדים החוסמים מצליחים להתחבר`,
+    isEscalationRequired: false,
+    antiPatterns: genericAntiPatterns({
+      irreversible_action: "למחוק את חשבונות המשתמשים החוסמים וליצור חדשים",
+      treat_symptom: "לבקש מהעובדים לנסות להתחבר שוב כמה פעמים",
+      fix_decoy: "לחקור את איטיות האתר לפני שממשיכים",
+      busywork_gather_more: "לאסוף רשימה של כל העובדים בחברה לפני שנוגעים בהגדרות",
+    }),
+  };
+}
+
+function buildB(rng: Rng): VariantWorld {
+  const groupOld = "employees-il";
+  const groupNew = rng.pick(["staff-il", "team-il"]);
+
+  return {
+    ticket: TICKET,
+    tabs: [
+      {
+        key: "users",
+        label: "טבלת משתמשים חוסמים",
+        body: "דנה   group=staff-il      נכשל\nיוסי   group=employees-il  הצליח\nמאיה   group=staff-il      נכשל",
+      },
+      {
+        key: "mapping",
+        label: "מיפוי קבוצות (IdP -> SaaS)",
+        body: `${groupOld} -> Standard User\n(הקבוצה ${groupNew} שונתה השם שלה ביום שני מ-${groupOld}, אבל המיפוי לא עודכן)`,
+      },
+      {
+        key: "errlog",
+        label: "לוג שגיאות אימות",
+        body: `יום שני 08:55  group=${groupNew}  DENIED no_role_mapping\nיום שני 09:02  group=employees-il  OK`,
+      },
+      {
+        key: "billing",
+        label: "חשבונית SaaS",
+        decoy: true,
+        body: "חשבונית חודשית שולמה בזמן, ללא חריגות.",
+      },
+    ],
+    decisiveArtifactKeyQ1: "mapping",
+    decisiveArtifactKeyQ3: "mapping",
+    q1Options: [
+      { text: "הדומיין של העובדים החוסמים לא מורשה" },
+      {
+        text: `קבוצת ה-IdP שונתה שם ל-${groupNew} ביום שני, אבל מיפוי ההרשאות ב-SaaS עדיין מצביע לשם הישן`,
+        correct: true,
+      },
+      { text: "החשבונית לא שולמה והחשבון הוקפא" },
+      { text: "יש תקלה כללית בשירות ה-IdP" },
+    ],
+    q3Prompt: `לאיזה role ב-SaaS ממופה הקבוצה הישנה (${groupOld}) לפי מסך המיפוי?`,
+    q3Fact: "Standard User",
+    correctActionText: `לעדכן את מיפוי הקבוצות כך ש-${groupNew} ימופה ל-Standard User, ולוודא שהעובדים החוסמים מצליחים להתחבר`,
+    isEscalationRequired: false,
+    antiPatterns: genericAntiPatterns({
+      irreversible_action: "למחוק את הקבוצה הישנה מה-IdP",
+      treat_symptom: "לבקש מהעובדים להתחבר עם חשבון אישי אחר",
+      fix_decoy: "לבדוק את פרטי החיוב של השירות",
+      busywork_gather_more: "לאסוף את כל היסטוריית שינויי הקבוצות של השנה האחרונה",
+    }),
+  };
+}
+
+function buildC(rng: Rng): VariantWorld {
+  const group = rng.pick(["field-sales", "ops-team"]);
+
+  return {
+    ticket: TICKET,
+    tabs: [
+      {
+        key: "users",
+        label: "טבלת משתמשים חוסמים",
+        body: `דנה   group=${group}  נכשל (MFA required)\nיוסי   group=hq       הצליח`,
+      },
+      {
+        key: "policy",
+        label: "מדיניות אבטחה — IdP",
+        body: `מיום שני: אכיפת MFA חובה עבור קבוצת ${group} (הוחלט אחרי אירוע אבטחה בשבוע שעבר). חברי הקבוצה טרם נרשמו ל-MFA.`,
+      },
+      {
+        key: "errlog",
+        label: "לוג שגיאות אימות",
+        body: `יום שני 10:02  group=${group}  DENIED mfa_required_not_enrolled`,
+      },
+      {
+        key: "chat",
+        label: "צ'אט IT",
+        decoy: true,
+        body: "מאיה: יש עדכון גרסה לדפדפן שרץ אצל כולם? לא קשור כנראה.",
+      },
+    ],
+    decisiveArtifactKeyQ1: "policy",
+    decisiveArtifactKeyQ3: "policy",
+    q1Options: [
+      { text: `הדומיין של קבוצת ${group} לא מורשה` },
+      { text: "מיפוי הקבוצות בין ה-IdP ל-SaaS שגוי" },
+      {
+        text: `מדיניות אבטחה חדשה מאלצת MFA על קבוצת ${group}, וחבריה עדיין לא נרשמו ל-MFA`,
+        correct: true,
+      },
+      { text: "עדכון דפדפן גרם לכשל בהתחברות" },
+    ],
+    q3Prompt: "מדוע הוחלט לאכוף MFA על הקבוצה, לפי מדיניות האבטחה?",
+    q3Fact: "אירוע אבטחה",
+    correctActionText:
+      "לדווח לצוות האבטחה עם הראיות (מדיניות ה-MFA והעובדים החוסמים) ולהציע לתאם מועד הרשמה מבוקר ל-MFA לקבוצה",
+    isEscalationRequired: true,
+    antiPatterns: genericAntiPatterns({
+      irreversible_action: "לבטל את מדיניות ה-MFA לגמרי כדי לפתור מיד",
+      treat_symptom: "לבקש מהעובדים לנסות להתחבר שוב מדפדפן אחר",
+      fix_decoy: "לבדוק אם יש בעיה בגרסת הדפדפן",
+      busywork_gather_more: "לאסוף רשימה של כל מדיניות האבטחה שהוגדרו השנה",
+    }),
+  };
+}
+
+export const scenario: InvestigationScenario = {
+  id: "investigate.sso_login_subset",
+  version: 1,
+  causeVariants: ["a", "b", "c"],
+  escalationCauses: ["c"],
+  generate(rng: Rng, cause: Cause) {
+    const world = cause === "a" ? buildA(rng) : cause === "b" ? buildB(rng) : buildC(rng);
+    return buildInvestigationItem(rng, world);
+  },
+};
