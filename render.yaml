@@ -22,9 +22,22 @@ services:
     # `pnpm build` -> the two `cp`s below -> `node .next/standalone/server.js`
     # -> real HTML on `/jobs/student-tech-2026` and correct `/_next/static/*`
     # assets, not just `/api/health`.
+    # `NODE_ENV=development` prefixes only the install step: pnpm (like npm)
+    # skips devDependencies when NODE_ENV=production is set during install,
+    # but `tsx`/`typescript`/etc. are devDependencies needed at *build*
+    # time (prebuild's generate-schema-version.ts, the `next build` type
+    # check) even though the app runs as NODE_ENV=production at runtime.
+    # `next build` hardcodes NODE_ENV=production internally regardless of
+    # the ambient value, so this override is safe and only affects what
+    # `pnpm install` decides to install. `[ -d public ]` guards the first
+    # `cp`: an empty `public/` (nothing to serve today) has no files for
+    # git to track, so a fresh clone may not have the directory at all —
+    # harmless either way, standalone's own traced deps still copy fine.
+    # Verified against a real deploy: both failure modes reproduced first,
+    # this fixed both.
     buildCommand: >-
-      corepack enable && pnpm install --frozen-lockfile && pnpm build &&
-      cp -r public .next/standalone/public &&
+      corepack enable && NODE_ENV=development pnpm install --frozen-lockfile && pnpm build &&
+      ([ -d public ] && cp -r public .next/standalone/public || true) &&
       cp -r .next/static .next/standalone/.next/static
     startCommand: node .next/standalone/server.js
     healthCheckPath: /api/health
