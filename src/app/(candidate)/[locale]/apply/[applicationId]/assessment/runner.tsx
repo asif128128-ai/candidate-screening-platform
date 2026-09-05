@@ -19,7 +19,7 @@ import {
   type RunnerItemKind,
 } from "@/lib/assessment-runner-logic";
 import { BLOCK_COPY, blockKeyForPosition } from "@/lib/assessment-block-copy";
-import { TimerBar } from "./timer-bar";
+import { TimerBand } from "./timer-band";
 import { BlockIntro } from "./block-intro";
 import { PracticeScene } from "./practice-scene";
 import {
@@ -31,6 +31,9 @@ import {
   InvestigationView,
 } from "./item-views";
 import { getOrCreateClientInstanceId, useIntegrityTelemetry } from "./use-integrity-telemetry";
+import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { Card } from "@/components/ui/card";
 
 type Phase =
   | { kind: "loading" }
@@ -340,15 +343,21 @@ export function AssessmentRunner({ applicationId }: { applicationId: string }) {
   // ---- render ----
   if (phase.kind === "loading") {
     return (
-      <main className="mx-auto max-w-2xl p-8 text-center text-neutral-500" data-testid="assessment-loading">
-        טוען…
+      <main className="flex min-h-[60vh] items-center justify-center p-8" data-testid="assessment-loading">
+        <Card className="flex items-center gap-3 text-text-2">
+          <svg className="h-5 w-5 shrink-0 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+          טוען…
+        </Card>
       </main>
     );
   }
   if (phase.kind === "error") {
     return (
-      <main className="mx-auto max-w-2xl p-8 text-center" data-testid="assessment-error">
-        <p className="rounded-md bg-red-50 p-4 text-red-700">{phase.message}</p>
+      <main className="mx-auto max-w-2xl p-8" data-testid="assessment-error">
+        <Callout variant="error">{phase.message}</Callout>
       </main>
     );
   }
@@ -367,74 +376,74 @@ export function AssessmentRunner({ applicationId }: { applicationId: string }) {
 
   return (
     <main
-      className="mx-auto max-w-4xl p-6"
+      className="min-h-screen bg-canvas"
       data-testid="assessment-runner"
       data-application-id={applicationId}
       onKeyDown={(e) => {
         if (e.key === "Enter" && isAnswerPresent(kind, answer) && !submitting) handleSubmitClick();
       }}
     >
-      <header className="flex items-center justify-between text-sm text-neutral-500">
-        <span data-testid="progress-label">
-          {blockName} · שאלה {item.position} מתוך {item.totalItems}
-        </span>
-      </header>
+      <TimerBand blockName={blockName} position={item.position} totalItems={item.totalItems} remainingMs={remainingMs} totalMs={totalMs} />
 
-      <div className="mt-2">
-        <TimerBar remainingMs={remainingMs} totalMs={totalMs} />
-      </div>
+      <div className="mx-auto max-w-[1040px] px-4 py-6 sm:px-6">
+        {outageNotice ? (
+          <Callout variant="info" className="mb-4" data-testid="outage-notice">
+            הייתה תקלה זמנית בצד שלנו — הזמן לשאלה הוארך בהתאם.
+          </Callout>
+        ) : null}
+        {retryNotice ? (
+          <Callout variant="warning" className="mb-4" data-testid="retry-notice">
+            {retryNotice}
+          </Callout>
+        ) : null}
 
-      {outageNotice ? (
-        <p className="mt-3 rounded-md bg-blue-50 p-2 text-sm text-blue-800" data-testid="outage-notice">
-          הייתה תקלה זמנית בצד שלנו — הזמן לשאלה הוארך בהתאם.
-        </p>
-      ) : null}
-      {retryNotice ? (
-        <p className="mt-3 rounded-md bg-amber-50 p-2 text-sm text-amber-800" data-testid="retry-notice">
-          {retryNotice}
-        </p>
-      ) : null}
+        <div ref={itemPaneRef} data-testid="item-pane" style={{ userSelect: "none" }}>
+          <Card className="p-6 lg:p-8">
+            {kind === "single_choice" ? (
+              <SingleChoiceView content={item.content as never} answer={answer as SingleChoiceAnswer | null} onChange={handleAnswerChange} />
+            ) : kind === "multi_choice" ? (
+              <MultiChoiceView content={item.content as never} answer={answer as MultiChoiceAnswer | null} onChange={handleAnswerChange} />
+            ) : kind === "numeric" ? (
+              <NumericView content={item.content as never} answer={answer as NumericAnswer | null} onChange={handleAnswerChange} />
+            ) : kind === "short_text" ? (
+              <ShortTextView content={item.content as never} answer={answer as ShortTextAnswer | null} onChange={handleAnswerChange} />
+            ) : kind === "ordering" ? (
+              <OrderingView content={item.content as never} answer={answer as OrderingAnswer | null} onChange={handleAnswerChange} />
+            ) : (
+              <InvestigationView
+                content={item.content as never}
+                answer={answer as InvestigationAnswer | null}
+                onChange={handleAnswerChange}
+                onArtifactOpen={handleArtifactOpen}
+              />
+            )}
+          </Card>
+        </div>
 
-      <div ref={itemPaneRef} className="mt-6" data-testid="item-pane" style={{ userSelect: "none" }}>
-        {kind === "single_choice" ? (
-          <SingleChoiceView content={item.content as never} answer={answer as SingleChoiceAnswer | null} onChange={handleAnswerChange} />
-        ) : kind === "multi_choice" ? (
-          <MultiChoiceView content={item.content as never} answer={answer as MultiChoiceAnswer | null} onChange={handleAnswerChange} />
-        ) : kind === "numeric" ? (
-          <NumericView content={item.content as never} answer={answer as NumericAnswer | null} onChange={handleAnswerChange} />
-        ) : kind === "short_text" ? (
-          <ShortTextView content={item.content as never} answer={answer as ShortTextAnswer | null} onChange={handleAnswerChange} />
-        ) : kind === "ordering" ? (
-          <OrderingView content={item.content as never} answer={answer as OrderingAnswer | null} onChange={handleAnswerChange} />
-        ) : (
-          <InvestigationView
-            content={item.content as never}
-            answer={answer as InvestigationAnswer | null}
-            onChange={handleAnswerChange}
-            onArtifactOpen={handleArtifactOpen}
-          />
-        )}
-      </div>
-
-      <div className="mt-8 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={handleSkipClick}
-          disabled={submitting}
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm disabled:opacity-50"
-          data-testid="skip-button"
-        >
-          {skipConfirm ? "לדלג בלי לענות?" : "דילוג על השאלה"}
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmitClick}
-          disabled={submitting || !isAnswerPresent(kind, answer)}
-          className="rounded-md bg-neutral-900 px-6 py-2 font-medium text-white disabled:opacity-50"
-          data-testid="submit-button"
-        >
-          {submitting ? "שולח…" : "שליחת תשובה"}
-        </button>
+        <div className="mt-8 flex items-center justify-between gap-4">
+          <Button
+            type="button"
+            variant={skipConfirm ? "secondary" : "ghost"}
+            size="sm"
+            fullWidth={false}
+            onClick={handleSkipClick}
+            disabled={submitting}
+            data-testid="skip-button"
+          >
+            {skipConfirm ? "לדלג בלי לענות?" : "דילוג על השאלה"}
+          </Button>
+          <Button
+            type="button"
+            fullWidth={false}
+            className="min-w-[160px]"
+            onClick={handleSubmitClick}
+            disabled={!isAnswerPresent(kind, answer)}
+            pending={submitting}
+            data-testid="submit-button"
+          >
+            {submitting ? "שולח…" : "שליחת תשובה"}
+          </Button>
+        </div>
       </div>
     </main>
   );

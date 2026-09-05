@@ -57,13 +57,16 @@ function renderTable(lines: string[], key: string) {
   // "ltr" — a Hebrew-headed table (עיר/סטטוס, קלט/פלט, ...) must read
   // right-to-left or its columns show up reversed for a Hebrew reader.
   const rtl = HEBREW_RE.test(header.join(""));
+  // FINTECH_REDESIGN_PLAN.md §1.6: 14/22, header row bg --canvas 600, cell
+  // padding 8 12, borders --line, radius 10 on the wrapper with
+  // overflow: hidden, tabular numerals.
   return (
-    <div key={key} dir={rtl ? "rtl" : "ltr"} className="my-3 overflow-x-auto">
-      <table className="min-w-full border-collapse text-start text-sm">
+    <div key={key} dir={rtl ? "rtl" : "ltr"} className="tnum my-3 overflow-x-auto rounded-10 border border-line">
+      <table className="min-w-full border-collapse text-start text-[14px] leading-[22px]">
         <thead>
           <tr>
             {header.map((h, i) => (
-              <th key={i} className="border border-neutral-300 bg-neutral-50 px-2 py-1 font-medium">
+              <th key={i} className="border-b border-line bg-canvas px-3 py-2 font-semibold text-text">
                 <span className="cell">
                   <InlineText text={h} keyPrefix={`${key}-h${i}`} />
                 </span>
@@ -75,7 +78,7 @@ function renderTable(lines: string[], key: string) {
           {bodyRows.map((row, ri) => (
             <tr key={ri}>
               {row.map((cell, ci) => (
-                <td key={ci} className="border border-neutral-200 px-2 py-1">
+                <td key={ci} className="border-b border-line px-3 py-2 text-text">
                   <span className="cell">
                     <InlineText text={cell} keyPrefix={`${key}-c${ri}-${ci}`} />
                   </span>
@@ -102,7 +105,7 @@ function renderTextBlock(block: string, keyPrefix: string) {
     buffer = [];
     if (text.length > 0) {
       nodes.push(
-        <p key={key} className="whitespace-pre-wrap leading-relaxed">
+        <p key={key} className="whitespace-pre-wrap leading-[26px]">
           {renderInline(text, key)}
         </p>,
       );
@@ -140,11 +143,14 @@ export function ItemText({ text }: { text: string }) {
     }
     const code = segments[i + 2];
     if (code !== undefined) {
+      // FINTECH_REDESIGN_PLAN.md §1.6: bg --ink-950, text #E8ECF6, radius
+      // 10, padding 14 16, mono 14/22, dir="ltr" (unchanged), a 1px
+      // --ink-800 border.
       nodes.push(
         <pre
           key={`code-${i}`}
           dir="ltr"
-          className="my-3 select-none overflow-x-auto whitespace-pre-wrap break-words rounded-md bg-neutral-900 p-3 text-start font-mono text-sm text-neutral-100"
+          className="my-3 select-none overflow-x-auto whitespace-pre-wrap break-words rounded-10 border border-ink-800 bg-ink-950 px-4 py-3.5 text-start font-mono text-[14px] leading-[22px] text-[#E8ECF6]"
         >
           {code.replace(/\n$/, "")}
         </pre>,

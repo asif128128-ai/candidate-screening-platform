@@ -19,6 +19,10 @@ import type {
 } from "@/assessment/scoring";
 import { Term } from "@/components/term";
 import { InlineText, ItemText } from "./item-text";
+import { OptionButton } from "@/components/ui/option-button";
+import { Callout } from "@/components/ui/callout";
+import { Chip } from "@/components/ui/chip";
+import { Input, Select } from "@/components/ui/field";
 
 const OPTION_LETTERS = ["א", "ב", "ג", "ד", "ה", "ו"];
 
@@ -30,7 +34,7 @@ const OPTION_LETTERS = ["א", "ב", "ג", "ד", "ה", "ו"];
  * dangerouslySetInnerHTML is safe here (FINTECH_REDESIGN_PLAN.md §4 A1).
  */
 function Figure({ svg }: { svg: string }) {
-  return <div dir="ltr" className="figure" dangerouslySetInnerHTML={{ __html: svg }} />;
+  return <div dir="ltr" className="figure my-4" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
 /** Renders one option's label: SVG tiles for `optionsFormat: "svg"` (reasoning.grid_pattern), inline-rendered text otherwise. */
@@ -45,13 +49,15 @@ function OptionLabel({ opt, format, keyPrefix }: { opt: string; format: "text" |
   );
 }
 
+// FINTECH_REDESIGN_PLAN.md §1.6: artifacts as inner blocks — bg --canvas,
+// radius 10, 1px --line, label 12/16 600 --text-3, body mono 14/22.
 function ArtifactBlock({ artifact }: { artifact: Pick<Artifact, "label" | "body"> }) {
   return (
-    <div className="rounded-md border border-neutral-200 p-3">
-      <p className="text-xs font-medium text-neutral-500">{artifact.label}</p>
+    <div className="rounded-10 border border-line bg-canvas p-3">
+      <p className="text-[12px] font-semibold leading-4 text-text-3">{artifact.label}</p>
       <pre
         dir="ltr"
-        className="mt-1 select-none whitespace-pre-wrap break-words text-start font-mono text-sm text-neutral-800"
+        className="mt-1 select-none whitespace-pre-wrap break-words text-start font-mono text-[14px] leading-[22px] text-text"
       >
         {artifact.body}
       </pre>
@@ -77,7 +83,7 @@ export function SingleChoiceView({
 }) {
   return (
     <div>
-      <div className="text-lg" data-testid="item-prompt">
+      <div className="text-[18px] font-medium leading-[30px] text-text" data-testid="item-prompt">
         <ItemText text={content.prompt} />
       </div>
       {content.figureSvg ? <Figure svg={content.figureSvg} /> : null}
@@ -89,11 +95,7 @@ export function SingleChoiceView({
         </div>
       ) : null}
       <div
-        className={
-          content.optionsFormat === "svg"
-            ? "mt-6 grid gap-2"
-            : "mt-6 space-y-2"
-        }
+        className={content.optionsFormat === "svg" ? "mt-6 grid gap-2" : "mt-6 flex flex-col gap-2"}
         style={content.optionsFormat === "svg" ? { gridTemplateColumns: "repeat(auto-fill, 112px)" } : undefined}
         role="radiogroup"
         aria-label="אפשרויות תשובה"
@@ -109,30 +111,33 @@ export function SingleChoiceView({
                 aria-checked={selected}
                 data-testid={`option-${i}`}
                 onClick={() => onChange({ selectedIndex: i })}
-                className={`flex flex-col items-center gap-1 rounded-md border p-2 transition-colors ${
-                  selected ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:bg-neutral-50"
+                className={`focus-ring flex flex-col items-center gap-1.5 rounded-12 border p-2 transition-colors ${
+                  selected ? "border-line bg-brand-50 shadow-[inset_0_0_0_2px_var(--brand-600)]" : "border-line bg-surface hover:bg-canvas"
                 }`}
               >
                 <OptionLabel opt={opt} format={content.optionsFormat} keyPrefix={`opt-${i}`} />
-                <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}</span>
+                <span
+                  className={`tnum flex h-7 w-7 items-center justify-center rounded-full text-[14px] font-semibold ${
+                    selected ? "bg-brand-600 text-white" : "bg-ink-100 text-ink-900"
+                  }`}
+                >
+                  {OPTION_LETTERS[i] ?? i + 1}
+                </span>
               </button>
             );
           }
           return (
-            <button
+            <OptionButton
               key={i}
-              type="button"
               role="radio"
               aria-checked={selected}
               data-testid={`option-${i}`}
+              badge={OPTION_LETTERS[i] ?? i + 1}
+              selected={selected}
               onClick={() => onChange({ selectedIndex: i })}
-              className={`flex w-full items-start gap-3 rounded-md border p-3 text-start transition-colors ${
-                selected ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:bg-neutral-50"
-              }`}
             >
-              <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
               <OptionLabel opt={opt} format={content.optionsFormat} keyPrefix={`opt-${i}`} />
-            </button>
+            </OptionButton>
           );
         })}
       </div>
@@ -152,7 +157,7 @@ export function MultiChoiceView({
   const selected = new Set(answer?.selectedIndexes ?? []);
   return (
     <div>
-      <div className="text-lg" data-testid="item-prompt">
+      <div className="text-[18px] font-medium leading-[30px] text-text" data-testid="item-prompt">
         <ItemText text={content.prompt} />
       </div>
       {content.artifacts?.length ? (
@@ -162,29 +167,27 @@ export function MultiChoiceView({
           ))}
         </div>
       ) : null}
-      <div className="mt-6 space-y-2">
+      <div className="mt-6 flex flex-col gap-2">
         {content.options.map((opt, i) => {
           const checked = selected.has(i);
           return (
-            <button
+            <OptionButton
               key={i}
-              type="button"
               role="checkbox"
               aria-checked={checked}
               data-testid={`option-${i}`}
+              badge={OPTION_LETTERS[i] ?? i + 1}
+              selected={checked}
+              multi
               onClick={() => {
                 const next = new Set(selected);
                 if (checked) next.delete(i);
                 else next.add(i);
                 onChange({ selectedIndexes: [...next].sort((a, b) => a - b) });
               }}
-              className={`flex w-full items-start gap-3 rounded-md border p-3 text-start transition-colors ${
-                checked ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:bg-neutral-50"
-              }`}
             >
-              <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
               <OptionLabel opt={opt} format={undefined} keyPrefix={`opt-${i}`} />
-            </button>
+            </OptionButton>
           );
         })}
       </div>
@@ -203,7 +206,7 @@ export function NumericView({
 }) {
   return (
     <div>
-      <div className="text-lg" data-testid="item-prompt">
+      <div className="text-[18px] font-medium leading-[30px] text-text" data-testid="item-prompt">
         <ItemText text={content.prompt} />
       </div>
       {content.artifacts?.length ? (
@@ -213,18 +216,18 @@ export function NumericView({
           ))}
         </div>
       ) : null}
-      <div className="mt-6 flex items-center gap-2">
-        <input
+      <div className="mt-6 flex items-center gap-3">
+        <Input
           type="text"
           inputMode="decimal"
           dir="ltr"
           value={answer?.value === null || answer?.value === undefined ? "" : String(answer.value)}
           onChange={(e) => onChange({ value: e.target.value })}
-          className="w-40 rounded-md border border-neutral-300 p-2 text-start"
+          className="w-40"
           data-testid="numeric-input"
           placeholder="0"
         />
-        {content.unit ? <span className="text-neutral-500">{content.unit}</span> : null}
+        {content.unit ? <span className="text-text-3">{content.unit}</span> : null}
       </div>
     </div>
   );
@@ -241,7 +244,7 @@ export function ShortTextView({
 }) {
   return (
     <div>
-      <div className="text-lg" data-testid="item-prompt">
+      <div className="text-[18px] font-medium leading-[30px] text-text" data-testid="item-prompt">
         <ItemText text={content.prompt} />
       </div>
       {content.artifacts?.length ? (
@@ -251,13 +254,13 @@ export function ShortTextView({
           ))}
         </div>
       ) : null}
-      <input
+      <Input
         type="text"
         dir="auto"
         value={answer?.text ?? ""}
         onChange={(e) => onChange({ text: e.target.value })}
         onPaste={(e) => e.preventDefault()}
-        className="mt-6 w-full max-w-sm rounded-md border border-neutral-300 p-2 text-start"
+        className="mt-6 max-w-sm"
         data-testid="short-text-input"
         placeholder={content.placeholder}
       />
@@ -288,17 +291,17 @@ export function OrderingView({
 
   return (
     <div>
-      <div className="text-lg" data-testid="item-prompt">
+      <div className="text-[18px] font-medium leading-[30px] text-text" data-testid="item-prompt">
         <ItemText text={content.prompt} />
       </div>
-      <div className="mt-6 space-y-2">
+      <div className="mt-6 flex flex-col gap-2">
         {Array.from({ length: n }, (_, slot) => (
-          <div key={slot} className="flex items-center gap-3">
-            <span className="w-6 text-end font-semibold">{slot + 1}.</span>
-            <select
+          <div key={slot} className="rtl-row items-center gap-3">
+            <span className="tnum w-6 text-end font-semibold text-text">{slot + 1}.</span>
+            <Select
               value={order[slot] ?? -1}
               onChange={(e) => setSlot(slot, Number(e.target.value))}
-              className="flex-1 rounded-md border border-neutral-300 p-2"
+              className="flex-1"
               data-testid={`ordering-slot-${slot}`}
             >
               <option value={-1} disabled>
@@ -309,7 +312,7 @@ export function OrderingView({
                   {item}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         ))}
       </div>
@@ -321,6 +324,8 @@ export function OrderingView({
 // Investigation — ASSESSMENT_DESIGN.md §3.3 / CANDIDATE_FLOW.md §5: tabs
 // across the top of the artifact pane (RTL order), answers panel on the
 // start side, artifact pane on the end side; each tab click is logged.
+// FINTECH_REDESIGN_PLAN.md §1.6: 5/7 grid on >=1024px, underline tabs, the
+// ticket as a Callout info, numbered sub-question chips.
 // ---------------------------------------------------------------------------
 
 export function InvestigationView({
@@ -363,32 +368,36 @@ export function InvestigationView({
   const a = answer ?? { q1: null, q2: null, q3: null };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div className="order-2 lg:order-1">
-        <div className="rounded-md bg-neutral-50 p-3 text-sm" data-testid="investigation-ticket">
-          <ItemText text={content.ticket} />
-        </div>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="order-2 lg:order-1 lg:col-span-5">
+        <Callout variant="info" data-testid="investigation-ticket">
+          <p className="text-[12px] font-semibold leading-4 text-brand-700">כרטיס תמיכה</p>
+          <div className="mt-1">
+            <ItemText text={content.ticket} />
+          </div>
+        </Callout>
 
-        <div className="mt-4">
-          <p className="font-medium" data-testid="investigation-q1-prompt">
-            1. {content.q1.prompt}
-          </p>
-          <div className="mt-2 space-y-2">
+        <div className="mt-5">
+          <div className="rtl-row items-center gap-2">
+            <Chip>1</Chip>
+            <p className="font-medium text-text" data-testid="investigation-q1-prompt">
+              {content.q1.prompt}
+            </p>
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
             {content.q1.options.map((opt, i) => (
-              <button
+              <OptionButton
                 key={i}
-                type="button"
                 role="radio"
                 aria-checked={a.q1 === i}
                 data-testid={`q1-option-${i}`}
+                badge={OPTION_LETTERS[i] ?? i + 1}
+                selected={a.q1 === i}
+                size="sm"
                 onClick={() => onChange({ ...a, q1: i })}
-                className={`flex w-full items-start gap-2 rounded-md border p-2 text-start text-sm ${
-                  a.q1 === i ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:bg-neutral-50"
-                }`}
               >
-                <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
                 <OptionLabel opt={opt} format={undefined} keyPrefix={`q1-opt-${i}`} />
-              </button>
+              </OptionButton>
             ))}
           </div>
         </div>
@@ -399,70 +408,77 @@ export function InvestigationView({
             stays as data for type-shape reasons, just not rendered here). */}
         {scored ? (
           <>
-            <div className="mt-4">
-              <p className="font-medium" data-testid="investigation-q2-prompt">
-                2. {content.q2.prompt}
-              </p>
-              <div className="mt-2 space-y-2">
+            <div className="mt-5">
+              <div className="rtl-row items-center gap-2">
+                <Chip>2</Chip>
+                <p className="font-medium text-text" data-testid="investigation-q2-prompt">
+                  {content.q2.prompt}
+                </p>
+              </div>
+              <div className="mt-3 flex flex-col gap-2">
                 {content.q2.options.map((opt, i) => (
-                  <button
+                  <OptionButton
                     key={i}
-                    type="button"
                     role="radio"
                     aria-checked={a.q2 === i}
                     data-testid={`q2-option-${i}`}
+                    badge={OPTION_LETTERS[i] ?? i + 1}
+                    selected={a.q2 === i}
+                    size="sm"
                     onClick={() => onChange({ ...a, q2: i })}
-                    className={`flex w-full items-start gap-2 rounded-md border p-2 text-start text-sm ${
-                      a.q2 === i ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:bg-neutral-50"
-                    }`}
                   >
-                    <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
                     <OptionLabel opt={opt} format={undefined} keyPrefix={`q2-opt-${i}`} />
-                  </button>
+                  </OptionButton>
                 ))}
               </div>
             </div>
 
-            <div className="mt-4">
-              <p className="font-medium">3. {content.q3.prompt}</p>
-              <input
+            <div className="mt-5">
+              <div className="rtl-row items-center gap-2">
+                <Chip>3</Chip>
+                <p className="font-medium text-text">{content.q3.prompt}</p>
+              </div>
+              <Input
                 type="text"
                 dir="auto"
                 value={a.q3 ?? ""}
                 onChange={(e) => onChange({ ...a, q3: e.target.value })}
                 onPaste={(e) => e.preventDefault()}
                 placeholder={content.q3.placeholder}
-                className="mt-2 w-full max-w-xs rounded-md border border-neutral-300 p-2 text-start text-sm"
+                className="mt-3 max-w-xs text-[15px]"
                 data-testid="q3-input"
               />
             </div>
           </>
         ) : (
-          <p className="mt-3 text-xs text-neutral-400">תרגול בלבד — לא נשמר ולא נספר.</p>
+          <p className="mt-4 text-[13px] leading-5 text-text-3">תרגול בלבד — לא נשמר ולא נספר.</p>
         )}
       </div>
 
-      <div className="order-1 lg:order-2">
-        <div className="flex flex-wrap gap-1 border-b border-neutral-200" role="tablist">
-          {content.tabs.map((tab, i) => (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === i}
-              onClick={() => selectTab(i)}
-              data-testid={`artifact-tab-${tab.key}`}
-              className={`rounded-t-md px-3 py-2 text-sm ${
-                activeTab === i ? "border border-b-0 border-neutral-300 bg-white font-medium" : "text-neutral-500 hover:bg-neutral-50"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      <div className="order-1 lg:order-2 lg:col-span-7">
+        <div className="rtl-row flex-wrap gap-1 border-b border-line" role="tablist">
+          {content.tabs.map((tab, i) => {
+            const isActive = activeTab === i;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => selectTab(i)}
+                data-testid={`artifact-tab-${tab.key}`}
+                className={`focus-ring border-b-2 px-3 py-2 text-[15px] font-semibold leading-6 transition-colors ${
+                  isActive ? "border-brand-600 text-ink-900" : "border-transparent text-text-2 hover:text-ink-900"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
         {active ? (
-          <div className="rounded-b-md border border-t-0 border-neutral-300 p-3" data-testid="artifact-body">
-            <pre dir="ltr" className="select-none whitespace-pre-wrap break-words text-start font-mono text-sm text-neutral-800">
+          <div className="mt-3 min-h-[220px] rounded-10 border border-line bg-canvas p-3" data-testid="artifact-body">
+            <pre dir="ltr" className="select-none whitespace-pre-wrap break-words text-start font-mono text-[14px] leading-[22px] text-text">
               {active.body}
             </pre>
           </div>

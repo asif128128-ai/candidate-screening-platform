@@ -4,6 +4,9 @@ import { useState } from "react";
 import type { InvestigationAnswer } from "@/assessment/scoring";
 import type { InvestigationContent } from "@/assessment/types";
 import { InvestigationView } from "./item-views";
+import { Card } from "@/components/ui/card";
+import { Chip } from "@/components/ui/chip";
+import { Button } from "@/components/ui/button";
 
 // ASSESSMENT_DESIGN.md §2: "one untimed interactive practice scene before
 // block 3 (a one-artifact, one-question mini-investigation with the real
@@ -18,6 +21,10 @@ import { InvestigationView } from "./item-views";
 // assessment-block-copy.ts's comment — the whole point of this scene is
 // removing time pressure, and it's safe to remove (client-only phase, no
 // server clock runs until the candidate clicks through).
+//
+// FINTECH_REDESIGN_PLAN.md §1.6: same runner chrome as the timed items, but
+// the band is --ink-800 with a chip "תרגול · לא מתוזמן · לא נספר" instead
+// of a timer, so the candidate visibly knows the clock is not running.
 const PRACTICE_CONTENT: InvestigationContent = {
   ticket: 'כרטיס תרגול — "אתר החברה מציג שגיאת תעודת אבטחה (SSL) כשנכנסים אליו הבוקר."',
   tabs: [
@@ -42,25 +49,32 @@ export function PracticeScene({ onProceed }: { onProceed: () => void }) {
   const [answer, setAnswer] = useState<InvestigationAnswer | null>(null);
 
   return (
-    <main className="mx-auto max-w-4xl p-8" data-testid="practice-scene">
-      <p className="text-sm text-neutral-500">תרגול לפני חלק החקירה (לא מתוזמן, לא נספר)</p>
-      <h1 className="mt-1 text-xl font-semibold">איך עובד מסך חקירה</h1>
-      <p className="mt-2 text-sm text-neutral-600">
-        בכל תרחיש חקירה יש כמה כרטיסיות מידע (חלקן לא רלוונטיות) ושלוש שאלות. בתרגול הזה יש שאלה אחת בלבד, לתרגול המסך.
-      </p>
-
-      <div className="mt-6">
-        <InvestigationView content={PRACTICE_CONTENT} answer={answer} onChange={setAnswer} scored={false} />
+    <main className="min-h-screen bg-canvas" data-testid="practice-scene">
+      <div className="sticky top-0 z-20 bg-ink-800">
+        <div className="rtl-row mx-auto h-16 max-w-[1040px] items-center justify-between px-4 sm:px-6">
+          <span className="text-[14px] font-semibold leading-5 text-ink-200">תרגול לפני חלק החקירה (לא מתוזמן, לא נספר)</span>
+          <Chip onInk>תרגול · לא מתוזמן · לא נספר</Chip>
+        </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onProceed}
-        className="mt-8 w-full rounded-md bg-neutral-900 py-3 font-medium text-white"
-        data-testid="practice-scene-continue"
-      >
-        המשך לחלק החקירה
-      </button>
+      <div className="mx-auto max-w-[1040px] px-4 py-6 sm:px-6">
+        <h1 className="text-[20px] font-semibold leading-7 text-text">איך עובד מסך חקירה</h1>
+        <p className="mt-2 text-[14px] leading-[22px] text-text-2">
+          בכל תרחיש חקירה יש כמה כרטיסיות מידע (חלקן לא רלוונטיות) ושלוש שאלות. בתרגול הזה יש שאלה אחת בלבד, לתרגול המסך.
+        </p>
+
+        <div className="mt-6">
+          <Card className="p-6 lg:p-8">
+            <InvestigationView content={PRACTICE_CONTENT} answer={answer} onChange={setAnswer} scored={false} />
+          </Card>
+        </div>
+
+        <div className="mt-8">
+          <Button type="button" onClick={onProceed} data-testid="practice-scene-continue">
+            המשך לחלק החקירה
+          </Button>
+        </div>
+      </div>
     </main>
   );
 }
