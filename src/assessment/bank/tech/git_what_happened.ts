@@ -1,7 +1,14 @@
 // tech.git_what_happened — ASSESSMENT_DESIGN.md §3.4. Two-branch story ->
 // why a change "disappeared". conventions_stated: n/a (the story itself
 // carries every fact needed).
-import type { ItemTemplate } from "../../types";
+//
+// Only difficulties 2-3 are declared (a single dropped-branch story doesn't
+// have a genuinely "easy" version worth adding at d1). d2 uses the simpler
+// story (an unmerged branch deleted outright — one cause, one mechanism);
+// d3 pool has two subtler stories (force-push-after-rebase, and an
+// interactive-rebase squash) where the history is still recoverable but the
+// mechanism has more moving parts and the wrong options are closer misses.
+import type { Difficulty, ItemTemplate } from "../../types";
 import type { Rng } from "../../rng";
 import { shuffleOptions } from "../helpers";
 
@@ -11,7 +18,7 @@ interface Case {
   wrong: string[];
 }
 
-const CASES: Case[] = [
+const CASES_MODERATE: Case[] = [
   {
     story:
       "דנה עבדה על branch בשם feature/login, ביצעה שם כמה commits, ואז ביצעה merge של main לתוך feature/login (כדי להתעדכן). " +
@@ -23,6 +30,9 @@ const CASES: Case[] = [
       "השינויים נמחקו כי הן לא נדחפו (push) לשרת מעולם — זו הסיבה היחידה האפשרית",
     ],
   },
+];
+
+const CASES_HARD: Case[] = [
   {
     story:
       "יוסי עבד על branch בשם fix/bug-42, ביצע commit, ואז עשה force-push ל-branch אחרי שעשה rebase שסידר מחדש את ה-commits. " +
@@ -34,6 +44,17 @@ const CASES: Case[] = [
       "הקונפליקטים נגרמו מבעיה ברשת ולא קשורים לפעולות ב-Git",
     ],
   },
+  {
+    story:
+      "מאיה עשתה interactive rebase (rebase -i) על branch בשם feature/reports כדי לנקות את היסטוריית ה-commits לפני PR, " +
+      "ובטעות סימנה commit אחד כ-\"squash\" לתוך הקודם לו במקום \"pick\". אחרי שדחפה (force-push) את השינוי, אחד מהתיקונים שלה — שהיה בתוך אותו commit שסומן ל-squash — נראה כאילו נעלם מהקוד, למרות שההודעה שלו עדיין מופיעה בהיסטוריה הממוזגת.",
+    correct: "ה-squash מיזג את שינויי הקוד של שני ה-commits לכדי אחד; אם חלק מהשינוי נדרס (למשל conflict שנפתר לא נכון בזמן ה-squash), הקוד נעלם גם אם הודעת ה-commit נשמרה",
+    wrong: [
+      "squash תמיד מוחק את הודעת ה-commit יחד עם הקוד שלו",
+      "force-push אחרי rebase -i בלתי אפשרי טכנית ולכן זה לא יכול היה לקרות",
+      "התיקון נעלם כי rebase מוחק קבצים שלא נגעו בהם ב-commit הראשון",
+    ],
+  },
 ];
 
 export const template: ItemTemplate = {
@@ -43,8 +64,8 @@ export const template: ItemTemplate = {
   kind: "single_choice",
   difficulties: [2, 3],
   conventionsStated: "n/a",
-  generate(rng: Rng) {
-    const c = rng.pick(CASES);
+  generate(rng: Rng, difficulty: Difficulty) {
+    const c = rng.pick(difficulty === 2 ? CASES_MODERATE : CASES_HARD);
     const prompt = `${c.story}\n\nמה קרה כאן, בסבירות הגבוהה ביותר?`;
     const { options, correctIndex } = shuffleOptions(rng, c.correct, c.wrong);
     return {

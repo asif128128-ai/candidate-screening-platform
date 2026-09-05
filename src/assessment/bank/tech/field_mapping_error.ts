@@ -7,7 +7,14 @@
 // (not required to keep the mapping a bijection — a real mapping tool lets
 // you point two fields at the same target by mistake, which is exactly the
 // bug being tested for).
-import type { ItemTemplate } from "../../types";
+//
+// d1 cases (below) have semantically distant targets, so a swapped row
+// stands out immediately (e.g. a name mapped to "Email"). d2 cases use
+// near-duplicate target pairs (billing vs. shipping, start vs. end) where
+// the corrupted row is still a *plausible* field in the target system and
+// requires actually checking each row against its meaning, not just
+// scanning for an obviously-wrong-looking target.
+import type { Difficulty, ItemTemplate } from "../../types";
 import type { Rng } from "../../rng";
 
 interface FieldPair {
@@ -17,9 +24,16 @@ interface FieldPair {
 
 interface Case {
   pairs: FieldPair[]; // pairs[i].source correctly maps to pairs[i].target
+  /**
+   * Hard cases only: which two row indices are the "confusable" pair (e.g.
+   * billing vs. shipping). The corruption always swaps within this pair, so
+   * the wrong target is always a genuine near-miss — never the unrelated
+   * filler row, which would make the error trivially easy to spot again.
+   */
+  confusablePairIdx?: [number, number];
 }
 
-const CASES: Case[] = [
+const CASES_EASY: Case[] = [
   {
     pairs: [
       { source: "full_name", target: "Name" },
@@ -46,6 +60,29 @@ const CASES: Case[] = [
   },
 ];
 
+const CASES_HARD: Case[] = [
+  {
+    pairs: [
+      { source: "billing_email", target: "BillingEmail" },
+      { source: "shipping_email", target: "ShippingEmail" },
+      { source: "billing_phone", target: "BillingPhone" },
+      { source: "shipping_phone", target: "ShippingPhone" },
+      { source: "customer_id", target: "CustomerId" },
+    ],
+    confusablePairIdx: [0, 1],
+  },
+  {
+    pairs: [
+      { source: "start_date", target: "StartDate" },
+      { source: "end_date", target: "EndDate" },
+      { source: "created_date", target: "CreatedAt" },
+      { source: "updated_date", target: "UpdatedAt" },
+      { source: "record_id", target: "RecordId" },
+    ],
+    confusablePairIdx: [0, 1],
+  },
+];
+
 export const template: ItemTemplate = {
   id: "tech.field_mapping_error",
   version: 1,
@@ -53,14 +90,25 @@ export const template: ItemTemplate = {
   kind: "single_choice",
   difficulties: [1, 2],
   conventionsStated: "n/a",
-  generate(rng: Rng) {
-    const c = rng.pick(CASES);
-    const wrongIdx = rng.nextInt(c.pairs.length);
-    // Corrupt the chosen row's target with another row's target from the
-    // same case — plausible (it's a real field in the target system) but
-    // wrong for this source field.
-    const otherTargets = c.pairs.filter((_, i) => i !== wrongIdx).map((p) => p.target);
-    const wrongTarget = rng.pick(otherTargets);
+  generate(rng: Rng, difficulty: Difficulty) {
+    const c = rng.pick(difficulty === 1 ? CASES_EASY : CASES_HARD);
+
+    let wrongIdx: number;
+    let wrongTarget: string;
+    if (c.confusablePairIdx) {
+      // Corrupt within the designated confusable pair only, so the wrong
+      // target is always a genuine near-miss (e.g. Billing <-> Shipping),
+      // never an easy-to-spot swap with an unrelated filler field.
+      const [a, b] = c.confusablePairIdx;
+      [wrongIdx, wrongTarget] = rng.chance() ? [a, c.pairs[b]?.target as string] : [b, c.pairs[a]?.target as string];
+    } else {
+      wrongIdx = rng.nextInt(c.pairs.length);
+      // Corrupt the chosen row's target with another row's target from the
+      // same case — plausible (it's a real field in the target system) but
+      // wrong for this source field.
+      const otherTargets = c.pairs.filter((_, i) => i !== wrongIdx).map((p) => p.target);
+      wrongTarget = rng.pick(otherTargets);
+    }
 
     const proposedRows = c.pairs.map((p, i) => (i === wrongIdx ? { source: p.source, target: wrongTarget } : p));
 

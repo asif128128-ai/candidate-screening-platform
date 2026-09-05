@@ -1,6 +1,13 @@
 // tech.data_normalize — ASSESSMENT_DESIGN.md §3.4. Column of messy
 // phones/dates/names -> correct normalization rule.
-import type { ItemTemplate } from "../../types";
+//
+// d1 keeps the phone-number case (a single well-known target format, E.164,
+// with no ambiguity in the source values) plus a new equally
+// single-rule email case. d2 keeps the dates and names cases, which each
+// require noticing more than one thing at once (day/month ambiguity in the
+// dates; splitting + whitespace + casing convention, all at once, for
+// names) — genuinely more to reason about than "pick the one right format".
+import type { Difficulty, ItemTemplate } from "../../types";
 import type { Rng } from "../../rng";
 import { shuffleOptions } from "../helpers";
 
@@ -11,7 +18,7 @@ interface Case {
   wrong: string[];
 }
 
-const CASES: Case[] = [
+const CASES_EASY: Case[] = [
   {
     title: "טור מספרי טלפון",
     values: ["050-1234567", "0521234567", "+972-52-9876543", "03 6001234"],
@@ -22,6 +29,19 @@ const CASES: Case[] = [
       "לשמור רק את 4 הספרות האחרונות לצורך פרטיות",
     ],
   },
+  {
+    title: "טור כתובות אימייל",
+    values: ["Dana@Example.com", " dana@example.com", "DANA@EXAMPLE.COM ", "dana@example.com"],
+    correct: "להמיר הכול לאותיות קטנות ולהסיר רווחים מיותרים לפני שמירה, כדי שאותה כתובת לא תיחשב כפולה",
+    wrong: [
+      "להשאיר את הרישיות (אותיות גדולות/קטנות) כפי שהוזנה",
+      "למחוק רשומות עם רווחים מיותרים במקום לנקות אותן",
+      "להוסיף רישיות אחידה של אות ראשונה גדולה כמו בשם פרטי",
+    ],
+  },
+];
+
+const CASES_MODERATE: Case[] = [
   {
     title: "טור תאריכים",
     values: ["01/02/2026", "2026-02-01", "1.2.26", "Feb 1, 2026"],
@@ -51,8 +71,8 @@ export const template: ItemTemplate = {
   kind: "single_choice",
   difficulties: [1, 2],
   conventionsStated: "n/a",
-  generate(rng: Rng) {
-    const c = rng.pick(CASES);
+  generate(rng: Rng, difficulty: Difficulty) {
+    const c = rng.pick(difficulty === 1 ? CASES_EASY : CASES_MODERATE);
     const prompt = `${c.title} מגיע ממקורות שונים בפורמטים לא אחידים:\n\n${c.values.map((v) => `- \`${v}\``).join("\n")}\n\nמה כלל הנרמול הנכון לפני שמירה במסד הנתונים?`;
     const { options, correctIndex } = shuffleOptions(rng, c.correct, c.wrong);
     return {

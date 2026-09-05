@@ -1,7 +1,14 @@
 // tech.http_status_next — ASSESSMENT_DESIGN.md §3.4 worked example 8. API
 // response + the provider's doc excerpt for that status -> correct next
 // action (reasoning with the stated semantics, per DECISIONS_LOG.md #8).
-import type { ItemTemplate } from "../../types";
+//
+// Difficulty scales via which status codes are in the pool: d1/d2 use
+// well-known codes whose doc excerpt maps almost directly onto the correct
+// action; d3 uses less common codes where the doc excerpt's semantics
+// actively contradict the tempting-but-wrong "just retry" instinct, so the
+// candidate must reason from the stated rule rather than pattern-match a
+// familiar code.
+import type { Difficulty, ItemTemplate } from "../../types";
 import type { Rng } from "../../rng";
 import { shuffleOptions } from "../helpers";
 
@@ -14,7 +21,7 @@ interface StatusDef {
   wrong: string[];
 }
 
-const STATUSES: StatusDef[] = [
+const STATUSES_EASY: StatusDef[] = [
   {
     code: 429,
     title: "Too Many Requests",
@@ -41,6 +48,12 @@ const STATUSES: StatusDef[] = [
       "לשנות את כתובת ה-API",
     ],
   },
+];
+
+// d2: still a common code, but the correct action requires noticing a
+// second detail beyond "wait and retry" (did the request actually happen /
+// does the body need to change, not just the timing).
+const STATUSES_MODERATE: StatusDef[] = [
   {
     code: 503,
     title: "Service Unavailable",
@@ -54,6 +67,51 @@ const STATUSES: StatusDef[] = [
       "לפתוח פנייה לתמיכה במקום לחכות",
     ],
   },
+  {
+    code: 400,
+    title: "Bad Request",
+    body: '{"error":"validation_error","field":"email"}',
+    docExcerpt:
+      'מתוך התיעוד: "קוד 400 מוחזר כשגוף הבקשה לא עומד בסכימה (validation). השדה השגוי מצוין ב-field. שליחה חוזרת של אותו גוף בקשה תחזיר את אותה שגיאה."',
+    correct: "לתקן את גוף הבקשה לפי השדה שצוין (email) לפני שליחה חוזרת — ניסיון חוזר עם אותו payload לא יעזור",
+    wrong: [
+      "לנסות שוב מיד עם אותו payload",
+      "להוסיף backoff ולנסות שוב מאוחר יותר בלי לשנות כלום בבקשה",
+      "לפנות לתמיכה של הספק במקום לתקן את הבקשה",
+    ],
+  },
+];
+
+// d3: less common codes whose doc excerpt directly contradicts the
+// tempting "it's a 2xx / just retry" instinct — genuinely requires reading
+// the stated rule, not recognizing a familiar code.
+const STATUSES_HARD: StatusDef[] = [
+  {
+    code: 202,
+    title: "Accepted",
+    body: '{"job_id":"job_8841","status":"queued"}',
+    docExcerpt:
+      'מתוך התיעוד: "קוד 202 מציין שהבקשה התקבלה לעיבוד אסינכרוני אך טרם הושלמה. יש לבדוק את הסטטוס בכתובת GET /jobs/{job_id} עד שהוא הופך ל-done או failed. אין להניח הצלחה על סמך 202 בלבד."',
+    correct: "לשמור את job_id ולבדוק (poll) את /jobs/{job_id} עד לסטטוס done/failed, ולא להניח שהפעולה הסתיימה",
+    wrong: [
+      "להניח שהבקשה הצליחה כי הקוד תקין (2xx) ולהמשיך הלאה",
+      "לשלוח את אותה בקשה שוב כדי לוודא שהיא מתבצעת",
+      "להתעלם מ-job_id ולבדוק את התוצאה מאוחר יותר בלי endpoint ייעודי",
+    ],
+  },
+  {
+    code: 409,
+    title: "Conflict",
+    body: '{"error":"duplicate_request","existing_id":"ord_5521"}',
+    docExcerpt:
+      'מתוך התיעוד: "קוד 409 מוחזר כאשר מפתח האידמפוטנטיות (Idempotency-Key) שנשלח כבר שימש בעבר. הבקשה המקורית כבר בוצעה; existing_id מצביע על התוצאה הקיימת. אין ליצור בקשה חדשה עם אותה תוצאה."',
+    correct: "להשתמש ב-existing_id כתוצאה הקיימת, ולא ליצור בקשה כפולה עם Idempotency-Key חדש",
+    wrong: [
+      "ליצור Idempotency-Key חדש ולשלוח את הבקשה שוב",
+      "להתעלם מ-existing_id ולהניח שהבקשה המקורית נכשלה לגמרי",
+      "לפנות לתמיכה כי מדובר בשגיאת שרת",
+    ],
+  },
 ];
 
 export const template: ItemTemplate = {
@@ -63,8 +121,9 @@ export const template: ItemTemplate = {
   kind: "single_choice",
   difficulties: [1, 2, 3],
   conventionsStated: "התיעוד של הספק לגבי קוד הסטטוס הרלוונטי מובא במלואו בתוך הפריט.",
-  generate(rng: Rng) {
-    const def = rng.pick(STATUSES);
+  generate(rng: Rng, difficulty: Difficulty) {
+    const pool = difficulty === 1 ? STATUSES_EASY : difficulty === 2 ? STATUSES_MODERATE : STATUSES_HARD;
+    const def = rng.pick(pool);
     const prompt =
       `סקריפט סנכרון שרץ כל שעה מתחיל לקבל מה-API של ספק SaaS את התשובה:\n\n` +
       `\`\`\`\nHTTP/1.1 ${def.code} ${def.title}\n${def.body}\n\`\`\`\n\n` +

@@ -1,9 +1,22 @@
 // tech.env_diff_bug — ASSESSMENT_DESIGN.md §3.4 worked example 7. .env for
 // staging vs prod with one meaningful diff + one harmless -> why prod fails.
 // conventions_stated: n/a (derivable from the artifact alone).
-import type { ItemTemplate } from "../../types";
+//
+// Difficulty scales via how many harmless-looking vars surround the real
+// diff, and how directly the error message points at it: d1 has a single
+// harmless var and an error message that names the failing subsystem; d2 is
+// the original two-harmless-var version; d3 adds a second harmless-looking
+// var (a more plausible red herring) and a more generic error message that
+// doesn't hand the candidate the subsystem for free.
+import type { Difficulty, ItemTemplate } from "../../types";
 import type { Rng } from "../../rng";
 import { shuffleOptions } from "../helpers";
+
+interface HarmlessVar {
+  key: string;
+  stagingVal: string;
+  prodVal: string;
+}
 
 interface Case {
   error: string;
@@ -13,6 +26,10 @@ interface Case {
   harmlessKey: string;
   stagingHarmless: string;
   prodHarmless: string;
+  /** d3 only: a second, more-plausible-looking harmless var. */
+  extraHarmless?: HarmlessVar;
+  /** d3 only: a more generic error message that doesn't name the subsystem. */
+  genericError?: string;
   correct: string;
   wrong: string[];
 }
@@ -26,6 +43,8 @@ const CASES: Case[] = [
     harmlessKey: "LOG_LEVEL",
     stagingHarmless: "debug",
     prodHarmless: "info",
+    extraHarmless: { key: "CACHE_TTL_SECONDS", stagingVal: "60", prodVal: "300" },
+    genericError: "האפליקציה נתקעת ונכשלת אחרי כ-30 שניות מדי פעם",
     correct: "הפורט של מסד הנתונים ב-production שונה (5433) — כנראה שגיאת הקלדה או שהחומה (firewall) לא פותחת אותו",
     wrong: [
       "LOG_LEVEL=info מסתיר את השגיאה האמיתית",
@@ -41,6 +60,8 @@ const CASES: Case[] = [
     harmlessKey: "NODE_ENV",
     stagingHarmless: "staging",
     prodHarmless: "production",
+    extraHarmless: { key: "FEATURE_FLAG_NEW_CHECKOUT", stagingVal: "false", prodVal: "true" },
+    genericError: "האפליקציה נכשלת מדי פעם כשהיא מנסה לגשת לשירות פנימי",
     correct: "REDIS_URL ב-production עדיין מצביע לשרת staging (cache-stg) אבל על פורט אחר שלא פתוח שם",
     wrong: [
       "NODE_ENV=production גורם ל-Node לחסום חיבורים",
@@ -56,6 +77,8 @@ const CASES: Case[] = [
     harmlessKey: "TIMEOUT_MS",
     stagingHarmless: "5000",
     prodHarmless: "8000",
+    extraHarmless: { key: "CDN_ENABLED", stagingVal: "false", prodVal: "true" },
+    genericError: "בקשות מהלקוח נכשלות מיד אחרי שהן נשלחות",
     correct: "ב-production הכתובת עברה ל-http (לא https) בעוד שקוד הלקוח מצפה לאישור TLS — כנראה טעות בהעתקה של הכתובת",
     wrong: [
       "TIMEOUT_MS גבוה מדי גורם לשגיאת אישור",
@@ -72,13 +95,38 @@ export const template: ItemTemplate = {
   kind: "single_choice",
   difficulties: [1, 2, 3],
   conventionsStated: "n/a",
-  generate(rng: Rng) {
+  generate(rng: Rng, difficulty: Difficulty) {
     const c = rng.pick(CASES);
-    const stagingEnv = `# staging\n${c.meaningfulKey}=${c.stagingVal}\n${c.harmlessKey}=${c.stagingHarmless}`;
-    const prodEnv = `# production\n${c.meaningfulKey}=${c.prodVal}\n${c.harmlessKey}=${c.prodHarmless}`;
+    // d1: no harmless decoy var at all (only the real diff is visible) — the
+    // simplest possible version. d2: the original single-decoy version. d3:
+    // a second, more-plausible decoy on top.
+    const harmless: HarmlessVar[] =
+      difficulty === 1
+        ? []
+        : difficulty === 2
+          ? [{ key: c.harmlessKey, stagingVal: c.stagingHarmless, prodVal: c.prodHarmless }]
+          : [
+              { key: c.harmlessKey, stagingVal: c.stagingHarmless, prodVal: c.prodHarmless },
+              ...(c.extraHarmless ? [c.extraHarmless] : []),
+            ];
+    const stagingEnv = [
+      `# staging`,
+      `${c.meaningfulKey}=${c.stagingVal}`,
+      ...harmless.map((e) => `${e.key}=${e.stagingVal}`),
+    ].join("\n");
+    const prodEnv = [
+      `# production`,
+      `${c.meaningfulKey}=${c.prodVal}`,
+      ...harmless.map((e) => `${e.key}=${e.prodVal}`),
+    ].join("\n");
+
+    // d3 uses a more generic error message that doesn't name the failing
+    // subsystem, forcing the diff itself (not the error text) to carry the
+    // reasoning.
+    const errorText = difficulty === 3 && c.genericError ? c.genericError : c.error;
 
     const prompt =
-      `האפליקציה עובדת ב-staging ונכשלת ב-production עם השגיאה \`${c.error}\`. אלה קובצי הסביבה (ערכים סודיים הוסתרו):\n\n` +
+      `האפליקציה עובדת ב-staging ונכשלת ב-production עם השגיאה \`${errorText}\`. אלה קובצי הסביבה (ערכים סודיים הוסתרו):\n\n` +
       `\`\`\`\n${stagingEnv}\n\n${prodEnv}\n\`\`\`\n\nמה ההסבר הסביר ביותר?`;
 
     const { options, correctIndex } = shuffleOptions(rng, c.correct, c.wrong);

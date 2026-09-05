@@ -1,6 +1,13 @@
 // tech.site_down_first_check — ASSESSMENT_DESIGN.md §3.4. Symptom set
 // (DNS/TLS/5xx/timeout) -> the first cheap check.
-import type { ItemTemplate } from "../../types";
+//
+// d1 symptoms map almost directly onto their check (a cert error -> check
+// the cert). d2 symptoms require isolating WHICH layer/subsystem is
+// actually failing from a partial or indirect clue (a gateway timeout
+// implies checking the upstream, not the gateway itself; images failing
+// but pages loading implies checking storage/CDN permissions, not the app
+// server) before the obvious-sounding "restart/check DNS" options apply.
+import type { Difficulty, ItemTemplate } from "../../types";
 import type { Rng } from "../../rng";
 import { shuffleOptions } from "../helpers";
 
@@ -10,7 +17,7 @@ interface Case {
   wrong: string[];
 }
 
-const CASES: Case[] = [
+const CASES_EASY: Case[] = [
   {
     symptom: "האתר לא נטען בדפדפן שלכם, אבל עמיתים אחרים מדווחים שהוא עובד להם כרגיל",
     correct: "לבדוק אם האתר עולה מרשת אחרת (למשל נתונים סלולריים) לפני שמניחים שהשרת נפל",
@@ -29,6 +36,9 @@ const CASES: Case[] = [
       "לבדוק את זמן התגובה (latency) של השרת",
     ],
   },
+];
+
+const CASES_HARD: Case[] = [
   {
     symptom: "כל הבקשות ל-API מחזירות 504 Gateway Timeout",
     correct: "לבדוק אם השרת שמאחורי ה-gateway (upstream) מגיב בכלל ותוך כמה זמן",
@@ -47,6 +57,15 @@ const CASES: Case[] = [
       "לבדוק את זמן התגובה של מסד הנתונים",
     ],
   },
+  {
+    symptom: "דף הבית של האתר עולה כרגיל, אבל כל תמונות המוצרים באתר מחזירות 403 Forbidden",
+    correct: "לבדוק את הרשאות הגישה (public-read) של דלי האחסון/ה-CDN שמגיש את התמונות — האתר עצמו עובד",
+    wrong: [
+      "להפעיל מחדש את שרת האפליקציה",
+      "לבדוק את רשומות ה-DNS של הדומיין",
+      "לבדוק את תעודת ה-TLS של האתר",
+    ],
+  },
 ];
 
 export const template: ItemTemplate = {
@@ -56,8 +75,8 @@ export const template: ItemTemplate = {
   kind: "single_choice",
   difficulties: [1, 2],
   conventionsStated: "n/a",
-  generate(rng: Rng) {
-    const c = rng.pick(CASES);
+  generate(rng: Rng, difficulty: Difficulty) {
+    const c = rng.pick(difficulty === 1 ? CASES_EASY : CASES_HARD);
     const prompt = `${c.symptom}\n\nמה הבדיקה הראשונה והזולה ביותר שכדאי לעשות?`;
     const { options, correctIndex } = shuffleOptions(rng, c.correct, c.wrong);
     return {
