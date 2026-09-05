@@ -36,4 +36,23 @@ describe("resume-code", () => {
     expect(hash).toBeInstanceOf(Buffer);
     expect(hash.length).toBe(32); // sha256 digest length
   });
+
+  // Red-team finding #7: verifyResumeCode must use a constant-time
+  // comparison (node:crypto's timingSafeEqual), like verifyItemToken in
+  // src/lib/item-token.ts, not Buffer.equals()'s short-circuiting compare.
+  // Can't directly measure timing in a unit test, so this asserts the
+  // length-mismatch guard (required before calling timingSafeEqual, which
+  // throws on mismatched-length buffers) and correctness at the boundary.
+  it("safely rejects a hash of the wrong length without throwing (the length check timingSafeEqual requires)", () => {
+    const shortHash = Buffer.from([1, 2, 3]);
+    expect(() => verifyResumeCode("ABCDEFGH", shortHash)).not.toThrow();
+    expect(verifyResumeCode("ABCDEFGH", shortHash)).toBe(false);
+  });
+
+  it("rejects a same-length but different digest", () => {
+    const hash = hashResumeCode("ABCDEFGH");
+    const tampered = Buffer.from(hash);
+    tampered[0] = tampered[0]! ^ 0xff;
+    expect(verifyResumeCode("ABCDEFGH", tampered)).toBe(false);
+  });
 });

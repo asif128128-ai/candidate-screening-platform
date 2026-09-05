@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 // CANDIDATE_FLOW.md §2.4: an 8-character resume code from an unambiguous
 // alphabet (no 0/O/1/I), shown once on the step-1 success screen and in the
@@ -34,7 +34,14 @@ export function hashResumeCode(code: string): Buffer {
   return createHash("sha256").update(code, "utf8").digest();
 }
 
+// Red-team finding #7 (minor): compared digests with `Buffer.equals()`
+// (short-circuits on the first differing byte) instead of a constant-time
+// comparison, inconsistent with `verifyItemToken` in src/lib/item-token.ts.
+// Low real risk here (both sides are already SHA-256 digests, not raw
+// secrets), but cheap to fix for consistency — same length-check-first
+// pattern item-token.ts uses.
 export function verifyResumeCode(code: string, hash: Buffer): boolean {
   const candidate = hashResumeCode(code);
-  return candidate.length === hash.length && candidate.equals(hash);
+  if (candidate.length !== hash.length) return false;
+  return timingSafeEqual(candidate, hash);
 }
