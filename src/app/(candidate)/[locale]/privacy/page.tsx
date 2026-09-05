@@ -1,3 +1,5 @@
+import { CandidateShell } from "@/components/candidate-shell";
+import { Card } from "@/components/ui/card";
 import { PRIVACY_NOTICE_TEXT_HE } from "@/lib/consent-text";
 import { PrivacyRequestForm } from "./privacy-request-form";
 
@@ -7,18 +9,20 @@ export default function PrivacyPage() {
   const paragraphs = PRIVACY_NOTICE_TEXT_HE.split("\n");
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-xl font-semibold">מדיניות פרטיות</h1>
-      <div className="mt-4 space-y-3 text-sm leading-relaxed">
+    <CandidateShell width="reading">
+      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
+        מדיניות פרטיות
+      </h1>
+      <div className="mt-4 space-y-3 text-[16px] leading-[26px] text-text">
         {paragraphs.map((p, i) => (
           <p key={i}>{p}</p>
         ))}
       </div>
 
-      <h2 className="mt-8 text-lg font-semibold">בקשה לגבי הפרטים שלי</h2>
-      <div className="mt-4">
+      <h2 className="mt-10 text-[20px] font-semibold leading-7 text-ink-900">בקשה לגבי הפרטים שלי</h2>
+      <Card className="mt-4">
         <PrivacyRequestForm />
-      </div>
-    </main>
+      </Card>
+    </CandidateShell>
   );
 }

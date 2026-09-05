@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { Term } from "@/components/term";
+import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { confirmMonitoringConsentAction } from "./actions";
 
 // CANDIDATE_FLOW.md §4 step 5: device check (viewport >= 900px, JS on —
@@ -23,6 +28,11 @@ import { confirmMonitoringConsentAction } from "./actions";
 //   401 { error: "unauthorized" }
 // The 404/501 branch below is now unreachable in production but stays as
 // defense-in-depth against a route that somehow isn't deployed.
+//
+// FINTECH_REDESIGN_PLAN.md §1.7 briefing: the monitoring disclosure as a
+// Card with a Callout "info" framing ("שקיפות") and the consent checkbox;
+// device check as a compact status row using --mint-800/--amber-800;
+// primary CTA "מתחילים".
 
 const MIN_VIEWPORT_WIDTH = 900;
 
@@ -31,6 +41,22 @@ interface DeviceCheck {
   viewportWidth: number;
   fullscreenAvailable: boolean;
   clockSkewMs: number | null;
+}
+
+function StatusIcon({ ok }: { ok: boolean }) {
+  if (ok) {
+    return (
+      <svg viewBox="0 0 16 16" className="h-4 w-4 text-mint-800" fill="none" aria-hidden="true">
+        <path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4 text-amber-800" fill="none" aria-hidden="true">
+      <path d="M8 4.5v4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <circle cx="8" cy="11" r="1" fill="currentColor" />
+    </svg>
+  );
 }
 
 export function BriefingPanel({ applicationId }: { applicationId: string }) {
@@ -102,48 +128,61 @@ export function BriefingPanel({ applicationId }: { applicationId: string }) {
   }
 
   return (
-    <div className="mt-6">
-      <section className="rounded-md bg-neutral-50 p-4 text-sm leading-relaxed" data-testid="monitoring-disclosure">
-        <h2 className="font-semibold">גילוי נאות על ניטור</h2>
-        <p className="mt-2">
-          כדי להעריך את אמינות התוצאות, במהלך המבחן נשמרים: זמני תגובה לכל שאלה, אירועי דפדפן כמו
-          יציאה מהחלון או מהמסך המלא, ניסיונות העתקה/הדבקה, שינויי גודל חלון, וכתובת ה-IP.{" "}
-          <strong>אין</strong> שימוש במצלמה או במיקרופון, ואין הקלטה של המסך או של ההקלדה. הנתונים
-          האלה משמשים רק כדי לסמן לצוות הגיוס האם התוצאה נראית אמינה — ואף פעם לא כדי לקבוע
-          אוטומטית שמישהו &quot;רימה&quot;.
-        </p>
-        <label className="mt-3 flex items-start gap-2">
-          <input
-            type="checkbox"
+    <div className="mt-6 space-y-4">
+      <Card data-testid="monitoring-disclosure">
+        <Callout variant="info">
+          <p className="text-[13px] font-semibold leading-5 text-brand-700">שקיפות</p>
+          <p className="mt-1 text-[14px] leading-[22px] text-text">
+            כדי להעריך את אמינות התוצאות, במהלך המבחן נשמרים: זמני תגובה לכל שאלה, אירועי דפדפן כמו
+            יציאה מהחלון או מהמסך המלא, ניסיונות העתקה/הדבקה, שינויי גודל חלון, וכתובת ה-IP.{" "}
+            <strong>אין</strong> שימוש במצלמה או במיקרופון, ואין הקלטה של המסך או של ההקלדה. הנתונים
+            האלה משמשים רק כדי לסמן לצוות הגיוס האם התוצאה נראית אמינה — ואף פעם לא כדי לקבוע
+            אוטומטית שמישהו &quot;רימה&quot;.
+          </p>
+        </Callout>
+        <div className="mt-4">
+          <Checkbox
             checked={consentChecked}
             onChange={(e) => setConsentChecked(e.target.checked)}
             data-testid="monitoring-consent-checkbox"
-            className="mt-1"
+            label="קראתי ואני מסכים/ה"
           />
-          <span>קראתי ואני מסכים/ה</span>
-        </label>
-      </section>
+        </div>
+      </Card>
+
+      {device ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[14px] leading-[22px]">
+          <span className={`rtl-row items-center gap-1.5 ${device.viewportOk ? "text-mint-800" : "text-amber-800"}`}>
+            <StatusIcon ok={device.viewportOk} />
+            מסך רחב
+          </span>
+          <span className={`rtl-row items-center gap-1.5 ${device.fullscreenAvailable ? "text-mint-800" : "text-amber-800"}`}>
+            <StatusIcon ok={device.fullscreenAvailable} />
+            מסך מלא זמין
+          </span>
+        </div>
+      ) : null}
 
       {device && !device.viewportOk ? (
-        <p className="mt-4 rounded-md bg-amber-50 p-3 text-sm text-amber-800" data-testid="viewport-warning">
-          כדי להתחיל צריך מחשב עם מסך רחב (הרוחב הנוכחי: {device.viewportWidth}px).
-        </p>
+        <Callout variant="warning" data-testid="viewport-warning">
+          כדי להתחיל צריך מחשב עם מסך רחב (הרוחב הנוכחי: <Term>{device.viewportWidth}px</Term>).
+        </Callout>
       ) : null}
       {device && !device.fullscreenAvailable ? (
-        <p className="mt-2 text-sm text-neutral-500">שימו לב: הדפדפן שלכם לא תומך במסך מלא — אפשר להמשיך בכל זאת.</p>
+        <p className="text-[13px] leading-5 text-text-3">שימו לב: הדפדפן שלכם לא תומך במסך מלא — אפשר להמשיך בכל זאת.</p>
       ) : null}
 
-      {error ? <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {error ? <Callout variant="error">{error}</Callout> : null}
 
-      <button
+      <Button
         type="button"
         onClick={handleStart}
-        disabled={starting || !consentChecked || (device !== null && !device.viewportOk)}
-        className="mt-6 w-full rounded-md bg-neutral-900 py-3 font-medium text-white disabled:opacity-50"
+        pending={starting}
+        disabled={!consentChecked || (device !== null && !device.viewportOk)}
         data-testid="start-assessment-button"
       >
         {starting ? "מתחילים…" : "מתחילים"}
-      </button>
+      </Button>
     </div>
   );
 }

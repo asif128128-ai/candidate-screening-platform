@@ -1,8 +1,10 @@
 import { Link } from "@/i18n/navigation";
-import { Term } from "@/components/term";
+import { CandidateShell } from "@/components/candidate-shell";
+import { Card } from "@/components/ui/card";
+import { TermsCard } from "@/components/ui/terms-card";
+import { buttonClasses } from "@/components/ui/button";
 import { guardApplicationStep, stepPath } from "@/lib/application-guard";
 import { getJobBySlug } from "@/db/queries/jobs";
-import { formatNumericHe } from "@/lib/format";
 import { ConfirmationsForm } from "./confirmations-form";
 
 // CANDIDATE_FLOW.md §3 — step 2: על התפקיד.
@@ -17,52 +19,45 @@ export default async function ApplyStep2Page({
 
   if (!job) {
     return (
-      <main className="mx-auto max-w-2xl p-8">
-        <h1 className="text-xl font-semibold">המשרה אינה זמינה</h1>
-      </main>
+      <CandidateShell width="reading">
+        <h1 className="text-center text-[20px] font-semibold leading-7 text-ink-900">המשרה אינה זמינה</h1>
+      </CandidateShell>
     );
   }
 
   if (guard.kind === "already_past") {
     return (
-      <main className="mx-auto max-w-2xl p-8">
-        <h1 className="text-xl font-semibold">על התפקיד</h1>
-        <p className="mt-2 text-neutral-600">כבר אישרת את השלב הזה.</p>
-        <Link
-          href={stepPath(applicationId, guard.state.currentStep)}
-          className="mt-4 inline-block rounded-md bg-neutral-900 px-4 py-2 text-white"
-        >
+      <CandidateShell width="reading" stepper={{ current: 2 }}>
+        <h1 className="text-[28px] font-bold leading-9 text-ink-900">על התפקיד</h1>
+        <p className="mt-2 text-[16px] leading-[26px] text-text-2">כבר אישרת את השלב הזה.</p>
+        <Link href={stepPath(applicationId, guard.state.currentStep)} className={`mt-4 ${buttonClasses({ fullWidth: false })}`}>
           המשך
         </Link>
-      </main>
+      </CandidateShell>
     );
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-xl font-semibold">{job.title_he}</h1>
+    <CandidateShell width="reading" stepper={{ current: 2 }}>
+      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
+        {job.title_he}
+      </h1>
+
       {/* description_html is rendered server-side at job-save time (no runtime markdown lib, ARCHITECTURE.md §7). */}
-      <div
-        className="prose prose-neutral mt-4 max-w-none"
-        dangerouslySetInnerHTML={{ __html: job.description_html }}
-      />
+      <Card className="mt-6">
+        <div
+          className="max-w-none text-[16px] leading-[26px] text-text [&_h2]:mt-6 [&_h2]:text-[20px] [&_h2]:font-semibold [&_h2]:leading-7 [&_h2]:text-ink-900 [&_h3]:mt-4 [&_h3]:text-[16px] [&_h3]:font-semibold [&_li]:mt-2 [&_ol]:mt-2 [&_ol]:list-inside [&_ol]:list-decimal [&_p]:mt-3 [&_ul]:mt-2 [&_ul]:list-inside [&_ul]:list-disc"
+          dangerouslySetInnerHTML={{ __html: job.description_html }}
+        />
+      </Card>
 
-      <section className="mt-6 rounded-lg border-2 border-neutral-900 p-5" data-testid="terms-card">
-        <h2 className="font-semibold">כרטיס תנאים</h2>
-        <ul className="mt-3 space-y-2 text-sm">
-          <li>תעריף: <Term>{`${formatNumericHe(job.hourly_rate_ils)} ₪ לשעה`}</Term></li>
-          <li>
-            היקף: <Term>{`כ-${formatNumericHe(job.hours_per_week)} שעות שבועיות`}</Term> ·{" "}
-            <Term>{`כ-${formatNumericHe(job.days_per_week)} ימים בשבוע`}</Term> ·{" "}
-            <Term>{`כ-${formatNumericHe(job.hours_per_day)} שעות ביום`}</Term>
-          </li>
-          <li>מיקום: {job.location_he}{job.hybrid_he ? ` · ${job.hybrid_he}` : ""}</li>
-          <li>סוג התקשרות: {job.engagement_type_he}</li>
-          <li>התחלה: {job.start_he}</li>
-        </ul>
-      </section>
+      <div className="mt-6">
+        <TermsCard job={job} />
+      </div>
 
-      <ConfirmationsForm applicationId={applicationId} showRishonNote={!guard.state.canWorkRishon} />
-    </main>
+      <div className="mt-6">
+        <ConfirmationsForm applicationId={applicationId} showRishonNote={!guard.state.canWorkRishon} />
+      </div>
+    </CandidateShell>
   );
 }

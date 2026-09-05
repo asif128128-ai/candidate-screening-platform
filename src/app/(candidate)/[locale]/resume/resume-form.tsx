@@ -3,6 +3,9 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Term } from "@/components/term";
+import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { Field, Input } from "@/components/ui/field";
 import {
   requestOtpAction,
   resumeWithCodeAction,
@@ -20,13 +23,9 @@ const initialOtpVerifyState: OtpVerifyState = { errors: {}, formError: null };
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full rounded-md bg-neutral-900 py-3 font-medium text-white disabled:opacity-50"
-    >
+    <Button type="submit" pending={pending}>
       {pending ? "בודק…" : label}
-    </button>
+    </Button>
   );
 }
 
@@ -39,66 +38,47 @@ export function ResumeForm({ prefillEmail }: { prefillEmail?: string }) {
   if (otpMode) {
     return (
       <div className="space-y-6" data-testid="otp-panel">
-        <form action={otpRequestFormAction} className="space-y-3">
-          <div>
-            <label htmlFor="otp-email" className="block text-sm font-medium">אימייל</label>
-            <input
+        <form action={otpRequestFormAction} className="space-y-4">
+          <Field label="אימייל" htmlFor="otp-email" error={otpRequestState.errors.email}>
+            <Input
               id="otp-email"
               name="email"
               type="email"
               dir="ltr"
+              className="text-start"
               defaultValue={prefillEmail}
-              className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
+              error={!!otpRequestState.errors.email}
               required
             />
-            {otpRequestState.errors.email ? (
-              <p className="mt-1 text-sm text-red-600">{otpRequestState.errors.email}</p>
-            ) : null}
-          </div>
-          {otpRequestState.formError ? (
-            <p className="text-sm text-red-600">{otpRequestState.formError}</p>
-          ) : null}
+          </Field>
+          {otpRequestState.formError ? <Callout variant="error">{otpRequestState.formError}</Callout> : null}
           {otpRequestState.sent ? (
-            <p className="text-sm text-green-700">אם קיים חשבון עם האימייל הזה, נשלח אליו קוד.</p>
+            <Callout variant="success">אם קיים חשבון עם האימייל הזה, נשלח אליו קוד.</Callout>
           ) : null}
           <SubmitButton label="שליחת קוד למייל" />
         </form>
 
-        <form action={otpVerifyFormAction} className="space-y-3">
-          <div>
-            <label htmlFor="otp-email-2" className="block text-sm font-medium">אימייל</label>
-            <input
-              id="otp-email-2"
-              name="email"
-              type="email"
-              dir="ltr"
-              defaultValue={prefillEmail}
-              className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="otp-code" className="block text-sm font-medium">הקוד שקיבלת</label>
-            <input
+        <form action={otpVerifyFormAction} className="space-y-4 border-t border-line pt-6">
+          <Field label="אימייל" htmlFor="otp-email-2">
+            <Input id="otp-email-2" name="email" type="email" dir="ltr" className="text-start" defaultValue={prefillEmail} required />
+          </Field>
+          <Field label="הקוד שקיבלת" htmlFor="otp-code" error={otpVerifyState.errors.code}>
+            <Input
               id="otp-code"
               name="code"
               type="text"
               dir="ltr"
+              className="text-start"
               inputMode="numeric"
-              className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
+              error={!!otpVerifyState.errors.code}
               required
             />
-            {otpVerifyState.errors.code ? (
-              <p className="mt-1 text-sm text-red-600">{otpVerifyState.errors.code}</p>
-            ) : null}
-          </div>
-          {otpVerifyState.formError ? (
-            <p className="text-sm text-red-600">{otpVerifyState.formError}</p>
-          ) : null}
+          </Field>
+          {otpVerifyState.formError ? <Callout variant="error">{otpVerifyState.formError}</Callout> : null}
           <SubmitButton label="אימות קוד וכניסה" />
         </form>
 
-        <button type="button" onClick={() => setOtpMode(false)} className="text-sm underline">
+        <button type="button" onClick={() => setOtpMode(false)} className="text-[14px] text-brand-600 hover:underline">
           חזרה להזנת קוד החזרה
         </button>
       </div>
@@ -106,42 +86,38 @@ export function ResumeForm({ prefillEmail }: { prefillEmail?: string }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <form action={codeFormAction} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium">אימייל</label>
-          <input
+        <Field label="אימייל" htmlFor="email" error={codeState.errors.email}>
+          <Input
             id="email"
             name="email"
             type="email"
             dir="ltr"
+            className="text-start"
             defaultValue={prefillEmail}
             placeholder="name@example.com"
-            className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
+            error={!!codeState.errors.email}
             required
           />
-          {codeState.errors.email ? <p className="mt-1 text-sm text-red-600">{codeState.errors.email}</p> : null}
-        </div>
-        <div>
-          <label htmlFor="code" className="block text-sm font-medium">
-            קוד החזרה (<Term>K7M4-Q2XP</Term>)
-          </label>
-          <input
-            id="code"
-            name="code"
-            type="text"
-            dir="ltr"
-            className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
-            required
-          />
-          {codeState.errors.code ? <p className="mt-1 text-sm text-red-600">{codeState.errors.code}</p> : null}
-        </div>
-        {codeState.formError ? <p className="text-sm text-red-600">{codeState.formError}</p> : null}
+        </Field>
+        <Field
+          label={
+            <>
+              קוד החזרה (<Term>K7M4-Q2XP</Term>)
+            </>
+          }
+          htmlFor="code"
+          error={codeState.errors.code}
+        >
+          <Input id="code" name="code" type="text" dir="ltr" className="text-start" error={!!codeState.errors.code} required />
+        </Field>
+        {codeState.formError ? <Callout variant="error">{codeState.formError}</Callout> : null}
         <SubmitButton label="כניסה" />
       </form>
 
-      <button type="button" onClick={() => setOtpMode(true)} className="text-sm underline">
-        אין לך את הקוד? שלחו לי קוד למייל
+      <button type="button" onClick={() => setOtpMode(true)} className="text-[14px] text-text-2 hover:underline">
+        אין לכם את הקוד? קבלו קוד למייל
       </button>
     </div>
   );

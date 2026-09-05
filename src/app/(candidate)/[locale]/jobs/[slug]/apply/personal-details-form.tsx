@@ -4,6 +4,14 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Link } from "@/i18n/navigation";
 import { Term } from "@/components/term";
+import { Button, buttonClasses } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Chip } from "@/components/ui/chip";
+import { Field, FieldLabel, Input, Select } from "@/components/ui/field";
+import { ResumeCodeRow } from "@/components/ui/resume-code-row";
+import { Stepper } from "@/components/ui/stepper";
 import { DEGREE_PROGRAMS, INSTITUTIONS, STUDY_YEARS } from "@/lib/reference-data";
 import { submitPersonalDetailsAction, type PersonalDetailsActionState } from "./actions";
 
@@ -20,6 +28,10 @@ const initialPersonalDetailsState: PersonalDetailsActionState = {
 // upload. §2.4: the resume-code success card replaces the form in place
 // (see the "created" outcome branch) rather than redirecting, since the
 // plaintext resume code only ever exists in this one response.
+//
+// FINTECH_REDESIGN_PLAN.md §1.7 step 1: fields grouped into "מי את/ה",
+// "לימודים", "זמינות", "אופציונלי" inside one Card, using the shared
+// Field/Checkbox/Button/Card primitives.
 
 const SESSION_STORAGE_KEY = "apply-step1-draft";
 
@@ -76,19 +88,92 @@ interface PendingCvState {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full rounded-md bg-neutral-900 py-3 font-medium text-white disabled:opacity-50"
-    >
+    <Button type="submit" pending={pending}>
       {pending ? "שומר…" : "שמירה והמשך"}
-    </button>
+    </Button>
   );
 }
 
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return <p className="mt-1 text-sm text-red-600">{message}</p>;
+function GroupLabel({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-[13px] font-semibold leading-5 text-text-3">{children}</h3>;
+}
+
+function UploadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6 text-text-3" fill="none" aria-hidden="true">
+      <path
+        d="M12 15V4m0 0L8 8m4-4l4 4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CvDropzone({
+  status,
+  error,
+  onFileSelected,
+}: {
+  status: "idle" | "uploading" | "done" | "error";
+  error: string | null;
+  onFileSelected: (file: File) => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+
+  return (
+    <div>
+      <label
+        htmlFor="cv"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) onFileSelected(file);
+        }}
+        className={`flex cursor-pointer flex-col items-center gap-3 rounded-12 border-[1.5px] border-dashed px-6 py-6 text-center transition-colors duration-150 ${
+          dragOver ? "border-brand-600 bg-brand-50" : "border-line-strong bg-surface hover:bg-canvas"
+        }`}
+      >
+        <UploadIcon />
+        <p className="text-[15px] leading-6 text-text">גררו קובץ או לחצו לבחירה</p>
+        <Chip>PDF או DOCX · עד 5MB</Chip>
+        <input
+          id="cv"
+          type="file"
+          accept=".pdf,.docx"
+          className="sr-only"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onFileSelected(file);
+          }}
+        />
+      </label>
+
+      {status === "uploading" ? (
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-label="מעלה קובץ">
+          <div className="h-full w-2/3 animate-pulse rounded-full bg-brand-600" />
+        </div>
+      ) : null}
+      {status === "done" ? (
+        <Callout variant="success" className="mt-2">
+          הקובץ הועלה בהצלחה
+        </Callout>
+      ) : null}
+      {status === "error" ? (
+        <Callout variant="error" className="mt-2">
+          {error} — אפשר להמשיך בלי קורות חיים
+        </Callout>
+      ) : null}
+    </div>
+  );
 }
 
 export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string; prefillEmail?: string }) {
@@ -121,9 +206,7 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
     });
   }
 
-  async function handleCvChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function handleCvFile(file: File) {
     setCvStatus("uploading");
     setCvError(null);
     try {
@@ -152,319 +235,325 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
 
   if (state.outcome?.kind === "already_completed") {
     return (
-      <div className="rounded-md border border-neutral-200 p-6 text-center">
-        <p>
+      <Card className="text-center">
+        <p className="text-[16px] leading-[26px] text-text">
           כבר השלמת את התהליך למשרת &quot;{state.outcome.jobTitle}&quot;. נחזור אליך עד{" "}
           <Term>{state.outcome.responseByDateHe}</Term>.
         </p>
-      </div>
+      </Card>
     );
   }
 
   if (state.outcome?.kind === "redirect_to_resume") {
     return (
-      <div className="rounded-md border border-neutral-200 p-6 text-center">
-        <p>כבר הגשת מועמדות עם האימייל הזה למשרה זו.</p>
-        <p className="mt-2">הזינו את קוד החזרה או בקשו קוד למייל כדי להמשיך מאותה נקודה.</p>
+      <Card className="text-center">
+        <p className="text-[16px] leading-[26px] text-text">כבר הגשת מועמדות עם האימייל הזה למשרה זו.</p>
+        <p className="mt-2 text-[14px] leading-[22px] text-text-2">
+          הזינו את קוד החזרה או בקשו קוד למייל כדי להמשיך מאותה נקודה.
+        </p>
         <Link
           href={{ pathname: "/resume", query: { email: state.outcome.email } }}
-          className="mt-4 inline-block rounded-md bg-neutral-900 px-4 py-2 text-white"
+          className={`mt-4 ${buttonClasses()}`}
         >
           למעבר לעמוד החזרה
         </Link>
-      </div>
+      </Card>
     );
   }
 
   if (state.outcome?.kind === "created") {
     const o = state.outcome;
     return (
-      <div className="rounded-md border-2 border-neutral-900 p-6" data-testid="resume-code-card">
-        <p className="text-sm text-neutral-500">שלב 1 מתוך 3 הושלם</p>
-        <h2 className="mt-1 text-lg font-semibold">הפרטים נשמרו. השלב הבא: התפקיד והמבחן.</h2>
-        <p className="mt-2 text-sm text-neutral-600">
-          המועמדות נבחנת רק אחרי השלמת המבחן המקוון (כ-30 דקות, במחשב).
-          מומלץ להמשיך עכשיו ברצף — זה החלק שבאמת חשוב לנו.
+      <Card>
+        <Stepper current={1} currentAlsoDone />
+        <p className="mt-4 text-[13px] leading-5 text-text-3">שלב 1 מתוך 3 הושלם</p>
+        <h2 className="mt-1 text-[20px] font-semibold leading-7 text-ink-900">
+          הפרטים נשמרו. השלב הבא: התפקיד והמבחן.
+        </h2>
+        <p className="mt-2 text-[14px] leading-[22px] text-text-2">
+          המועמדות נבחנת רק אחרי השלמת המבחן המקוון (כ-30 דקות, במחשב). מומלץ להמשיך עכשיו ברצף — זה
+          החלק שבאמת חשוב לנו.
         </p>
 
         <Link
           href={`/apply/${o.applicationId}/job`}
-          className="mt-4 block rounded-md bg-neutral-900 px-4 py-3 text-center font-medium text-white"
+          className={`mt-4 ${buttonClasses()}`}
           data-testid="continue-to-step2"
         >
           ממשיכים לתיאור התפקיד
         </Link>
 
-        <div className="mt-6 rounded-md bg-neutral-50 p-3 text-sm">
-          <p className="text-xs text-neutral-500">קוד חזרה</p>
-          <p className="mt-1">
-            <Term><strong data-testid="resume-code">{o.resumeCodeDisplay}</strong></Term>{" "}
-            <button
-              type="button"
-              onClick={() => navigator.clipboard?.writeText(o.resumeCodeDisplay)}
-              className="text-sm underline"
-            >
-              העתקה
-            </button>
-          </p>
-          <p className="mt-1 text-xs text-neutral-500">
-            אם תצטרכו לעצור באמצע, האימייל והקוד הזה מחזירים אתכם לאותה נקודה ב-
-            <Term>/resume</Term>. שלחנו אותו גם למייל.
-          </p>
-        </div>
+        <ResumeCodeRow
+          code={o.resumeCodeDisplay}
+          helper="אם תצטרכו לעצור באמצע, האימייל והקוד הזה מחזירים אתכם לאותה נקודה ב-/resume. שלחנו אותו גם למייל."
+        />
 
         {!o.cvAttached && o.cvError ? (
-          <p className="mt-2 text-sm text-amber-700">קובץ קורות החיים לא צורף בהצלחה. אפשר להמשיך בלעדיו.</p>
+          <Callout variant="warning" className="mt-4">
+            קובץ קורות החיים לא צורף בהצלחה. אפשר להמשיך בלעדיו.
+          </Callout>
         ) : null}
-      </div>
+      </Card>
     );
   }
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-5" noValidate>
-      <p className="text-sm text-neutral-500">כ-3 דקות · הטופס נשמר בדפדפן בזמן המילוי</p>
+    <Card>
+      <form ref={formRef} action={formAction} className="space-y-6" noValidate>
+        {state.formError ? <Callout variant="error">{state.formError}</Callout> : null}
 
-      {state.formError ? (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{state.formError}</p>
-      ) : null}
+        <div className="space-y-5">
+          <GroupLabel>מי את/ה</GroupLabel>
 
-      <div>
-        <label htmlFor="firstName" className="block text-sm font-medium">שם פרטי</label>
-        <input
-          id="firstName"
-          name="firstName"
-          value={draft.firstName}
-          onChange={(e) => updateField("firstName", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2"
-          required
-        />
-        <FieldError message={state.errors.firstName} />
-      </div>
-
-      <div>
-        <label htmlFor="lastName" className="block text-sm font-medium">שם משפחה</label>
-        <input
-          id="lastName"
-          name="lastName"
-          value={draft.lastName}
-          onChange={(e) => updateField("lastName", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2"
-          required
-        />
-        <FieldError message={state.errors.lastName} />
-      </div>
-
-      <div>
-        <label htmlFor="dateOfBirth" className="block text-sm font-medium">תאריך לידה</label>
-        <input
-          id="dateOfBirth"
-          name="dateOfBirth"
-          type="date"
-          dir="ltr"
-          value={draft.dateOfBirth}
-          onChange={(e) => updateField("dateOfBirth", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
-          required
-        />
-        <FieldError message={state.errors.dateOfBirth} />
-      </div>
-
-      <div>
-        <label htmlFor="phone" className="block text-sm font-medium">טלפון נייד</label>
-        <input
-          id="phone"
-          name="phone"
-          type="tel"
-          dir="ltr"
-          placeholder="050-1234567"
-          value={draft.phone}
-          onChange={(e) => updateField("phone", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
-          required
-        />
-        <FieldError message={state.errors.phone} />
-      </div>
-
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium">אימייל</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          dir="ltr"
-          placeholder="name@example.com"
-          value={draft.email}
-          onChange={(e) => updateField("email", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
-          required
-        />
-        <FieldError message={state.errors.email} />
-      </div>
-
-      <div>
-        <label htmlFor="institution" className="block text-sm font-medium">מוסד לימודים</label>
-        <input
-          id="institution"
-          name="institution"
-          list="institutions-list"
-          value={draft.institution}
-          onChange={(e) => updateField("institution", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2"
-          required
-        />
-        <datalist id="institutions-list">
-          {INSTITUTIONS.map((i) => (
-            <option key={i} value={i} />
-          ))}
-        </datalist>
-        <FieldError message={state.errors.institution} />
-      </div>
-
-      <div>
-        <label htmlFor="degreeProgram" className="block text-sm font-medium">תואר / מסלול</label>
-        <input
-          id="degreeProgram"
-          name="degreeProgram"
-          list="degree-programs-list"
-          value={draft.degreeProgram}
-          onChange={(e) => updateField("degreeProgram", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2"
-          required
-        />
-        <datalist id="degree-programs-list">
-          {DEGREE_PROGRAMS.map((d) => (
-            <option key={d} value={d} />
-          ))}
-        </datalist>
-        <FieldError message={state.errors.degreeProgram} />
-      </div>
-
-      <div>
-        <label htmlFor="studyYear" className="block text-sm font-medium">שנת לימוד נוכחית</label>
-        <select
-          id="studyYear"
-          name="studyYear"
-          value={draft.studyYear}
-          onChange={(e) => updateField("studyYear", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2"
-          required
-        >
-          <option value="" disabled>בחרו שנת לימוד</option>
-          {STUDY_YEARS.map((y) => (
-            <option key={y.value} value={y.value}>{y.label}</option>
-          ))}
-        </select>
-        <FieldError message={state.errors.studyYear} />
-      </div>
-
-      <div>
-        <label htmlFor="academicAverage" className="block text-sm font-medium">ממוצע ציונים נוכחי</label>
-        <input
-          id="academicAverage"
-          name="academicAverage"
-          type="number"
-          dir="ltr"
-          min={0}
-          max={100}
-          step={0.1}
-          value={draft.academicAverage}
-          onChange={(e) => updateField("academicAverage", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
-          required
-        />
-        <p className="mt-1 text-sm text-neutral-500">הממוצע נשמר כנתון עזר בלבד ואינו פוסל מועמדות</p>
-        <FieldError message={state.errors.academicAverage} />
-      </div>
-
-      <fieldset>
-        <legend className="text-sm font-medium">יכולת לעבוד מראשון לציון (פיזית, בהיברידי)</legend>
-        <div className="mt-1 flex gap-4">
-          <label className="flex items-center gap-1">
-            <input
-              type="radio"
-              name="canWorkRishon"
-              value="yes"
-              checked={draft.canWorkRishon === "yes"}
-              onChange={(e) => updateField("canWorkRishon", e.target.value)}
+          <Field label="שם פרטי" htmlFor="firstName" error={state.errors.firstName}>
+            <Input
+              id="firstName"
+              name="firstName"
+              value={draft.firstName}
+              onChange={(e) => updateField("firstName", e.target.value)}
+              error={!!state.errors.firstName}
               required
             />
-            כן
-          </label>
-          <label className="flex items-center gap-1">
-            <input
-              type="radio"
-              name="canWorkRishon"
-              value="no"
-              checked={draft.canWorkRishon === "no"}
-              onChange={(e) => updateField("canWorkRishon", e.target.value)}
+          </Field>
+
+          <Field label="שם משפחה" htmlFor="lastName" error={state.errors.lastName}>
+            <Input
+              id="lastName"
+              name="lastName"
+              value={draft.lastName}
+              onChange={(e) => updateField("lastName", e.target.value)}
+              error={!!state.errors.lastName}
+              required
             />
-            לא
-          </label>
+          </Field>
+
+          <Field label="תאריך לידה" htmlFor="dateOfBirth" error={state.errors.dateOfBirth}>
+            <Input
+              id="dateOfBirth"
+              name="dateOfBirth"
+              type="date"
+              dir="ltr"
+              className="text-start"
+              value={draft.dateOfBirth}
+              onChange={(e) => updateField("dateOfBirth", e.target.value)}
+              error={!!state.errors.dateOfBirth}
+              required
+            />
+          </Field>
+
+          <Field label="טלפון נייד" htmlFor="phone" error={state.errors.phone}>
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              dir="ltr"
+              className="text-start"
+              placeholder="050-1234567"
+              value={draft.phone}
+              onChange={(e) => updateField("phone", e.target.value)}
+              error={!!state.errors.phone}
+              required
+            />
+          </Field>
+
+          <Field label="אימייל" htmlFor="email" error={state.errors.email}>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              dir="ltr"
+              className="text-start"
+              placeholder="name@example.com"
+              value={draft.email}
+              onChange={(e) => updateField("email", e.target.value)}
+              error={!!state.errors.email}
+              required
+            />
+          </Field>
         </div>
-        {draft.canWorkRishon === "no" ? (
-          <p className="mt-1 text-sm text-amber-700">
-            המשרה דורשת נוכחות באזור ראשון לציון. אפשר להמשיך, אבל זה ייכלל בשיקולים.
-          </p>
-        ) : null}
-        <FieldError message={state.errors.canWorkRishon} />
-      </fieldset>
 
-      <div>
-        <label htmlFor="linkedinUrl" className="block text-sm font-medium">
-          <Term>LinkedIn</Term> (לא חובה)
-        </label>
-        <input
-          id="linkedinUrl"
-          name="linkedinUrl"
-          type="text"
-          dir="ltr"
-          placeholder="https://www.linkedin.com/in/..."
-          value={draft.linkedinUrl}
-          onChange={(e) => updateField("linkedinUrl", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
-        />
-        <FieldError message={state.errors.linkedinUrl} />
-      </div>
+        <div className="space-y-5 border-t border-line pt-5">
+          <GroupLabel>לימודים</GroupLabel>
 
-      <div>
-        <label htmlFor="githubUrl" className="block text-sm font-medium">
-          <Term>GitHub</Term> (לא חובה)
-        </label>
-        <input
-          id="githubUrl"
-          name="githubUrl"
-          type="text"
-          dir="ltr"
-          placeholder="https://github.com/..."
-          value={draft.githubUrl}
-          onChange={(e) => updateField("githubUrl", e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-start"
-        />
-        <FieldError message={state.errors.githubUrl} />
-      </div>
+          <Field label="מוסד לימודים" htmlFor="institution" error={state.errors.institution}>
+            <Input
+              id="institution"
+              name="institution"
+              list="institutions-list"
+              value={draft.institution}
+              onChange={(e) => updateField("institution", e.target.value)}
+              error={!!state.errors.institution}
+              required
+            />
+            <datalist id="institutions-list">
+              {INSTITUTIONS.map((i) => (
+                <option key={i} value={i} />
+              ))}
+            </datalist>
+          </Field>
 
-      <div>
-        <label htmlFor="cv" className="block text-sm font-medium">קורות חיים (לא חובה, PDF או DOCX עד 5MB)</label>
-        <input id="cv" type="file" accept=".pdf,.docx" onChange={handleCvChange} className="mt-1 w-full" />
-        {cvStatus === "uploading" ? <p className="mt-1 text-sm text-neutral-500">מעלה קובץ…</p> : null}
-        {cvStatus === "done" ? <p className="mt-1 text-sm text-green-700">הקובץ הועלה בהצלחה</p> : null}
-        {cvStatus === "error" ? (
-          <p className="mt-1 text-sm text-red-600">{cvError} — אפשר להמשיך בלי קורות חיים</p>
-        ) : null}
-        <input type="hidden" name="pendingCvId" value={pendingCv ? JSON.stringify(pendingCv) : ""} />
-      </div>
+          <Field label="תואר / מסלול" htmlFor="degreeProgram" error={state.errors.degreeProgram}>
+            <Input
+              id="degreeProgram"
+              name="degreeProgram"
+              list="degree-programs-list"
+              value={draft.degreeProgram}
+              onChange={(e) => updateField("degreeProgram", e.target.value)}
+              error={!!state.errors.degreeProgram}
+              required
+            />
+            <datalist id="degree-programs-list">
+              {DEGREE_PROGRAMS.map((d) => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
+          </Field>
 
-      <div>
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="privacyConsent" required className="mt-1" />
-          <span>
-            קראתי ואני מסכים/ה ל<Link href="/privacy" className="underline">מדיניות הפרטיות</Link>
-          </span>
-        </label>
-        <FieldError message={state.errors.privacyConsent} />
-      </div>
+          <Field label="שנת לימוד נוכחית" htmlFor="studyYear" error={state.errors.studyYear}>
+            <Select
+              id="studyYear"
+              name="studyYear"
+              value={draft.studyYear}
+              onChange={(e) => updateField("studyYear", e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                בחרו שנת לימוד
+              </option>
+              {STUDY_YEARS.map((y) => (
+                <option key={y.value} value={y.value}>
+                  {y.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
-      <SubmitButton />
-    </form>
+          <Field
+            label="ממוצע ציונים נוכחי"
+            htmlFor="academicAverage"
+            error={state.errors.academicAverage}
+            helper={state.errors.academicAverage ? undefined : "הממוצע נשמר כנתון עזר בלבד ואינו פוסל מועמדות"}
+          >
+            <Input
+              id="academicAverage"
+              name="academicAverage"
+              type="number"
+              dir="ltr"
+              className="text-start"
+              min={0}
+              max={100}
+              step={0.1}
+              value={draft.academicAverage}
+              onChange={(e) => updateField("academicAverage", e.target.value)}
+              error={!!state.errors.academicAverage}
+              required
+            />
+          </Field>
+        </div>
+
+        <div className="space-y-3 border-t border-line pt-5">
+          <GroupLabel>זמינות</GroupLabel>
+          <fieldset>
+            <legend className="text-[14px] font-medium leading-[22px] text-text-2">
+              זמינות להגיע פיזית לאזור ראשון לציון (במודל היברידי)
+            </legend>
+            <div className="rtl-row-inline mt-2 overflow-hidden rounded-10 border border-line-strong">
+              {(["yes", "no"] as const).map((val, i) => (
+                <div key={val} className="relative">
+                  <input
+                    type="radio"
+                    id={`canWorkRishon-${val}`}
+                    name="canWorkRishon"
+                    value={val}
+                    checked={draft.canWorkRishon === val}
+                    onChange={(e) => updateField("canWorkRishon", e.target.value)}
+                    required={val === "yes"}
+                    className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                  <label
+                    htmlFor={`canWorkRishon-${val}`}
+                    className={`flex h-12 min-w-[96px] cursor-pointer items-center justify-center px-5 text-base font-semibold text-ink-900 transition-colors duration-150 peer-checked:bg-ink-900 peer-checked:text-white peer-focus-visible:shadow-[0_0_0_3px_var(--brand-100)] ${
+                      i > 0 ? "border-s border-line-strong" : ""
+                    }`}
+                  >
+                    {val === "yes" ? "כן" : "לא"}
+                  </label>
+                </div>
+              ))}
+            </div>
+            {draft.canWorkRishon === "no" ? (
+              <Callout variant="warning" className="mt-3">
+                המשרה דורשת נוכחות באזור ראשון לציון. אפשר להמשיך, אבל זה ייכלל בשיקולים.
+              </Callout>
+            ) : null}
+            {state.errors.canWorkRishon ? (
+              <p className="mt-1 text-[13px] leading-5 text-red-600">{state.errors.canWorkRishon}</p>
+            ) : null}
+          </fieldset>
+        </div>
+
+        <div className="space-y-5 border-t border-line pt-5">
+          <GroupLabel>אופציונלי</GroupLabel>
+
+          <Field label={<Term>LinkedIn</Term>} htmlFor="linkedinUrl" error={state.errors.linkedinUrl}>
+            <Input
+              id="linkedinUrl"
+              name="linkedinUrl"
+              type="text"
+              dir="ltr"
+              className="text-start"
+              placeholder="https://www.linkedin.com/in/..."
+              value={draft.linkedinUrl}
+              onChange={(e) => updateField("linkedinUrl", e.target.value)}
+              error={!!state.errors.linkedinUrl}
+            />
+          </Field>
+
+          <Field label={<Term>GitHub</Term>} htmlFor="githubUrl" error={state.errors.githubUrl}>
+            <Input
+              id="githubUrl"
+              name="githubUrl"
+              type="text"
+              dir="ltr"
+              className="text-start"
+              placeholder="https://github.com/..."
+              value={draft.githubUrl}
+              onChange={(e) => updateField("githubUrl", e.target.value)}
+              error={!!state.errors.githubUrl}
+            />
+          </Field>
+
+          <div>
+            <FieldLabel htmlFor="cv">
+              קורות חיים <span className="font-normal text-text-3">(לא חובה)</span>
+            </FieldLabel>
+            <div className="mt-1">
+              <CvDropzone status={cvStatus} error={cvError} onFileSelected={handleCvFile} />
+            </div>
+            <input type="hidden" name="pendingCvId" value={pendingCv ? JSON.stringify(pendingCv) : ""} />
+          </div>
+        </div>
+
+        <div className="border-t border-line pt-5">
+          <Checkbox
+            name="privacyConsent"
+            required
+            label={
+              <>
+                קראתי ואני מסכים/ה ל
+                <Link href="/privacy" className="text-brand-600 underline hover:text-brand-700">
+                  מדיניות הפרטיות
+                </Link>
+              </>
+            }
+          />
+          {state.errors.privacyConsent ? (
+            <p className="mt-1 text-[13px] leading-5 text-red-600">{state.errors.privacyConsent}</p>
+          ) : null}
+        </div>
+
+        <SubmitButton />
+      </form>
+    </Card>
   );
 }

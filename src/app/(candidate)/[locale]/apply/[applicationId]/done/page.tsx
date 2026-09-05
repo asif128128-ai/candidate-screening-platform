@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { Term } from "@/components/term";
+import { CandidateShell } from "@/components/candidate-shell";
+import { Card } from "@/components/ui/card";
 import { checkCandidateCookie } from "@/lib/candidate-session";
 import { getDoneInfo } from "@/db/queries/application-flow";
 import { redirect } from "@/i18n/navigation";
@@ -8,6 +10,8 @@ import { redirect } from "@/i18n/navigation";
 // CANDIDATE_FLOW.md §6 — done page and closure (DECISIONS_LOG.md #3): a
 // reply-by date, no personalized rejection, a privacy link. No score is
 // ever shown to candidates.
+// FINTECH_REDESIGN_PLAN.md §1.7 done: centered Card, 56px --mint-600
+// check-circle icon, H1, the response-date promise in <Term> 600.
 export default async function DonePage({
   params,
 }: {
@@ -29,32 +33,61 @@ export default async function DonePage({
   const responseByDateHe = info.responseByDate.toLocaleDateString("he-IL");
 
   return (
-    <main className="mx-auto max-w-2xl p-8 text-center">
-      {info.sessionStatus === "abandoned" ? (
-        <>
-          <h1 className="text-xl font-semibold">המבחן נסגר</h1>
-          <p className="mt-2 text-neutral-600">חלף זמן המקסימום למבחן. מה שנענה נשמר, והמועמדות שלך התקבלה.</p>
-        </>
-      ) : (
-        <>
-          <h1 className="text-xl font-semibold">המועמדות שלך התקבלה</h1>
-          <p className="mt-2 text-neutral-600">
-            תודה, {info.candidateFirstName}. המבחן הושלם ונשמר — זה כל מה שנדרש מצידך.
-          </p>
-        </>
-      )}
+    <CandidateShell width="reading" stepper={{ current: 4, allDone: true }}>
+      <Card className="mx-auto max-w-[480px] text-center">
+        <CheckCircleIcon />
 
-      <p className="mt-4">
-        <strong>נחזור אליך עד <Term>{responseByDateHe}</Term></strong> במייל או בטלפון, בכל מקרה —
-        גם אם לא נמשיך יחד הפעם.
-      </p>
-      <p className="mt-2 text-sm text-neutral-600">
-        אם עבר התאריך ולא שמעת מאיתנו, אפשר לכתוב אלינו (פרטי הקשר בעמוד מדיניות הפרטיות).
-      </p>
+        {info.sessionStatus === "abandoned" ? (
+          <>
+            <h1 className="mt-4 text-[28px] font-bold leading-9 text-ink-900">המבחן נסגר</h1>
+            <p className="mt-2 text-[16px] leading-[26px] text-text-2">
+              חלף זמן המקסימום למבחן. מה שנענה נשמר, והמועמדות שלך התקבלה.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="mt-4 text-[28px] font-bold leading-9 text-ink-900">המועמדות שלך התקבלה</h1>
+            <p className="mt-2 text-[16px] leading-[26px] text-text-2">
+              תודה, {info.candidateFirstName}. המבחן הושלם ונשמר — זה כל מה שנדרש מצידך.
+            </p>
+          </>
+        )}
 
-      <Link href="/privacy" className="mt-6 inline-block underline">
-        מדיניות הפרטיות
-      </Link>
-    </main>
+        <p className="mt-4 text-[18px] leading-7 text-text">
+          נחזור אליך עד{" "}
+          <Term>
+            <span className="font-semibold">{responseByDateHe}</span>
+          </Term>{" "}
+          במייל או בטלפון, בכל מקרה — גם אם לא נמשיך יחד הפעם.
+        </p>
+        <p className="mt-3 text-[13px] leading-5 text-text-3">
+          אם עבר התאריך ולא שמעת מאיתנו, אפשר לכתוב אלינו (פרטי הקשר בעמוד מדיניות הפרטיות).
+        </p>
+
+        <Link href="/privacy" className="mt-6 inline-block text-[14px] leading-[22px] text-brand-600 hover:underline">
+          מדיניות הפרטיות
+        </Link>
+      </Card>
+    </CandidateShell>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg
+      viewBox="0 0 56 56"
+      className="mx-auto h-14 w-14 text-mint-600"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="28" cy="28" r="26" stroke="currentColor" strokeWidth="2.5" />
+      <path
+        d="M18 28.5l7 7 13-14"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

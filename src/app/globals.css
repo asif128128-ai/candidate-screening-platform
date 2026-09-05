@@ -2,12 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* FINTECH_REDESIGN_PLAN.md §1.2 — exact color tokens. One light theme; the
+   --ink-* scale is used deliberately for a few weighty surfaces (terms
+   card, runner top band, block intros), not as a dark-mode toggle. */
 :root {
   color-scheme: light;
+
+  /* Ink — dark surfaces and primary text */
+  --ink-950: #070d1f;
+  --ink-900: #0b1530; /* terms card, runner top band, block intros */
+  --ink-800: #131f45; /* timer track on ink, hover on ink */
+  --ink-200: #aab4d1; /* muted text ON ink */
+  --ink-100: #e8ecf6; /* option letter badge bg, chips */
+
+  /* Brand — the one variable the client's real brand color replaces */
+  --brand-700: #1f3ad6; /* primary hover, link text */
+  --brand-600: #2b4dff; /* primary buttons, focus border, selected state, timer fill on ink */
+  --brand-400: #6b87ff; /* timer fill on ink band (healthy), decorative */
+  --brand-100: #e6ebff; /* focus ring, selected option bg */
+  --brand-50: #f2f5ff; /* subtle tinted surfaces */
+
+  /* Semantic */
+  --mint-600: #19c39a; /* success icon/bar only — never body text */
+  --mint-800: #0e7a61; /* success text */
+  --mint-300: #5ee2c1; /* the rate figure on the ink terms card */
+  --amber-500: #f5a524; /* timer last 10 s */
+  --amber-800: #8a5a00; /* amber text */
+  --amber-50: #fff7e6;
+  --red-600: #e5484d; /* errors */
+  --red-50: #fef0f0;
+
+  /* Neutrals */
+  --canvas: #f6f7fb; /* page background (body) */
+  --surface: #ffffff; /* cards */
+  --line: #e3e7f0; /* default borders */
+  --line-strong: #c9d0de; /* input borders, secondary button border */
+  --text: #0f172a; /* primary text */
+  --text-2: #4b5675; /* secondary text (7.3:1 on white) */
+  --text-3: #6b7690; /* meta/helper text (4.6:1 on white — AA; never below 13 px) */
 }
 
 body {
   font-family: var(--font-heebo), Heebo, system-ui, sans-serif;
+  background: var(--canvas);
+  color: var(--text);
+}
+
+/* FINTECH_REDESIGN_PLAN.md §1.3: tabular numerals for timers, progress
+   labels, terms-card figures, and tables. */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
 
 /* CANDIDATE_FLOW.md §9 / ARCHITECTURE.md §9: technical tokens (numbers,
@@ -36,4 +80,70 @@ body {
    bidi run so it doesn't inherit the wrong direction from the table. */
 .cell {
   unicode-bidi: isolate;
+}
+
+/* FINTECH_REDESIGN_PLAN.md §1.5: "Every interactive element gets this ring;
+   no `outline: none` without it." Shared by button/field/checkbox/
+   option-button primitives in src/components/ui/. */
+.focus-ring {
+  transition: box-shadow 150ms ease-out, background-color 150ms ease-out,
+    border-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out;
+}
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--brand-100), 0 0 0 1px var(--brand-600);
+}
+
+/* Chromium (verified empirically, not just per a changelog note) reorders
+   sibling flex items by each item's own bidi strength whenever the flex
+   CONTAINER's computed `direction` is rtl and the items differ in
+   inherent script direction — e.g. an icon (no text), a digit/Latin chip,
+   and a Hebrew label as flex siblings come out in a different visual
+   order than DOM order. This contradicts the Flexbox spec (main-axis
+   order must follow DOM order + the container's writing mode only) but
+   is real, reproducible behavior in the engine this app ships to. Every
+   row in this design system that puts Hebrew text next to a digit, chip,
+   or icon uses .rtl-row instead of a plain flex row to route around it:
+   the container is forced to `direction: ltr` (so the buggy reordering
+   path never triggers — confirmed empirically that direction:ltr flex
+   containers keep DOM order regardless of content) and
+   `flex-direction: row-reverse` restores the correct RTL visual order
+   for DOM-order-as-reading-order; each direct child gets `direction:
+   rtl` back so its own text still wraps and aligns as Hebrew. */
+.rtl-row {
+  display: flex;
+  direction: ltr;
+  flex-direction: row-reverse;
+}
+.rtl-row > * {
+  direction: rtl;
+}
+/* Same fix, for rows that must stay inline-level (e.g. a chip-like control
+   sitting inside running text). */
+.rtl-row-inline {
+  display: inline-flex;
+  direction: ltr;
+  flex-direction: row-reverse;
+}
+.rtl-row-inline > * {
+  direction: rtl;
+}
+
+/* FINTECH_REDESIGN_PLAN.md §1.8: hover/focus transitions are 150ms
+   ease-out throughout the design system; respect reduced-motion by
+   disabling all transitions/animations except the timer width (which
+   communicates real elapsed time, not decoration). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-testid="timer-bar"] > * {
+    transition-duration: 200ms !important;
+  }
 }

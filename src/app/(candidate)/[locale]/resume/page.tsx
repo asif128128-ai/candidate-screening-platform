@@ -1,3 +1,5 @@
+import { CandidateShell } from "@/components/candidate-shell";
+import { Card } from "@/components/ui/card";
 import { ResumeForm } from "./resume-form";
 
 // CANDIDATE_FLOW.md §2.4 — /resume: re-entry that does not depend on email.
@@ -9,12 +11,14 @@ export default async function ResumePage({
   const { email } = await searchParams;
 
   return (
-    <main className="mx-auto max-w-md p-8">
-      <h1 className="text-xl font-semibold">חזרה לתהליך</h1>
-      <p className="mt-2 text-neutral-600">הזינו אימייל וקוד חזרה כדי להמשיך מאותה נקודה.</p>
-      <div className="mt-6">
+    <CandidateShell width="form">
+      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
+        חזרה לתהליך
+      </h1>
+      <p className="mt-2 text-[16px] leading-[26px] text-text-2">הזינו אימייל וקוד חזרה כדי להמשיך מאותה נקודה.</p>
+      <Card className="mt-6">
         <ResumeForm prefillEmail={email} />
-      </div>
-    </main>
+      </Card>
+    </CandidateShell>
   );
 }

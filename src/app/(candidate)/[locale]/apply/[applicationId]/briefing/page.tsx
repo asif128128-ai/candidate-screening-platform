@@ -1,5 +1,8 @@
 import { Link } from "@/i18n/navigation";
 import { Term } from "@/components/term";
+import { CandidateShell } from "@/components/candidate-shell";
+import { Card } from "@/components/ui/card";
+import { buttonClasses } from "@/components/ui/button";
 import { guardApplicationStep, stepPath } from "@/lib/application-guard";
 import { BriefingPanel } from "./briefing-panel";
 
@@ -14,53 +17,74 @@ export default async function BriefingPage({
 
   if (guard.kind === "already_past") {
     return (
-      <main className="mx-auto max-w-2xl p-8">
-        <h1 className="text-xl font-semibold">לפני המבחן</h1>
-        <p className="mt-2 text-neutral-600">כבר עברת את השלב הזה.</p>
-        <Link
-          href={stepPath(applicationId, guard.state.currentStep)}
-          className="mt-4 inline-block rounded-md bg-neutral-900 px-4 py-2 text-white"
-        >
+      <CandidateShell width="reading" stepper={{ current: 3 }}>
+        <h1 className="text-[28px] font-bold leading-9 text-ink-900">לפני המבחן</h1>
+        <p className="mt-2 text-[16px] leading-[26px] text-text-2">כבר עברת את השלב הזה.</p>
+        <Link href={stepPath(applicationId, guard.state.currentStep)} className={`mt-4 ${buttonClasses({ fullWidth: false })}`}>
           המשך
         </Link>
-      </main>
+      </CandidateShell>
     );
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-xl font-semibold">לפני המבחן</h1>
+    <CandidateShell width="reading" stepper={{ current: 3 }}>
+      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
+        לפני המבחן
+      </h1>
 
-      <section className="mt-4 text-sm leading-relaxed">
-        <h2 className="font-semibold">מה זה</h2>
-        <p className="mt-2">
-          מבחן קצר ואינטנסיבי, כ-30 דקות, 27 שאלות ב-4 חלקים: חימום מהיר, חשיבה, חקירה, אינסטינקט
-          טכנולוגי. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק
-          החקירה יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך.
-        </p>
-      </section>
+      <div className="mt-6 grid gap-4">
+        <Card>
+          <h2 className="text-[20px] font-semibold leading-7 text-ink-900">מה זה</h2>
+          <p className="mt-2 text-[16px] leading-[26px] text-text">
+            מבחן קצר ואינטנסיבי, כ-30 דקות, 27 שאלות ב-4 חלקים: חימום מהיר, חשיבה, חקירה, אינסטינקט
+            טכנולוגי. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק
+            החקירה יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך.
+          </p>
+        </Card>
 
-      <section className="mt-4 text-sm leading-relaxed">
-        <h2 className="font-semibold">הכללים</h2>
-        <ul className="mt-2 list-inside list-disc space-y-1">
-          <li>לכל שאלה זמן קצוב משלה</li>
-          <li>אין חזרה אחורה</li>
-          <li>אפשר לדלג על שאלה, אבל מומלץ תמיד לנסות לענות — כל מה שנדרש נמצא בשאלה עצמה</li>
-          <li>רענון של הדף לא מאפס את השעון</li>
-          <li>אחרי שמתחילים — מסיימים באותו רצף (מגבלה כוללת של <Term>75</Term> דקות)</li>
-        </ul>
-      </section>
+        <Card>
+          <h2 className="text-[20px] font-semibold leading-7 text-ink-900">הכללים</h2>
+          <ul className="mt-3 space-y-2">
+            {[
+              "לכל שאלה זמן קצוב משלה",
+              "אין חזרה אחורה",
+              "אפשר לדלג על שאלה, אבל מומלץ תמיד לנסות לענות — כל מה שנדרש נמצא בשאלה עצמה",
+              "רענון של הדף לא מאפס את השעון",
+            ].map((rule) => (
+              <li key={rule} className="rtl-row items-start gap-2 text-[16px] leading-[26px] text-text">
+                <RuleIcon />
+                <span>{rule}</span>
+              </li>
+            ))}
+            <li className="rtl-row items-start gap-2 text-[16px] leading-[26px] text-text">
+              <RuleIcon />
+              <span>
+                אחרי שמתחילים — מסיימים באותו רצף (מגבלה כוללת של <Term>75</Term> דקות)
+              </span>
+            </li>
+          </ul>
+        </Card>
 
-      <section className="mt-4 text-sm leading-relaxed">
-        <h2 className="font-semibold">מה לצפות</h2>
-        <p className="mt-2">
-          הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. לא צריך הכנה, חיפוש
-          באינטרנט או כלי <Term>AI</Term> — השאלות בנויות כך שהם פשוט לא עוזרים בזמן הנתון. אין כל
-          דבר שצריך לדעת בעל פה: כל מה שנדרש נמצא בשאלה עצמה.
-        </p>
-      </section>
+        <Card>
+          <h2 className="text-[20px] font-semibold leading-7 text-ink-900">מה לצפות</h2>
+          <p className="mt-2 text-[16px] leading-[26px] text-text">
+            הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. לא צריך הכנה, חיפוש
+            באינטרנט או כלי <Term>AI</Term> — השאלות בנויות כך שהם פשוט לא עוזרים בזמן הנתון. אין כל
+            דבר שצריך לדעת בעל פה: כל מה שנדרש נמצא בשאלה עצמה.
+          </p>
+        </Card>
+      </div>
 
       <BriefingPanel applicationId={applicationId} />
-    </main>
+    </CandidateShell>
+  );
+}
+
+function RuleIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" fill="none" aria-hidden="true">
+      <path d="M4 10.5l3.5 3.5L16 5.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
