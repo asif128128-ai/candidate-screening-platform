@@ -811,3 +811,124 @@ already name — none of it is code:
    real behavior, per `ASSESSMENT_DESIGN.md`'s own stated plan.
 4. The k6 load scenarios (`TEST_STRATEGY.md` §8), particularly the
    synchronized-start burst scenario the performance/cost review flagged.
+
+## Red-team review: two scoring-integrity bugs fixed (assessment engine)
+
+A red-team review against the *generated* item content and scoring code
+(not the design docs) found two real defects in the assessment engine.
+Both are fixed within the existing architecture — no schema or generator
+changes.
+
+### Fix 1 — 14 bank templates silently ignored `difficulty`
+
+`tech.cloud_waste`, `tech.minimal_access`, `tech.http_status_next`,
+`tech.env_diff_bug`, `tech.git_what_happened`, `tech.automation_pick`,
+`tech.data_normalize`, `tech.field_mapping_error`, `tech.security_smell`,
+`tech.site_down_first_check`, `tech.webhook_vs_polling`,
+`reasoning.analogy_structural`, `reasoning.grid_pattern`, and
+`reasoning.table_must_be_true` all declared a `difficulties` array
+spanning 2-3 levels but had a `generate()` that either didn't accept a
+`difficulty` argument at all or ignored it in the body — every declared
+level produced the same content. Since `scoring.ts`'s `DIFFICULTY_WEIGHT`
+gives d3 items 1.7x scoring weight and `integrity.ts`'s impossible-timing
+check specifically flags `difficulty === 3 && correct && responseMs < 0.2 *
+time_limit`, this meant (a) two equally-skilled candidates got different
+Tech/Reasoning scores purely from random template-to-difficulty-slot
+assignment, and (b) a strong candidate who quickly solved a mislabeled-hard
+item could be falsely flagged as suspiciously fast on a "hard" item.
+
+**Fix**: implemented genuine content-difficulty scaling in every affected
+template's `generate(rng, difficulty)`, matching the existing scaling
+pattern in `tech.sql_outcome`/`tech.api_pagination_math`/
+`tech.log_root_cause` (used as the model). Concretely, per template:
+- `tech.cloud_waste`: 3 resources with one blatant outlier at d1, the
+  original 4-resource version at d2, a 5th resource at d3 whose low usage
+  is explained by a genuine periodic workload (a real decoy).
+- `tech.minimal_access`: 3-role ladder at d1, the original 4-role ladder
+  at d2, a 5-role matrix at d3 with a genuine non-cumulative exception role
+  (auditor) plus a two-action task, defeating a "max index" shortcut.
+- `tech.http_status_next`: disjoint status-code pools per tier (429/401 ->
+  503/400 -> 202/409), the d3 pool chosen so the doc excerpt contradicts
+  the tempting "it's a 2xx / just retry" instinct.
+- `tech.env_diff_bug`: 0 -> 1 -> 2 harmless decoy env vars, plus a more
+  generic (subsystem-hiding) error message at d3.
+- `tech.git_what_happened`: kept its original `[2,3]` declared range (no
+  natural d1 exists for this template); d2 keeps the single simpler
+  (deleted-unmerged-branch) story, d3 pool now has two subtler stories
+  (force-push-after-rebase, and a new interactive-rebase-squash case).
+- `tech.automation_pick`, `tech.data_normalize`, `tech.field_mapping_error`,
+  `tech.security_smell`, `tech.site_down_first_check`,
+  `tech.webhook_vs_polling`: each split its case pool into a genuinely
+  easier d1 subset and a harder d2 subset requiring resisting a tempting
+  wrong instinct, a compound tradeoff, or a confusable near-miss (added new
+  cases rather than just repartitioning the existing ones, to avoid
+  shrinking bank variety per DECISIONS_LOG #7's exposure-margin concern).
+- `reasoning.analogy_structural`: distractors move from all-cross-family
+  (d1) to a mix (d2) to all-same-family (d3), so higher difficulty requires
+  exact structural pair-matching, not just "the right kind of relation".
+- `reasoning.grid_pattern`: 2 stated rules at d1, the original 3-rule
+  stated version at d2, and at d3 the same 3 rules are no longer stated in
+  prose (must be induced from the 8 visible cells) plus an extra
+  double-rule-violation decoy.
+- `reasoning.table_must_be_true`: 5/6/9 rows across d1/d2/d3, with
+  compound (two-field AND/OR) predicates and near-miss (±1) distractor
+  deltas added only at d3.
+
+No template's declared `difficulties` array was narrowed — all scaling is
+real content variation, preserving `generator.ts`'s slot-filling eligibility
+and the difficulty-mix table exactly as before.
+
+**Verification**: `tests/unit/assessment/bank.test.ts` has a new
+`describe("fixed templates: content genuinely scales with declared
+difficulty ...")` block with one real, measurable assertion per fixed
+template (row counts, option counts, disjoint content pools, or — for
+`analogy_structural` — relation-family membership of distractors),
+confirming content actually gets harder at higher difficulty, not just that
+it stays scoreable. The content snapshot was regenerated for the templates
+whose first-declared-difficulty output changed. `pnpm run bank:audit` still
+passes at 20,000 sessions with every invariant (escalation coverage,
+scenario balance, difficulty mix, no in-session family repeats) unchanged.
+
+### Fix 2 — independence process score gameable by dwell-time alone
+
+`scoring.ts`'s `computeProcessScore` gave full "evidence" credit (0.5 of
+the 4-item mean that is 30% of `I_raw`) for opening the scene's decisive
+artifact and waiting >= 3000ms before the next event/submit, with no
+comprehension check. A candidate told in advance which tab to open and to
+wait 3 seconds could get a near-perfect independence-block process score
+(evidence + efficiency + deliberation all near 1.0) with zero real
+diagnostic reasoning — worse than the already-accepted scenario-exposure
+risk (DECISIONS_LOG #7) because it lets leaked information fake the exact
+behavioral signature the redesigned process score (DECISIONS_LOG #5) was
+built to distinguish from mechanical clicking.
+
+**Fix**: full evidence credit now additionally requires either (a) the
+decisive artifact's dwell being well past the bare "opened" threshold
+(>= 8000ms, vs. the original 3000ms), or (b) the candidate having also
+opened at least one other artifact in the scene. Either signal is
+inconsistent with a single memorized "open tab X, wait 3 seconds" script; a
+genuinely-investigating candidate satisfies at least one of them for free.
+This only changes the `evidence` process-score component —
+`decisiveArtifactOpened` (used by blind-guess detection and the §3.6
+skip-never-worse-than-a-blind-guess invariant) keeps its original meaning
+(opened with >= 3000ms dwell), unaffected. See IMPLEMENTATION_NOTES.md for
+the full reasoning, alternatives considered, and residual gaming risk.
+
+**Verification**: `docs/SCORING.md` §10's worked-example regression test
+(`tests/unit/assessment/scoring.test.ts`'s `describe("scoreSession —
+SCORING.md §10 worked example"`) still reproduces every value exactly
+(S=68, R=83, T=89, I=81, overall=82) unchanged, since every scene in that
+worked example dwells far longer than the new 8000ms bar. A new
+`describe("process score — evidence can no longer be farmed by dwell-time
+alone"`) test encodes the exact gamed pattern (open the decisive tab, dwell
+just over 3000ms, no other engagement) and confirms it now scores `p_i =
+0.5` (efficiency + deliberation only) instead of `1.0`, while a long solo
+dwell or a second opened artifact restores full credit.
+
+### Verified after both fixes
+```
+pnpm typecheck       # OK, 0 errors
+pnpm lint            # OK, 0 errors, 2 pre-existing unrelated warnings
+pnpm test            # OK, 312/312 (35 integration tests skipped, no DB in this environment)
+pnpm run bank:audit  # OK, PASSED at 20,000 sessions, all invariants hold
+```
