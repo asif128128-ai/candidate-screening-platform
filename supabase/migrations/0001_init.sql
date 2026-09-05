@@ -441,9 +441,9 @@ create table if not exists admin_alerts (
   first_seen_at timestamptz not null default now(),
   last_seen_at  timestamptz not null default now(),
   dismissed_by  uuid references admin_users(id),
-  dismissed_at  timestamptz,
-  unique (code, (meta->>'key'))
+  dismissed_at  timestamptz
 );
+create unique index if not exists admin_alerts_code_key_idx on admin_alerts (code, (meta->>'key'));
 
 -- 4.20 privacy_requests (§3.20)
 create table if not exists privacy_requests (
