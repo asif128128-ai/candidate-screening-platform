@@ -17,6 +17,7 @@ export function getSupabaseServiceClient() {
   return client;
 }
 
-// TODO(admin-ui engineer): a second client using SUPABASE_ANON_KEY, wired
-// through @supabase/ssr for the admin login (Auth) flow only — never for
-// data (ARCHITECTURE.md §1 "Admin auth" row).
+// The second client using SUPABASE_ANON_KEY, wired through @supabase/ssr for
+// the admin login (Auth) flow only — never for data (ARCHITECTURE.md §1
+// "Admin auth" row) — lives in src/lib/supabase-admin-auth-client.ts
+// (it needs the Next.js `cookies()` API, which isn't available here).

@@ -202,6 +202,192 @@ can't directly `DELETE` from, while still being *called* by `app_user`
 `SECURITY DEFINER` alone bypasses RLS, when it's actually the definer's
 role attributes that do.
 
+## Admin-UI engineer pass — decisions, and two bugs found in the foundation layer
+
+Cross-linked from `IMPLEMENTATION_STATE.md`'s matching new section, which
+lists what was built. This section is decisions-and-caveats only.
+
+### Two real bugs found in already-implemented foundation code
+
+Both were caught while wiring the candidate list up to `admin_application_rows`
+(the brief said to read that view/schema directly rather than inventing a
+different shape — doing exactly that surfaced these) and are fixed in
+`supabase/migrations/0001_init.sql`, not worked around in application code.
+
+1. **Missing `GRANT SELECT` on the view itself.** `admin_application_rows`
+   was created, but only the tables it joins were granted to `app_user` —
+   views need their own explicit grant, separate from the underlying
+   tables'. Every query against it failed with "permission denied for view"
+   until `grant select on admin_application_rows to app_user;` was added
+   (§9 of the migration, next to the other view/table grants).
+2. **The view silently bypassed RLS entirely** (more serious). Postgres
+   views execute their underlying-table access with the *view owner's*
+   privileges by default, not the querying role's — and the owner here is
+   the migration/project-owner role, which (per this file's own "SECURITY
+   DEFINER" note below) has `BYPASSRLS`. That means every RLS policy on
+   `applications`/`candidates`/`assessment_results`/etc. was being silently
+   skipped for *any* query through this view, regardless of `app.context`.
+   Verified empirically: before the fix, `select count(*) from
+   admin_application_rows` with `app.context = 'candidate'` and a bogus
+   `app.application_id` returned every row in the database instead of zero.
+   Fixed with Postgres 15's `security_invoker = true` view option (`create
+   ... view admin_application_rows with (security_invoker = true) as
+   ...`), which makes the view evaluate RLS as the querying role (`app_user`)
+   instead. Re-verified after the fix (candidate context → 0 rows; no
+   context at all → 0 rows; enabled admin context → all rows) and covered
+   permanently by `tests/integration/admin-rls-security.test.ts`. This is
+   exactly the kind of gap `ARCHITECTURE.md` §2's "a route that forgets its
+   WHERE still gets only its own application's rows" defense-in-depth
+   promise is supposed to prevent — it's worth an extra look at any other
+   view added later for the same `security_invoker` requirement.
+
+### Admin auth architecture
+
+- **Split across two runtimes, deliberately.** `ADMIN_UX.md` §8 describes
+  the gate as one thing ("middleware checks admin_users allowlist... requires
+  aal2"), but Edge middleware cannot open a raw Postgres connection
+  (`postgres.js` needs real TCP sockets), so the DB-backed allowlist/
+  `disabled_at` check cannot live there. It's split: `src/middleware.ts`
+  does the JWT-signature + `aal2` check (Edge-safe, `jose`, no network round
+  trip — matches the literal wording in `.env.example`'s
+  `SUPABASE_JWT_SECRET` comment, which predates this pass and already said
+  "used to verify admin session JWTs locally in middleware"), and
+  `src/app/admin/(protected)/layout.tsx` (a Server Component, Node.js
+  runtime) does the `admin_users` lookup via `src/lib/current-admin.ts`.
+  Both run before any data page renders, so the net effect matches the spec;
+  only the mechanism is split.
+- **The `admin_users` lookup runs in `system` DB context, not `admin`.**
+  The RLS policy on `admin_users` (`DATA_MODEL.md` §6.3) only allows reads
+  when `app.admin_id` already names an *enabled* admin — which is exactly
+  the fact a fresh login needs to establish. There is no context that can
+  resolve "email → admin_id" other than `system`. This is narrow (one
+  `SELECT` by an email that already passed Supabase's own signed-JWT
+  verification) and is the only path that can turn a login into an
+  `app.admin_id` at all; `src/lib/current-admin.ts` documents this at the
+  call site. `ARCHITECTURE.md` §2's "system context is used only by
+  boot-time and health-sweep code paths" should be read as "...and this one
+  narrow admin-session-resolution case."
+- **A CSP nonce was required for *any* admin client component to work at
+  all**, and is not a candidate-flow change even though it touches
+  `src/middleware.ts`'s shared `withSecurityHeaders()`. The existing
+  `script-src 'self'` (no nonce, no `unsafe-inline`) blocks every inline
+  `<script>` Next.js itself generates to stream RSC/hydration payloads into
+  the page — discovered because every button/form/tab in the admin UI
+  silently no-op'd in a real browser (visible only as CSP violations in the
+  console, not as a build or type error). Fixed per Next's documented
+  nonce pattern, **scoped to `/admin/*` only** (a per-request nonce
+  generated in `guardAdminRoute`, threaded via an `x-nonce` request header,
+  referenced in the CSP `script-src`) — the task said not to touch the
+  candidate-cookie/rate-limiting parts of `src/middleware.ts`, and the
+  candidate side has no interactive client component yet (the assessment
+  runner is still a TODO), so it's left on the original header there.
+  **Whoever builds the runner will hit the identical bug** and should
+  extend the same `nonce`/`nextWithNonce` mechanism to the candidate
+  branch of `middleware.ts` rather than rediscovering this. Non-production
+  also needs `'unsafe-eval'` in `script-src` (Next dev mode's React
+  Refresh/webpack HMR evaluates code strings) — added only when
+  `NODE_ENV !== "production"`.
+- **Real Supabase Auth calls are unverified in this sandbox** — same root
+  cause as the foundation layer's unverified migration-version check and
+  storage HEAD check (`IMPLEMENTATION_NOTES.md` above): no live Supabase
+  project. `signInWithPassword`, `mfa.enroll`/`challengeAndVerify`, and
+  `signOut` are implemented against the real `@supabase/ssr` + `supabase-js`
+  APIs per the documented flow, but were never exercised against a real
+  Auth server. What *is* verified end-to-end against this environment: the
+  JWT-signature/`aal2` check and the DB allowlist check, by mounting a
+  cookie in the exact shape `@supabase/ssr` stores (JSON, `base64-` prefixed,
+  under a fixed cookie name — see below) with a locally-minted, correctly-
+  signed HS256 JWT. `tests/e2e/admin-fixtures.ts`'s `addAdminCookie()` is
+  this mechanism, used by every admin e2e test; the same technique was used
+  ad hoc via a throwaway script for manual browser QA (not committed).
+  Before a real deploy: manually walk `/admin/login` → password → TOTP QR →
+  code against a real Supabase project once.
+- **Cookie name is explicit (`sb-admin-auth-token`), not
+  `@supabase/ssr`'s computed default** (`sb-<project-ref>-auth-token`,
+  derived by parsing `SUPABASE_URL`). Passed via `cookieOptions.name` in
+  `src/lib/supabase-admin-auth-client.ts`. This makes the cookie name stable
+  and independent of the Supabase project URL shape, which matters both for
+  `src/lib/admin-jwt.ts` (needs a fixed name to read in Edge middleware) and
+  for minting test cookies without depending on a real project ref.
+
+### Candidate list/detail
+
+- **Keyset pagination for numeric/date sort columns, offset pagination for
+  text columns** (`src/db/queries/candidates.ts`). `ADMIN_UX.md` §3 asks for
+  keyset generically ("sort keys are denormalized... keyset on
+  `(sort_key, application_id)`"). Building a correct keyset cursor for a
+  multi-column, non-scalar sort like "last_name, first_name" or
+  "institution, study_year" needs a compound-tuple comparison that's
+  meaningfully more code for sorts that aren't the primary triage path (the
+  default and quick filters all sort by `score_overall`/`pct_rank`/
+  `applied_at`, which get full keyset treatment). Offset pagination for the
+  three text sorts (name/stage/institution) is a scoped-down but correct
+  choice at the stated volumes (hundreds–low thousands per job); flagged
+  here rather than silently shipped as if it were the general case.
+- **Bulk archive-and-delete runs synchronously, in-request, in batches of
+  100** rather than as a resumable background job with a live progress bar
+  (`ADMIN_UX.md` §3.5 literally describes "a progress bar; safe to
+  interrupt"). Building an actual resumable job queue was out of proportion
+  to this task's time budget and this app's "no background jobs, ever"
+  architecture (`ARCHITECTURE.md` §1: "Background jobs / cron: **None**").
+  What's built: the delete itself is genuinely safe to re-run (a candidate
+  already deleted is silently absent from a re-resolved id list), and CSV
+  export happens client-side before the delete call so the export always
+  reflects pre-delete data — but there's no mid-flight progress UI, and a
+  very large selection (thousands) will block on one request/response
+  cycle. Worth a real background-job mechanism if selections regularly
+  exceed a few hundred rows in practice.
+- **`ignoreFocusSignals()`'s recompute is explicitly provisional**
+  (`src/db/queries/candidate-mutations.ts`). The real logic for "what does
+  ignoring focus signals do to the risk level" belongs in the assessment
+  engine's `computeIntegrity()` (`src/assessment/integrity.ts`,
+  `ANTI_CHEATING.md` §5), which is still `throw new Error(...)` as of this
+  pass. Rather than leave the whole admin override feature unbuilt, a
+  narrow heuristic is used (drop reasons coded `tab_hidden*`/`blur_only`/
+  `instance_new`, re-sum remaining weight, threshold at 30/60) — clearly
+  commented as provisional, with a pointer for whoever implements
+  `computeIntegrity()` to replace it with a real "ignore focus" mode there
+  instead.
+- **Admin UI strings are hardcoded Hebrew, not routed through
+  `messages/he.json`**, despite `ADMIN_UX.md` §1's "strings in
+  messages/he.json." The admin UI is Hebrew-only at launch with no locale
+  routing (`ARCHITECTURE.md` §9 confirms this, and the existing placeholder
+  pages already hardcoded their Hebrew strings this way before this pass).
+  Wiring ~150 admin strings through `next-intl`'s message-file mechanism
+  without any locale routing to hang it off would have been a meaningfully
+  larger, purely-mechanical task for no behavioral difference today; it's a
+  contained, mechanical follow-up whenever English admin support becomes a
+  real requirement (at which point every string needs extracting anyway,
+  message-file or not).
+- **Bank analytics (`ADMIN_UX.md` §6) is simplified**: no "צפה בדוגמה"
+  sample-instance button and no median-time-used column, since both need
+  `src/assessment/generator.ts`, which is still a stub. What's built (per-
+  template served count/accuracy/skip-rate/expiry-rate, `admin_alerts`-
+  flagged rows highlighted) is real and reads live `assessment_items`/
+  `assessment_responses` data — it just has nothing to show yet in a fresh
+  environment, which is the honest state, not a placeholder.
+
+### Local testing / tooling
+
+- **`scripts/dev-seed.sql`** is intentionally not a migration (doesn't go
+  through `supabase/migrations/`) — it's a one-shot dev fixture, run as the
+  Postgres superuser directly (bypasses RLS, unlike `app_user`), matching
+  `local-pg-setup.sh`'s own pattern of being a dev-only stand-in.
+- **`playwright.config.ts`'s port is now overridable via `PLAYWRIGHT_PORT`**
+  (defaults to 3000, unchanged for anyone not setting it). This sandbox runs
+  multiple worktrees/agents concurrently, and a hardcoded port meant this
+  suite could silently attach to a *different* agent's dev server (same
+  codebase, different/no seed data) instead of its own — actually observed
+  once while testing, before spotting the cause. Not otherwise a functional
+  change.
+- **Do not run `./scripts/local-pg-setup.sh` (or anything that drops the
+  DB) while a dev server is connected to it** — `postgres.js`'s pooled
+  connections don't recover from their underlying database being dropped
+  out from under them, and every query fails in ways that look like
+  application bugs (empty lists, silent 200s) rather than a clear connection
+  error until the dev server is restarted. Stop `pnpm dev` first, reset/
+  reseed, then start it again.
+
 ## What was not run end-to-end
 
 There is no live Supabase project in the environment this was built in, so

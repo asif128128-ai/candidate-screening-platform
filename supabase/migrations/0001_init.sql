@@ -461,7 +461,20 @@ create table if not exists privacy_requests (
 -- =====================================================================
 -- 5. View for the admin list (§4)
 -- =====================================================================
-create or replace view admin_application_rows as
+-- security_invoker = true (Postgres 15+, matches this file's target
+-- version) is load-bearing, not cosmetic: without it, a view's underlying
+-- tables are accessed with the VIEW OWNER's privileges, not the querying
+-- role's — and the owner here is the migration/project-owner role, which
+-- (per DATA_MODEL.md §6.1 / IMPLEMENTATION_NOTES.md) has BYPASSRLS. That
+-- means every RLS policy on applications/candidates/assessment_results/etc.
+-- (DATA_MODEL.md §6.3) would be silently skipped for every query against
+-- this view, regardless of `app.context` — turning the one query the whole
+-- admin candidate list is built on (ADMIN_UX.md §3) into an unconditional
+-- full-table read for app_user. Verified empirically while wiring up the
+-- admin list: querying this view with `app.context = 'candidate'` and a
+-- bogus `app.application_id` returned every application in the database
+-- instead of zero rows, before this option was added.
+create or replace view admin_application_rows with (security_invoker = true) as
 select a.id as application_id, a.job_id, a.stage, a.stage_changed_at, a.created_at as applied_at,
        a.can_work_rishon, a.duplicate_phone_of is not null as dup_phone,
        c.id as candidate_id, c.first_name, c.last_name, c.email, c.phone_e164,
@@ -954,6 +967,12 @@ grant select, insert, update on jobs, candidates, applications, application_stag
       admin_alerts, privacy_requests, admin_audit_log, admin_users to app_user;
 grant delete on rate_limits, email_outbox, cv_purge_queue, integrity_events, admin_alerts to app_user;
 grant select on cv_files, cv_purge_queue, assessment_configs to app_user;
+-- admin_application_rows (§4) is a view, which needs its own explicit
+-- SELECT grant separate from the grants on the tables it joins (views are
+-- not implicitly covered by table-level grants). Missing this left the
+-- admin candidate list (ADMIN_UX.md §3) unable to query the view at all
+-- under app_user — caught wiring up that screen (see IMPLEMENTATION_NOTES.md).
+grant select on admin_application_rows to app_user;
 grant execute on function cv_upsert, delete_candidate, delete_application, apply_outage_credit,
       finalize_session, prune_retention, run_maintenance_sweep to app_user;
 grant usage, select on all sequences in schema public to app_user;

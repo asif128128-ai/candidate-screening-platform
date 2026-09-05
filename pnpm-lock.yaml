@@ -17,6 +17,9 @@ importers:
       '@supabase/supabase-js':
         specifier: 2.48.1
         version: 2.48.1
+      jose:
+        specifier: ^6.2.11
+        version: 6.2.11
       next:
         specifier: 15.5.25
         version: 15.5.25(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@22.10.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -2595,6 +2598,9 @@ packages:
   jiti@1.21.7:
     resolution: {integrity: sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==}
     hasBin: true
+
+  jose@6.2.11:
+    resolution: {integrity: sha512-A5NPn7g8EAzGU3IzRs+Yiq8K5n3ypYS75M5+KKiVHdUexfpWK1kP4ZMq7QnTGDoMj6TJ1dtcEJjW60yZDXS4hg==}
 
   js-beautify@1.15.4:
     resolution: {integrity: sha512-9/KXeZUKKJwqCXUdBxFJ3vPh467OCckSBmYDwSK/EtV090K+iMJ7zx2S3HLVDIWFQdqMIsZWbnaGiba18aWhaA==}
@@ -6405,6 +6411,8 @@ snapshots:
       supports-color: 8.1.1
 
   jiti@1.21.7: {}
+
+  jose@6.2.11: {}
 
   js-beautify@1.15.4:
     dependencies:

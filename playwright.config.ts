@@ -4,6 +4,16 @@ import { defineConfig, devices } from "@playwright/test";
 // Jerusalem timezone, 1366x768 default viewport, a 390x844 mobile project.
 // `webServer` boots the app so CI can run this against a real (if mostly
 // placeholder, at this stage) build.
+//
+// Port is overridable via PLAYWRIGHT_PORT (default 3000): in a sandbox
+// where multiple worktrees/agents may run `pnpm dev` concurrently, a fixed
+// port collides with another instance and this suite would silently test
+// against the WRONG app/data. Set PLAYWRIGHT_PORT to a free port instead of
+// hardcoding a different default — nothing changes for a normal single-
+// instance run.
+const PORT = process.env.PLAYWRIGHT_PORT ?? "3000";
+const BASE_URL = `http://127.0.0.1:${PORT}`;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -11,7 +21,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: BASE_URL,
     locale: "he-IL",
     timezoneId: "Asia/Jerusalem",
     trace: "on-first-retry",
@@ -41,8 +51,8 @@ export default defineConfig({
     // set (scripts/check-env.ts prestart hook) — switch this to
     // `pnpm build && pnpm start` once there's a real backend for the nightly
     // full-matrix run to exercise (TEST_STRATEGY.md §1).
-    command: "pnpm dev",
-    url: "http://127.0.0.1:3000",
+    command: `pnpm dev -p ${PORT}`,
+    url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
