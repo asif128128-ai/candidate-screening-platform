@@ -8,8 +8,25 @@ services:
     region: frankfurt
     plan: starter
     branch: main
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm start
+    # Red-team finding #8: `next start` (what `pnpm start` runs) warns it is
+    # not compatible with `output: "standalone"` (next.config.ts) — it
+    # happened to still serve requests correctly, but defeated the whole
+    # cold-start/image-size rationale for choosing standalone output
+    # (ARCHITECTURE.md §5.3/§10). `next build` with `output: "standalone"`
+    # emits `.next/standalone/server.js` plus a `.next/standalone/` tree
+    # that does NOT include `public/` or `.next/static/` (Next copies the
+    # traced server deps there but deliberately leaves static assets out —
+    # they're expected to be copied alongside by the build step); the extra
+    # `cp` below does that copy so the standalone server can actually serve
+    # `/` and every static asset, not just API routes. Verified locally:
+    # `pnpm build` -> the two `cp`s below -> `node .next/standalone/server.js`
+    # -> real HTML on `/jobs/student-tech-2026` and correct `/_next/static/*`
+    # assets, not just `/api/health`.
+    buildCommand: >-
+      corepack enable && pnpm install --frozen-lockfile && pnpm build &&
+      cp -r public .next/standalone/public &&
+      cp -r .next/static .next/standalone/.next/static
+    startCommand: node .next/standalone/server.js
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
