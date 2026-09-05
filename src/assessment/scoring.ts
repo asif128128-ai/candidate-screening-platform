@@ -276,6 +276,20 @@ function computeGuesses(
 
 const DWELL_THRESHOLD_MS = 3000;
 const CLICK_THROUGH_WINDOW_MS = 15000;
+// Finding #2 (red-team review): a bare ≥3s dwell on the decisive tab alone
+// is exactly what a candidate coached with "open tab X, wait 3 seconds" can
+// produce with zero real investigation. Full evidence credit now requires
+// EITHER a dwell well past that bare minimum (long enough that it's no
+// longer plausible as a timed wait rather than actually reading a short
+// artifact body — see IMPLEMENTATION_NOTES.md's "Independence process score"
+// entry for the reasoning and the residual gaming risk that remains), OR
+// having opened at least one other artifact too (consistent with genuinely
+// comparing evidence across tabs, which a script naming only the one
+// decisive tab wouldn't produce). This does NOT change what counts as
+// "opened" for the blind-guess check or for efficiency's ordinal — those
+// stay on the original 3s bar; only the 0.5-weight evidence component is
+// harder to earn on dwell alone.
+const EVIDENCE_STRONG_DWELL_MS = 8000;
 
 export interface ProcessScoreResult {
   pI: number;
@@ -306,15 +320,27 @@ function computeProcessScore(
   });
 
   let decisiveOrdinal: number | null = null;
+  let decisiveDwellMs = 0;
   for (let i = 0; i < opens.length; i++) {
     const e = opens[i] as ScoringEvent;
     if (e.artifactKey === key.decisiveArtifactKeyQ1 && (dwellByIndex[i] as number) >= DWELL_THRESHOLD_MS) {
       decisiveOrdinal = i + 1; // 1-indexed ordinal among ALL opens
+      decisiveDwellMs = dwellByIndex[i] as number;
       break;
     }
   }
+  // Unchanged meaning: "was the decisive artifact opened at all" (>= the
+  // original 3s bar) — this is what the blind-guess check and
+  // ItemBreakdown.decisiveArtifactOpened continue to mean.
+  const decisiveOpened = decisiveOrdinal !== null;
 
-  const evidence = decisiveOrdinal !== null ? 1 : 0;
+  // Evidence corroboration (see EVIDENCE_STRONG_DWELL_MS above): a long
+  // solo dwell, or touching a second artifact, either one is enough to
+  // distinguish real investigation from a single timed dwell.
+  const distinctArtifactsOpened = new Set(opens.map((e) => e.artifactKey)).size;
+  const evidenceQualified =
+    decisiveOpened && (decisiveDwellMs >= EVIDENCE_STRONG_DWELL_MS || distinctArtifactsOpened >= 2);
+  const evidence = evidenceQualified ? 1 : 0;
 
   let efficiency: number;
   if (decisiveOrdinal === null) efficiency = 0;
@@ -328,8 +354,7 @@ function computeProcessScore(
   // count would misgrade one or the other.
   const totalTabCount = item.artifactKeys?.length;
   if (totalTabCount !== undefined) {
-    const distinctOpened = new Set(opens.map((e) => e.artifactKey));
-    if (opens.length > 0 && distinctOpened.size >= totalTabCount) {
+    if (opens.length > 0 && distinctArtifactsOpened >= totalTabCount) {
       const span = (opens[opens.length - 1] as ScoringEvent).atMs - (opens[0] as ScoringEvent).atMs;
       if (span < CLICK_THROUGH_WINDOW_MS) efficiency = 0.3;
     }
@@ -341,7 +366,12 @@ function computeProcessScore(
   const deliberation = firstOpenMs !== null && firstAnswerMs !== null && firstOpenMs < firstAnswerMs ? 1 : 0;
 
   const pI = 0.5 * evidence + 0.3 * efficiency + 0.2 * deliberation;
-  return { pI, evidence, efficiency, deliberation, decisiveArtifactOpened: evidence === 1 };
+  // Deliberately NOT `evidence === 1`: this stays the original "was the
+  // decisive artifact opened at all" signal (blind-guess detection and
+  // §3.6's skip-vs-blind-guess invariant are about whether the candidate
+  // looked at the evidence at all, not about the stricter engagement bar
+  // the `evidence` process-score component now requires).
+  return { pI, evidence, efficiency, deliberation, decisiveArtifactOpened: decisiveOpened };
 }
 
 // ---------------------------------------------------------------------------

@@ -414,6 +414,64 @@ describe("scoreSession — SCORING.md §10 worked example", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Red-team finding #2 — a bare >=3s dwell on the decisive tab, with no other
+// engagement, used to earn full "evidence" credit (0.5 of the process
+// score). That is exactly the behavioral signature of a candidate coached
+// to "open tab X and wait 3 seconds" with zero real investigation. Evidence
+// now additionally requires either a much longer solo dwell or touching a
+// second artifact (see EVIDENCE_STRONG_DWELL_MS in scoring.ts).
+// ---------------------------------------------------------------------------
+describe("process score — evidence can no longer be farmed by dwell-time alone", () => {
+  it("a short dwell (just over 3s) on a single tab scores no evidence credit; a long solo dwell, or a second tab, restores it", () => {
+    const build = (responseMs: number, events: ScoringEvent[]) => {
+      const item = investigationItem(1, 2);
+      const response: ScoringResponse = {
+        position: 1,
+        status: "answered",
+        answer: { q1: 0, q2: 0, q3: "FACT" },
+        responseMs,
+        firstInteractionMs: 500,
+        answerChanges: 0,
+        firstAnswerSelectMs: responseMs, // answered right at submit -> deliberation = 1 (opened before answering)
+      };
+      return scoreSession({
+        items: [item],
+        responses: [response],
+        events,
+        blueprint: { weights: { reasoning: 0.3, independence: 0.3, tech: 0.25, speed: 0.15 } },
+      });
+    };
+
+    // Gamed pattern: open the decisive tab, wait ~3.5s (just over the bare
+    // "opened" bar), submit immediately, never touch any other tab.
+    const gamed = build(3500, [{ position: 1, kind: "artifact_open", atMs: 0, artifactKey: "decisive" }]);
+    const gamedProcess = gamed.breakdown.blocks.find((b) => b.key === "investigate")?.process ?? -1;
+    // efficiency = 1.0 (reached first), deliberation = 1 (opened before
+    // answering) but evidence = 0 -> p_i = 0.3 + 0.2 = 0.5, not 1.0.
+    expect(gamedProcess).toBeCloseTo(0.5, 5);
+    // The decisive artifact was still genuinely "opened" for blind-guess
+    // purposes — this fix targets the process score, not that gate.
+    expect(gamed.breakdown.items[0]?.decisiveArtifactOpened).toBe(true);
+
+    // Same timing, but a genuinely long solo dwell (10s) on the decisive
+    // tab alone restores full evidence credit.
+    const longDwell = build(10000, [{ position: 1, kind: "artifact_open", atMs: 0, artifactKey: "decisive" }]);
+    const longDwellProcess = longDwell.breakdown.blocks.find((b) => b.key === "investigate")?.process ?? -1;
+    expect(longDwellProcess).toBeCloseTo(1.0, 5);
+
+    // Same short 3.5s dwell on the decisive tab, but the candidate also
+    // opened a second artifact — corroborates genuine cross-referencing —
+    // also restores full evidence credit.
+    const secondTab = build(3500, [
+      { position: 1, kind: "artifact_open", atMs: 0, artifactKey: "decisive" },
+      { position: 1, kind: "artifact_open", atMs: 3500, artifactKey: "other" },
+    ]);
+    const secondTabProcess = secondTab.breakdown.blocks.find((b) => b.key === "investigate")?.process ?? -1;
+    expect(secondTabProcess).toBeCloseTo(1.0, 5);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // SCORING.md §3.6 — "skip is never worse than a blind guess" invariant.
 // Property test over many randomized behaviors, per TEST_STRATEGY.md §3
 // ("skip_dominates_blind_guess" over 10,000 random behaviors).
