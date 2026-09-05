@@ -50,7 +50,10 @@ const PATTERNS: PatternDef[] = [
     human: "^\\d{4}\\d+$",
     make: (r) => `${String(r.nextIntBetween(1000, 9999))}${r.nextIntBetween(1, 999)}`,
     breakers: [
-      (r) => String(r.nextIntBetween(100, 999)), // fewer than 4 leading digits total
+      // Same length as the matching string (one digit swapped for a letter),
+      // so a "pick the longest option" strategy can't use length as a
+      // shortcut — the candidate has to actually check the character.
+      (r, good) => `${good.slice(0, -1)}${"abcdefghjkmnpqr"[r.nextIntBetween(0, 14)]}`,
       (r) => `${r.nextIntBetween(100, 999)}x${r.nextIntBetween(1, 99)}`,
       () => "",
     ],

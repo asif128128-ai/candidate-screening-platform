@@ -49,8 +49,8 @@ export const template: ItemTemplate = {
       const prompt = `${table}\n\nרשימת השרתים למעלה מציגה ניצול ממוצע (CPU) על פני החודש האחרון. איזה שינוי חוסך הכי הרבה בלי לפגוע בפעילות?`;
       const correct = "להקטין (downsize) את worker-2 — ניצול חד-ספרתי על תצורה יקרה מאוד הוא הבזבוז הגדול ביותר כאן";
       const wrong = [
-        "להקטין את web-1 — הניצול שלו כבר גבוה יחסית, זה מסוכן",
-        "להקטין את db-1 — הניצול שלו סביר, אין כאן בזבוז",
+        "להקטין את web-1 — הניצול שלו כבר גבוה יחסית ותנודתי, והקטנה עלולה לגרום לעומס בשעות שיא ולפגיעה בזמינות",
+        "להקטין את db-1 — הניצול שלו סביר לתצורה הזאת, ואין כאן בזבוז ממשי שמצדיק לגעת דווקא בשרת מסד הנתונים",
       ];
       const { options, correctIndex } = shuffleOptions(rng, correct, wrong);
       return { content: { prompt, options }, answerKey: { kind: "single_choice", correctIndex } };
@@ -67,9 +67,9 @@ export const template: ItemTemplate = {
       const prompt = `${table}\n\nרשימת השרתים למעלה מציגה ניצול ממוצע (CPU) על פני החודש האחרון. איזה שינוי חוסך הכי הרבה בלי לפגוע בפעילות?`;
       const correct = "להקטין (downsize) את worker-2 — ניצול חד-ספרתי על תצורה יקרה מאוד הוא הבזבוז הגדול ביותר כאן";
       const wrong = [
-        "לכבות את db-replica — יש לה תפקיד גיבוי גם בניצול בינוני",
-        "להקטין את web-1 — הניצול שלו כבר גבוה יחסית, זה מסוכן",
-        "למחוק את staging-clone לגמרי בלי לבדוק אם היא בשימוש כרגע",
+        "לכבות את db-replica — יש לה תפקיד גיבוי גם בניצול בינוני, וכיבוי שלה עלול לפגוע בהתאוששות מתקלה",
+        "להקטין את web-1 — הניצול שלו כבר גבוה יחסית ותנודתי, והקטנה עלולה לגרום לעומס בשעות שיא",
+        "למחוק את staging-clone לגמרי בלי לבדוק אם היא בשימוש כרגע על ידי צוות הפיתוח לבדיקות",
       ];
       const { options, correctIndex } = shuffleOptions(rng, correct, wrong);
       return { content: { prompt, options }, answerKey: { kind: "single_choice", correctIndex } };
@@ -95,9 +95,9 @@ export const template: ItemTemplate = {
     const prompt = `${table}\n\nרשימת השרתים למעלה מציגה ניצול ממוצע (CPU) על פני החודש האחרון. איזה שינוי חוסך הכי הרבה בלי לפגוע בפעילות?`;
     const correct = "להקטין (downsize) את worker-2 — ניצול חד-ספרתי על תצורה יקרה מאוד, וללא הסבר עסקי לפער כמו ב-batch-runner";
     const wrong = [
-      "לכבות את db-replica — יש לה תפקיד גיבוי גם בניצול בינוני",
-      "להקטין את batch-runner — הממוצע נמוך, אבל ההערה מסבירה שיש עומס תקופתי אמיתי בסוף החודש",
-      "למחוק את staging-clone לגמרי בלי לבדוק אם היא בשימוש כרגע",
+      "לכבות את db-replica — יש לה תפקיד גיבוי גם בניצול בינוני, וכיבוי שלה עלול לפגוע בהתאוששות מתקלה",
+      "להקטין את batch-runner — הממוצע נמוך, אבל ההערה מסבירה שיש עומס תקופתי אמיתי בסוף החודש ולכן הקטנה תגרום לתקלה",
+      "למחוק את staging-clone לגמרי בלי לבדוק אם היא בשימוש כרגע על ידי צוות הפיתוח לבדיקות",
     ];
     const { options, correctIndex } = shuffleOptions(rng, correct, wrong);
     return { content: { prompt, options }, answerKey: { kind: "single_choice", correctIndex } };

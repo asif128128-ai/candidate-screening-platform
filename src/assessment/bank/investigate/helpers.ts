@@ -23,8 +23,10 @@ export function genericAntiPatterns(partial: {
   busywork_gather_more: string;
 }): AntiPatternTexts {
   return {
-    escalate_no_evidence: "לשאול את המנהל/ת מה לעשות",
-    wait_and_see: "לחכות — כנראה זה ייפתר מעצמו",
+    escalate_no_evidence:
+      "לפתוח פנייה למנהל/ת ולתאר בקצרה את התקלה בדיוק כפי שדווחה בכרטיס המקורי, ולבקש הנחיה מפורשת על הצעד הבא לפני שבודקים משהו בעצמך",
+    wait_and_see:
+      "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
     ...partial,
   };
 }
