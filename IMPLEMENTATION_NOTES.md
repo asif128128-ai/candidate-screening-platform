@@ -5,6 +5,35 @@ silent on a concrete detail, or where two documents disagreed. Each is the
 smallest reasonable choice consistent with the rest of the spec. Referenced
 from `IMPLEMENTATION_STATE.md`.
 
+## Local database testing (no Docker/Supabase CLI in this environment)
+
+This dev machine has neither Docker nor the Supabase CLI, so `supabase
+start`/`supabase db push` against a real Supabase stack isn't possible here.
+Instead, `scripts/local-pg-setup.sh` installs Postgres 16 via Homebrew and
+applies `supabase/migrations/*.sql` against it directly with `psql`, after
+stubbing the handful of objects Supabase's platform normally pre-creates
+that our migrations assume exist (`anon`/`authenticated`/`service_role`
+roles, `auth`/`storage` schemas, a minimal `storage.buckets` table). Run it
+with `./scripts/local-pg-setup.sh [dbname]`, then `psql -d <dbname>` or point
+`DATABASE_URL` at it.
+
+Running this caught and fixed one real bug in `0001_init.sql`: an
+expression (`meta->>'key'`) inside a table-level `unique (...)` constraint,
+which Postgres rejects — fixed by using `create unique index ... on
+admin_alerts (code, (meta->>'key'))` instead. Both migrations, all 21
+tables, 24 RLS policies, and all 7 `SECURITY DEFINER` functions now apply
+cleanly end-to-end; the seeded job and assessment blueprint were spot-checked
+and match `DECISIONS_LOG.md` (27 items, investigate block 4×180s, weights
+0.30/0.30/0.25/0.15).
+
+This local stub setup is good enough for smoke-testing migration SQL and for
+running the pgTAP suite (`TEST_STRATEGY.md` §7) against real Postgres
+semantics (RLS, triggers, constraints). It is **not** a substitute for
+testing against a real Supabase project before launch — it has no PostgREST,
+no real Auth/Storage service, and no `supabase_migrations` schema, so the
+boot-time schema-version check and any Storage-API-level behavior still need
+verification against a real (even free-tier) Supabase project first.
+
 ## Tooling
 
 - **Package manager: pnpm, not npm.** `docs/DEPLOYMENT.md` (`render.yaml`
