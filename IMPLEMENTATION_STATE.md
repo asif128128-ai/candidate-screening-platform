@@ -1148,3 +1148,198 @@ pnpm lint            # OK, 0 errors, 2 pre-existing unrelated warnings
 pnpm test            # OK, 312/312 (35 integration tests skipped, no DB in this environment)
 pnpm run bank:audit  # OK, PASSED at 20,000 sessions, all invariants hold
 ```
+
+## Genuine-reasoning fix pass — closing the "pick the longest option" exploit (final review before launch)
+
+A fresh-context final review generated thousands of real sessions through the
+real scoring code and found the platform's core promise — a genuine signal
+of independence and tech judgment — was largely defeated by the single
+oldest multiple-choice test-taking trick: **the correct answer was
+systematically the longest, most detailed option**, across nearly the whole
+bank. This section documents the fix and, critically, the *measured*
+before/after evidence that it actually closed the hole (not just that a new
+threshold passes).
+
+### Finding A — longest-option is correct almost everywhere (root cause: authoring habit, not a formula bug)
+
+`src/assessment/bank/investigate/helpers.ts`'s `genericAntiPatterns` wrote
+short (3-6 word), generic-sounding distractors against long (15-30 word),
+fully-explained correct answers. The same authoring pattern — correct
+answers written with full causal detail, distractors written as short
+one-liners — ran through all 12 investigation scenario files' q1 (root
+cause) and most of their q2 (next action), and through 9 tech templates:
+`tech.cloud_waste`, `data_normalize`, `log_root_cause`, `webhook_vs_polling`,
+`http_status_next`, `site_down_first_check`, `env_diff_bug`,
+`automation_pick`, `git_what_happened`. A 10th template,
+`speed.regex_match`, had a structurally similar bug for a different reason
+(the matching string was usually longer than the non-matching "breakers" by
+construction) and was fixed the same way once the new audit invariant
+(below) caught it.
+
+**Before/after measurement** (method: reproduce the architect's own
+technique — per-template/scenario "is the unique-longest option the
+correct one" rate over many generated instances, and a bot that always
+answers with the longest option, skips items with no unique longest
+[numeric/ordering/short_text], and opens no investigation artifacts, run
+through the real `scoreSession`). The "before" numbers were obtained by
+checking out the pre-fix commit into a separate git worktree and running
+the *same* measurement script against it — not just quoting the finding —
+so these are freshly reproduced, not assumed:
+
+```
+BEFORE (git commit 1dc7029, N=3,000 sessions):
+  investigate.*::q1   — 100.0% in ALL 12 scenarios
+  investigate.*::q2   — 100.0% in 11/12 scenarios (cert_expired_subdomain::q2 was 83.7%)
+  tech.automation_pick / cloud_waste / data_normalize / env_diff_bug /
+    git_what_happened / http_status_next / log_root_cause /
+    site_down_first_check / webhook_vs_polling — 100.0% each
+  speed.regex_match — 47.0%
+  Longest-option bot: mean Independence = 67.9, mean Tech = 65.6
+    Independence "high"/"exceptional" band: 55.8% of sessions
+    Tech "high"/"exceptional" band:         53.9% of sessions
+  (For reference, the original review's own run reported ~54%/~64% and
+  100% low integrity-risk over a different sample — this reproduction,
+  from the actual pre-fix commit, lands in the same range.)
+
+AFTER (this commit, N=20,000 sessions, via `pnpm run bank:audit`):
+  Every template/scenario's longest-option-is-correct rate <= 33.1%
+  (most are 0-25%, i.e. at or below natural chance for 3-5 option items)
+  Longest-option bot: mean Independence = 0.0, mean Tech = 9.1
+    Both land deep in the "low" band (< 50) — nowhere near "high/exceptional"
+```
+
+**Fix — real content rewriting, not padding.** Every distractor in the 12
+investigation files (`src/assessment/bank/investigate/*.ts`, all 36 cause
+variants' q1 options and `antiPatterns`) and the 9+1 flagged templates was
+rewritten to be a genuinely plausible wrong diagnosis/action, written with
+the same narrative completeness as the correct option (a specific
+mechanism, a causal "therefore," concrete details) — never just the
+original short sentence with filler words stapled on. `helpers.ts`'s two
+scenario-independent anti-patterns (`escalate_no_evidence`, `wait_and_see`)
+were lengthened once, globally, to the same standard. Lengths were then
+iteratively balanced per instance (using a throwaway measurement script
+against many seeds, not by feel) so that across the many concrete
+instances a template/scenario produces, being the longest option
+correlates with being correct at roughly chance level, not near-certainty
+— explicitly avoiding the mirror-image bug of making the correct answer
+the *shortest* option instead (which would just hand a "pick the shortest"
+bot the same win). `tech.speed.regex_match`'s fix was structural rather
+than editorial: one breaker string is now built by taking the matching
+string and swapping its last character for a letter, so it's
+length-identical to the match by construction and a length heuristic
+cannot distinguish them.
+
+**Permanent regression guard** — `scripts/bank-audit.ts` now has two new,
+always-on invariants (they ran as part of the 20,000-session pass above):
+1. Per-template/scenario "unique-longest-option-is-correct" rate, tracked
+   across every generated instance in the existing session loop (choice
+   items by `templateId`; investigation items separately by
+   `${templateId}::q1` and `${templateId}::q2`), must stay at or below 35%
+   — comfortably above natural chance (25-33% for the bank's typical 3-5
+   option items) so normal variance never trips it, but far below the
+   ~100% the bug produced. Printed per-key in the audit report.
+2. A "longest-option bot" simulation: `SESSION_COUNT` fresh sessions
+   (reusing the existing `BANK_AUDIT_SESSIONS` parameter), scored through
+   the real `scoreSession` with a bot that always picks the unique longest
+   option (skip when none exists), never opens an investigation artifact,
+   and leaves q3 blank. Asserts mean Independence and mean Tech both stay
+   under 50 (SCORING.md §4's "low" band ceiling) — i.e. genuinely
+   chance-level, not merely "not exceptional."
+
+Both invariants are ordinary `fail(...)` calls feeding the script's
+existing pass/fail exit code, so a future content edit that reintroduces
+this pattern in even one template fails CI the same way any other bank
+invariant violation does.
+
+### Finding B — the runner UI handed out free process-score credit for doing nothing
+
+`src/app/(candidate)/[locale]/apply/[applicationId]/assessment/item-views.tsx`'s
+`InvestigationView` fired an `artifact_open` event for `tabs[0]`
+unconditionally on mount, before any real click. Since the decisive
+artifact is `tabs[0]` in a large share of scenes (~41%, per the review),
+and `scoring.ts`'s process score only ever sees `artifact_open` events (it
+has no way to distinguish "the UI decided this was opened" from "the
+candidate clicked it"), a candidate — or the Finding A bot above — who did
+*nothing at all* still got that scene's decisive artifact marked opened at
+`ms_since_render = 0`. Combined with the prior red-team pass's own dwell
+threshold (evidence requires >= 8s dwell or a second artifact), simply
+sitting on the page for 8+ seconds before submitting was enough to farm
+full evidence credit for free. It also made `deliberation` (0.2 of the
+process weight) trivially and permanently `1`: the fabricated open always
+preceded the first real answer-selection event by construction, so the
+component measured nothing.
+
+**Fix**: removed the mount-time `useEffect` entirely (see the code comment
+left in its place explaining why). `onArtifactOpen` now fires only from
+`selectTab(i)` — a genuine click, including a click on the tab that
+happens to already be showing. The default tab is still visible without a
+click (unchanged UX), but is no longer treated as "opened" for scoring
+purposes just because it renders first.
+
+**`deliberation` was deliberately left as a formula** (not redesigned or
+dropped) — see IMPLEMENTATION_NOTES.md's "Independence process score,
+round two" entry for the full reasoning, but in short: `deliberation`'s
+triviality was entirely a *side effect* of the UI bug (the fabricated open
+always preceded any real interaction, by construction), not a defect in
+`computeProcessScore`'s formula itself. `firstInteractionMs` was already,
+independently, wired to fire only on a genuine q1/q2/q3 answer-selection
+event (`handleAnswerChange`), never on an artifact click — so once the UI
+stopped fabricating opens, `deliberation` became exactly what it was
+designed to measure ("did an artifact get opened before an answer was
+selected") without any scoring-code change. `scoring.ts` itself was not
+touched by this fix; `docs/SCORING.md`'s §10 worked-example regression
+test reproduces its exact original numbers unchanged (every scene in that
+worked example dwells and opens tabs far past what the mount-only bug ever
+produced), and `tests/unit/assessment/scoring.test.ts` needed no updates.
+No React-Testing-Library/jsdom component test was added for this fix — the
+project has no component-testing infra set up (`vitest.config.ts`'s
+`environment` is `"node"`, no `@testing-library/react`/jsdom dependency
+exists) and adding one was judged out of scope for a targeted fix; the
+before/after bot measurement above (which does exercise the exact gamed
+pattern this fix closes, via a simulated pre-fix auto-open event run
+through the real `scoreSession`) is the regression evidence for this
+finding instead.
+
+### Finding C — two templates produced degenerate items
+
+- **`tech.sql_outcome` d2** (`src/assessment/bank/tech/sql_outcome.ts`):
+  the `SUM(...) WHERE team = X AND status = Y` filter could match zero
+  rows (~24% of instances, by construction, before the fix), making the
+  true SQL result `NULL` while the item keyed `"0"` as correct — measuring
+  nothing, and actively wrong for a candidate who knows real SQL
+  semantics. Fixed by only ever picking a `(team, status)` combination
+  that is actually present among the 8 generated rows (computed from the
+  rows themselves, not independently random), guaranteeing >= 1 matching
+  row every time. Verified by generating 20,000 d2 instances and
+  confirming zero errors/mismatches.
+- **`reasoning.constraints_seating` d2+**
+  (`src/assessment/bank/reasoning/constraints_seating.ts`): the original
+  constraint vocabulary was narrow (a handful of hardcoded pairings from
+  one shuffle of the name list), and the random search for a subset that
+  uniquely forced one seating order failed often enough that difficulty
+  2+ instances fell through to a deterministic fallback that was *always*
+  a pure chain of "X immediately left of Y" clues — solvable by reading
+  them in order, not real constraint-satisfaction reasoning. Rewritten to
+  pick the target seating order first, generate the *full* set of true
+  statements about it from a richer vocabulary (adjacency, "before", "not
+  adjacent", "exactly one person between", edge/not-edge, and seat
+  parity — a genuine counting constraint), and require the chosen subset
+  to include at least one non-adjacency constraint whenever difficulty >=
+  2. A hard runtime invariant was also added directly in the generator
+  (`forcedSurvivors.length !== 1` throws) so any future logic error
+  surfaces as a loud generation failure instead of a silently ambiguous
+  item. Measured over 20,000 generated instances per difficulty: the
+  "pure adjacency chain" rate for d2/d3 dropped from ~65% to 0.0%, with
+  zero invariant violations (zero thrown errors).
+
+### Verified after all three fixes
+```
+pnpm typecheck       # OK, 0 errors
+pnpm lint            # OK, 0 errors, 2 pre-existing unrelated warnings (eslint-rules/no-physical-direction.mjs, postcss.config.mjs — both anonymous-default-export style warnings, unrelated to this pass)
+pnpm test            # OK, 314/314 (38 integration/e2e tests skipped, no DB in this environment);
+                      # tests/unit/assessment/__snapshots__/bank.test.ts.snap regenerated
+                      # (expected — the snapshot freezes rendered *content*, and this pass
+                      # deliberately rewrote distractor text across most of the bank)
+pnpm run bank:audit  # OK, PASSED at 20,000 sessions — every existing invariant plus both
+                      # new Finding-A regression guards hold; see numbers above
+```

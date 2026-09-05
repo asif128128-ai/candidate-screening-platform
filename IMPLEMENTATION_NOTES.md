@@ -1210,3 +1210,149 @@ review cycle addressed:
    both places — not worth the added complexity (a new config table, or a
    codegen step) to prevent a mistake that requires a human to already be
    mid-plan-upgrade to make.
+
+## Genuine-reasoning fix pass — reasoning behind the three findings
+
+Cross-linked from IMPLEMENTATION_STATE.md's new top section. This entry
+covers the judgment calls that section only summarizes.
+
+### Why length-balancing was done by measurement, not by feel
+
+Early in this pass I rewrote every flagged distractor to be longer and more
+detailed, re-ran the new bank-audit invariant, and found roughly 20 of the
+~50 flagged template/scenario slots *still* failed — some at exactly 100%
+still, a few flipped all the way to 0% (a mirror-image bug: the correct
+answer had become the *shortest* option, every time, which would just hand
+a "pick the shortest" bot the identical win). The lesson: "write it longer"
+is not the same fix as "make length uninformative." Two options read as
+similarly detailed to *me* can differ by 10-30 raw characters, and because
+most of these options are static strings (no per-instance randomization in
+the text itself), that fixed gap makes the length ordering deterministic
+across every single generated instance, not just "usually" — a 100%-vs-0%
+pattern is exactly as exploitable as a 100%-vs-100% one, just in the
+opposite direction. Once I noticed this I switched to closing the loop with
+a throwaway measurement script (`diag2.ts`/`diag3.ts`-style, not committed
+— they call the exported `scenario.generate`/`template.generate` directly
+against many seeds and report the unique-longest-is-correct rate) after
+every edit, iterating the specific gap in characters rather than guessing.
+The bank-audit's own new invariant, run at full scale, is the real
+end-state proof; the throwaway scripts were just how I got there without
+burning a 20,000-session audit run per edit.
+
+One consequence worth flagging for whoever touches this content next:
+because the fix targeted *length parity*, not a stronger content
+constraint, a future editor who lengthens one option in an existing item
+(even for an unrelated readability reason) can silently reintroduce a
+100%-or-0% pattern for that one slot. The bank-audit invariant will catch
+it (that's exactly what it's for), but the failure will look like "some
+distractor is now too short/long" rather than anything about correctness —
+worth knowing so it doesn't read as a mysterious CI failure.
+
+### Independence process score, round two: why `deliberation` didn't need a new formula
+
+The brief flagged `deliberation` as "effectively a constant 1... for the
+same root reason" as the evidence-farming bug, and asked me to either
+re-derive its logic or drop it and redistribute its weight, with the
+tradeoff documented here regardless of which I picked.
+
+I read `computeProcessScore` closely before deciding. `deliberation`'s
+definition is `firstOpenMs !== null && firstAnswerMs !== null && firstOpenMs
+< firstAnswerMs` — literally "was any artifact opened before any answer was
+selected." That is a real, meaningful question; it was answering `true`
+100% of the time only because `firstOpenMs` was *always* ~0 (the mount-time
+auto-open, Finding B) and `firstAnswerMs` is necessarily positive (a human
+or bot needs at least one tick of clock time to read the ticket and click
+something). In other words: the formula was fine, its only input was
+corrupted at the source.
+
+I confirmed this isn't wishful thinking by tracing where `firstAnswerMs`
+actually comes from: `computeProcessScore` reads
+`response.firstAnswerSelectMs ?? response.firstInteractionMs`.
+`firstAnswerSelectMs` is declared in `ScoringResponse` but is **never
+populated** anywhere in the real pipeline (`src/db/queries/assessment.ts`
+only ever sets `firstInteractionMs` when building `ScoringResponse` from
+stored rows) — so in production this always falls back to
+`firstInteractionMs`. And `firstInteractionMs` is recorded by
+`telemetry.recordFirstInteraction()`, called from exactly one place in
+`runner.tsx`: `handleAnswerChange`, which fires only when the candidate
+changes a q1/q2/q3 answer — never from `handleArtifactOpen`. So
+`firstInteractionMs` for an investigation item already means, specifically,
+"time of the first real answer selection," distinct from any artifact
+interaction. Once Finding B's fix stops fabricating an open at mount,
+`firstOpenMs` becomes "time of the first genuine tab click" and the
+comparison the formula makes is exactly the one it was designed to make.
+
+I verified this isn't just theoretically clean by checking what happens to
+a candidate who never touches a tab at all (reads only the always-visible
+default view and answers directly): `firstOpenMs` is now `null`, so
+`deliberation` correctly scores 0 — no events, no fabricated credit.
+
+**The tradeoff I'm documenting, as asked**: `deliberation` remains a coarse
+signal even now — it doesn't require the candidate to have opened *the
+decisive* artifact, dwelt on it, or opened more than one tab; any click on
+any tab before answering satisfies it. A candidate coached with "click any
+tab once, then answer" still earns full deliberation credit trivially.
+I judged this an acceptable residual (not a new decision to defer) for two
+reasons: first, it's now on par with the rest of the process score's
+general design philosophy — `evidence` and `efficiency` also key off "was
+X opened," not "did the candidate demonstrably comprehend X"; deliberation
+being similarly coarse doesn't introduce a new class of weakness, it just
+stops being uniquely and totally broken. Second, the exploit surface
+shrank from "do absolutely nothing" (Finding B's actual complaint) to
+"perform at least one deliberate click" — a real behavioral floor that a
+script has to actually contain an instruction for, rather than something
+that happens by construction on every single scene regardless of what the
+candidate does. Given that floor is now non-trivial, I did not see a
+clean, schema-compatible way to make deliberation additionally require
+touching the *decisive* artifact specifically (that would just collapse it
+into a duplicate of `evidence`/`efficiency` rather than measuring a
+distinct thing — "explored before deciding" vs. "explored the right
+thing"), so I left the formula as-is rather than manufacturing a
+distinction that isn't really there. If a future pass wants to make
+`deliberation` require touching 2+ distinct artifacts before answering (to
+more clearly separate it from `evidence`'s single-artifact-focused
+signal), that's a one-line change to the existing formula (compare against
+the second element of a per-position distinct-artifact list instead of the
+first `artifact_open`) and does not require new client-emitted event kinds
+or a schema change — flagging it here as the natural next increment if
+real pilot data shows this residual is being exploited.
+
+### sql_outcome and constraints_seating: why "reroll" over "add NULL as an option"
+
+For `tech.sql_outcome`, the brief offered two options: reroll until at
+least one row matches, or make NULL a valid, correctly-keyed option. I
+picked reroll because it's strictly simpler here — the row-generation and
+answer-key code already has to enumerate the actually-generated rows to
+compute `correctValue`, so restricting the `(team, status)` pick to
+combinations *present in that enumeration* is a few lines with no new
+answer-key shape, no new rendering case for "NULL" in the options list,
+and no risk of a distractor generator (`generateDistinctDistractors`, which
+assumes numeric-ish string distractors) needing a special case for a
+non-numeric correct answer. The "NULL as a valid option" path is the more
+SQL-faithful lesson in the abstract (it teaches something about NULL
+semantics that "always at least one row" doesn't), but it's a second,
+independent template variant to design, write distractors for, and
+balance for Finding-A length parity — more scope than the finding asked
+for when the simpler fix fully closes the "measures nothing / actively
+wrong" defect.
+
+For `constraints_seating`, I initially considered the minimal patch (add
+one more constraint type to the existing hardcoded pool and force it into
+the mix), but reading `buildConstraints` closely showed the deeper problem:
+the pool was fundamentally too small and too coupled to a single fixed
+shuffle of five roles (`a, b, c, d, e`) to reliably satisfy a *forced-unique*
+subset for a *given* difficulty's constraint count — that's precisely why
+the original code needed a "if nothing works after 200 tries, fall back to
+a guaranteed chain" escape hatch, and that escape hatch is exactly what the
+review caught. A minimal patch would have reduced how often the fallback
+fires without eliminating it, leaving a residual (if rarer) chance of the
+same bug reappearing. Generating the constraint pool *from the target
+seating order itself* (rather than from arbitrarily-shuffled role labels)
+means the pool scales with `n` and is always rich enough — verified
+empirically (0.0% pure-adjacency-chain rate, zero thrown invariant
+violations, over 20,000 instances per difficulty) rather than argued from
+first principles, which is why I also left the hard runtime assertion in
+the generator itself: if a future change to the vocabulary or the search
+budget ever makes the fallback path reachable again in a way that isn't
+provably unique-forcing, generation throws immediately instead of quietly
+shipping an ambiguous item.
