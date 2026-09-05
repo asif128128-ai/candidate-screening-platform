@@ -1008,3 +1008,141 @@ shared with local manual testing); k6 load scenarios (pre-launch, explicitly
 out of any single engineer's milestone per `TEST_STRATEGY.md` §8);
 `supabase test db`/pgTAP (no Supabase CLI in this environment, same
 constraint every other pass in this file already documents).
+
+## Red-team fix pass — two scoring-integrity bugs (bank difficulty scaling, independence process score)
+
+Cross-linked from `IMPLEMENTATION_STATE.md`'s new "Red-team review" section.
+Both fixes are inside the existing `src/assessment/*` architecture; no
+schema, generator, or scoring-formula-shape changes.
+
+### Finding #1: why "add real scaling" instead of "narrow `difficulties`"
+
+The brief explicitly offered narrowing a template's declared `difficulties`
+array as the fallback when real scaling isn't sensible for a given
+template. I used it for exactly one template (`tech.git_what_happened`,
+whose declared range was already `[2, 3]` before this pass, unchanged) and
+implemented real scaling everywhere else, because:
+
+- Every affected template already had ASSESSMENT_DESIGN.md's `pool` string
+  matching its whole pillar (`tech.*` / `reasoning.*`), and
+  `generator.ts`'s `DIFFICULTY_MIX` requires several *distinct* eligible
+  templates per difficulty level per block (tech needs d1×2/d2×4/d3×1;
+  reasoning needs d1×2/d2×3/d3×1) with a "no repeat family in one session"
+  rule on top. Narrowing even 2-3 of the 11 tech templates down to a single
+  difficulty each would have measurably thinned the d2 pool (already the
+  block's largest requirement) and made `pickTemplatesForBlock`'s fallback
+  path (which clamps to a template's nearest *supported* difficulty when no
+  template declares the exact one requested) fire more often — silently
+  reintroducing a version of the same bug (an item labeled d3 that's
+  actually a template's d2 content) rather than fixing it.
+- DECISIONS_LOG #7 already flags scenario/template exposure margin as
+  tight; narrowing directly shrinks it further (fewer distinct instances
+  per difficulty slot = fewer things a leaked answer needs to cover to be
+  useful across a whole difficulty tier).
+- In every case I could find a genuine, pillar-appropriate difficulty axis
+  (see the per-template list in IMPLEMENTATION_STATE.md) without changing
+  what kind of item the template is — e.g. a table gets more rows and a
+  compound predicate, a judgment call gets a subtler decoy, a lookup gets a
+  less-common status code — which is squarely "the convention is in the
+  item" applied to difficulty rather than to recall (DECISIONS_LOG #8).
+
+Where a pool of cases was small (e.g. `tech.automation_pick` had 4 cases
+total for `[1, 2]`; `tech.data_normalize` had 3 for `[1, 2]`), I added new
+cases to the easier and/or harder tier rather than just repartitioning the
+existing ones 1:1 into "easy half" / "hard half" — repartitioning would
+have *reduced* each tier's variety versus the buggy-but-varied baseline,
+which is exactly the DECISIONS_LOG #7 tradeoff the brief asked me to avoid
+tilting the wrong way.
+
+**A note on the "genuinely scaling" reference templates.** The brief named
+`tech.sql_outcome`, `tech.api_pagination_math`, and `tech.log_root_cause` as
+the model for real scaling and explicitly excluded them from the fix list.
+Reading them closely: `sql_outcome` scales all 3 levels distinctly (COUNT ->
+SUM+WHERE -> GROUP BY HAVING). `api_pagination_math` and `log_root_cause`
+each only distinguish d1 from a combined d2/d3 tier (i.e. their own d2 and
+d3 outputs are drawn from the same branch and are not distinguishable from
+each other) — so by the letter of "every difficulty level must actually
+differ," these two are not fully fixed either. I left them alone: the brief
+named them as the reference standard and out of scope, narrowing my own
+list to exactly what was asked rather than second-guessing the review's
+scope boundary. Flagging it here in case a future pass wants to tighten
+those two the same way (fold their `difficulties` to `[1, 2]`, or add a
+genuine third tier).
+
+### Finding #2: the mechanism chosen for the process-score fix, and residual risk
+
+Read `scoring.ts`'s `computeProcessScore`, `types.ts`'s
+`InvestigationAnswerKey`/`InvestigationContent`, and three `investigate/*.ts`
+scenario files (`webhook_missing.ts`, plus two others) before deciding.
+Confirmed there is genuinely no existing schema hook to wire a
+comprehension check into: `InvestigationContent` has exactly `q1` (root
+cause), `q2` (next action), `q3` (extract-a-fact short text) — no
+sub-question is tied specifically to "what does the decisive artifact tell
+you," and `ScoringEvent`'s only two kinds are `artifact_open` and
+`network_retry` (no scroll/expand/detail-toggle telemetry exists in the
+data model or is emitted by the runner UI). Adding either would be a real
+schema change (new DB column or a new client-emitted event kind wired
+through the runner UI, `POST /api/assessment/events`, and
+`integrity_events`) — out of scope for a scoring.ts-level fix per the
+brief's own guidance to prefer the cheaper, schema-compatible signal.
+
+**Chosen mechanism**: full evidence credit (the 0.5-weight component) now
+requires `decisiveOpened && (decisiveDwellMs >= 8000 || distinctArtifactsOpened >= 2)`,
+instead of the old `decisiveOpened` alone (where "opened" already meant
+>= 3000ms dwell). Two independent, either-is-enough signals:
+
+1. **A much longer solo dwell** (8s, not 3s). A dwell of "just over 3
+   seconds" is exactly what a fixed instruction ("wait 3 seconds") produces
+   — it is a round number with no connection to the actual artifact's
+   content. Requiring roughly 2.5x that is still trivially satisfiable by
+   an honest candidate who is actually reading a short artifact body (most
+   decisive artifacts in the bank are 1-6 short lines), but requires a
+   leaked script to also specify a materially longer, less "invisible"
+   wait — raising the cost/detectability of the exploit rather than the
+   marginal effort of complying with it.
+2. **Touching a second artifact.** A candidate who opens even one other
+   tab (any dwell) alongside the decisive one is doing something a
+   leaked "open exactly tab X" instruction has no reason to include —
+   real investigation naturally samples more than one source before
+   committing to an answer.
+
+I deliberately did **not** gate this on `item.artifactKeys.length` (i.e.
+requiring opening a *specific fraction* of tabs) — that would conflate this
+fix with the existing click-through penalty (opening literally every tab
+in <15s already caps `efficiency` at 0.3, per SCORING.md §3.3), and
+double-penalizing the same behavior through two different components would
+make the process score harder to reason about without adding a distinct
+signal.
+
+**Why `decisiveArtifactOpened` (returned from `computeProcessScore`,
+feeding both `computeGuesses`'s blind-guess check and
+`ItemBreakdown.decisiveArtifactOpened`) is intentionally NOT tightened the
+same way.** Blind-guess detection asks a different question — "did the
+candidate look at the evidence at all before answering wrong" — not "did
+they investigate thoroughly." Tightening it to the new 8s/second-tab bar
+would reclassify a candidate who wrong-root-caused after a brief-but-real
+3-4 second glance at the decisive tab as a *blind* guess, incorrectly
+zeroing their q2/q3 credit and applying the guess penalty (SCORING.md
+§3.6) — a behavior change to a different, already-carefully-tested
+invariant (`skip_dominates_blind_guess`, 10,000-trial property test) that
+finding #2 does not ask me to touch. Keeping the two concepts on separate
+variables (`decisiveOpened` vs. the new `evidenceQualified` gate) was the
+key design choice that let both fixes coexist without the SCORING.md §10
+worked example's numbers moving at all — every scene in that worked
+example dwells far longer than 8 seconds, so the regression test is a
+genuine unmodified check, not one I had to adjust to pass.
+
+**Residual gaming risk** (per the brief: the goal is "meaningfully harder
+to fake," not "unbeatable," given DECISIONS_LOG #7's small scenario pool):
+a sufficiently detailed leak that specifies *both* "open tab X" *and*
+"also open tab Y" (or "wait 8+ seconds") still produces full evidence
+credit with no real comprehension — this fix raises the bar on what the
+leaked script must contain and how it behaves (a longer idle wait or a
+second navigation event, either more noticeable / harder to script blindly
+than a single fixed 3-second pause), it does not make evidence-forging
+impossible. A genuine sub-question comprehension check tied to the
+decisive artifact (the schema-change option the brief flagged as larger
+scope) would close this residual gap and is worth doing if leak-and-farm
+gaming shows up in real pilot data (the `scenario_drift` alert added by an
+earlier pass, per DECISIONS_LOG #7's mitigations list, would be the
+detection signal to watch for this).
