@@ -812,6 +812,222 @@ already name — none of it is code:
 4. The k6 load scenarios (`TEST_STRATEGY.md` §8), particularly the
    synchronized-start burst scenario the performance/cost review flagged.
 
+## Red-team fix pass (9 findings from 5 independent live reviews)
+
+Five independent red-team reviews ran against the actual running
+implementation (not just the design docs) and found 9 concretely-diagnosed
+bugs, each reproduced live by at least one reviewer. All 9 are now fixed
+within the existing architecture (no redesign of the SECURITY DEFINER
+functions, RLS model, maintenance sweep, or outage-credit mechanism), each
+with a regression test that was verified to fail against the pre-fix code
+and pass against the fix, run against a real local Postgres
+(`./scripts/local-pg-setup.sh screening_test`).
+
+1. **CRITICAL — `applications.duplicate_phone_of` had no `ON DELETE`
+   action.** `delete_candidate()` threw an FK violation whenever the target
+   candidate was anyone else's duplicate-phone reference, poisoning
+   `prune_retention()` -> `run_maintenance_sweep()` -> `/api/health`
+   forever, and silently zero-ing out the admin bulk-archive-and-delete
+   feature for any batch containing such a candidate.
+   - Fixed: `supabase/migrations/0008_duplicate_phone_of_fk_fix.sql` (`ON
+     DELETE SET NULL`); `src/app/admin/(protected)/candidates/actions.ts`'s
+     `bulkArchiveAndDeleteAction` now wraps each row's `deleteCandidate`
+     call in `tx.savepoint(...)`, catching and collecting per-row failures
+     into a partial-success summary (`BulkArchiveResult.failed`/
+     `failedReasons`) instead of throwing and rolling back the whole batch;
+     `src/app/admin/(protected)/candidates/candidate-table-client.tsx`
+     surfaces the partial-failure summary to the admin.
+   - Proved by: `tests/integration/candidate-delete.test.ts` — a
+     `delete_candidate()` call on a candidate referenced by another
+     application's `duplicate_phone_of` now succeeds and clears the
+     reference (was: FK violation); a second test drives the same
+     savepoint-per-row pattern the action uses and confirms one row's
+     forced failure (a bogus admin id causing an `admin_audit_log` FK
+     violation) rolls back only that row, leaving the other row's delete
+     intact and the transaction itself still healthy.
+
+2. **CRITICAL — `/api/health`'s try/catch around the optional
+   `supabase_migrations.schema_migrations` lookup did not protect the
+   surrounding transaction.** Once that query failed (e.g. the schema
+   doesn't exist, as on this local-Postgres stand-in), Postgres aborted the
+   whole transaction, so the very next statement
+   (`run_maintenance_sweep()`) failed too, silently and permanently
+   disabling the sweep.
+   - Fixed: the `checkDb()` logic was extracted from
+     `src/app/api/health/route.ts` into `src/lib/health-check.ts` (for
+     testability — Next.js route modules only recognize a fixed export
+     set) and the optional lookup now runs inside `tx.savepoint(...)`,
+     rolling back only that savepoint on failure instead of the whole
+     transaction.
+   - Proved by: `tests/integration/health-check.test.ts` — confirms this
+     local Postgres genuinely has no `supabase_migrations` schema (the
+     precondition for the original bug), then confirms
+     `run_maintenance_sweep()` still runs and `maintenance.last_sweep`
+     still advances despite the lookup failing. Verified to fail against
+     the pre-fix code with the exact cascading error described
+     (`relation "supabase_migrations.schema_migrations" does not exist`
+     propagating to abort the whole `checkDb()` transaction).
+
+3. **CRITICAL — `email_outbox_any`/`rate_limit_any` RLS policies granted
+   unrestricted read/write to `candidate` context.** A connection in
+   `candidate` context (every candidate-facing request) could read every
+   application's `email_outbox` rows (including plaintext `resume_otp`
+   codes for other applications) and delete/modify any `rate_limits` row.
+   Investigated every real call site (`grep -rn "rate_limits\|email_outbox"
+   src/`) and confirmed none of them actually run in `candidate` context —
+   `consumeRateLimit`/`enqueueEmail` are only ever called inside
+   `withSystem`/`withAdmin` transactions — so candidate context needed zero
+   access to either table.
+   - Fixed: `supabase/migrations/0009_scope_outbox_ratelimit_rls.sql`
+     narrows both policies to the same `system`/`admin`-only shape every
+     other admin-only utility table already uses.
+   - Proved by: two new tests in
+     `tests/integration/admin-rls-security.test.ts` — candidate context
+     sees zero rows of `email_outbox` even for a row tied to a real
+     application; candidate context can neither read nor delete an
+     arbitrary `rate_limits` row (the delete silently affects 0 rows under
+     RLS). Both verified to fail (return the row / actually delete it)
+     against the pre-fix policies, and the full existing test suite (which
+     exercises every real `consumeRateLimit`/`enqueueEmail` call site)
+     still passes unchanged, confirming no legitimate code path was broken.
+
+4. **CRITICAL (cross-process data integrity) — `apply_outage_credit()` was
+   not idempotent across multiple server processes.** Two processes
+   observing the same stale `liveness.at` before either updated it (a
+   stuck old instance during a deploy, a manual scale-up) could both
+   independently credit the same item, each saturating the
+   `time_limit_s`-capped credit, doubling it (verified: 60s of credit
+   against a 30s `time_limit_s`).
+   - Fixed: `supabase/migrations/0010_outage_credit_idempotent.sql` — a
+     `pg_advisory_xact_lock` serializes all concurrent calls, and a new
+     per-item guard skips items that already have a `server_outage`
+     `integrity_events` row whose recorded window overlaps the window
+     being applied now (robust to two calls sharing a start but differing
+     by milliseconds in their end, not just exact-duplicate calls).
+   - Proved by: `tests/integration/outage-credit.test.ts` — calls
+     `apply_outage_credit()` twice with the exact same window; the second
+     call credits 0 additional items, leaves `outage_credit_ms` unchanged,
+     and inserts 0 additional `integrity_events` rows. Verified to fail
+     against the pre-fix function (second call also returns 1 credited
+     item, doubling `outage_credit_ms`).
+
+5. **IMPORTANT — dead code in the date-of-birth validator.**
+   `z.coerce.date().refine(...)` in `src/lib/validation.ts` could never
+   reach its custom Hebrew message: `z.coerce.date()` throws zod's own
+   built-in English "Invalid date" error for empty/unparseable input
+   before `.refine()` ever runs — exactly the case (an empty DOB field on
+   the very first form in the funnel) the message exists to handle.
+   - Fixed: `dateOfBirth` now validates the raw string is non-empty and
+     parseable first (`.min(1, ...)` + `.refine(...)` on the string),
+     *then* pipes into `z.coerce.date()` via `.pipe()`.
+   - Proved by: `tests/unit/validation.test.ts` (empty, missing, and
+     unparseable date-of-birth all produce the Hebrew message, never
+     "Invalid date" — verified to fail with "Invalid date" against the
+     pre-fix schema) and a new Playwright test in
+     `tests/e2e/candidate-flow.spec.ts` ("empty date-of-birth on step 1
+     shows the Hebrew message, not 'Invalid date'") exercising the real
+     step-1 form end to end.
+
+6. **IMPORTANT — the practice scene's copy contradicted its own
+   mechanism.** "לא מתוזמן, לא נספר" (not timed, not counted) while
+   `PRACTICE_SCENE_AUTO_ADVANCE_MS` silently force-advanced the candidate
+   into the scored assessment after 90s regardless — exactly the
+   population this practice scene exists to help (DECISIONS_LOG.md #1)
+   could get swept into a scored item mid-orientation.
+   - Fixed by removing the auto-advance (preferred, per the task): the
+     practice scene is a client-only phase before any server call, so no
+     item deadline or session wall clock starts until the candidate
+     actually clicks through — lingering here only affects the candidate's
+     own overall session time budget, their choice to make. Changed:
+     `src/app/(candidate)/[locale]/apply/[applicationId]/assessment/practice-scene.tsx`
+     (removed the timer effect and countdown text),
+     `src/lib/assessment-block-copy.ts` (removed
+     `PRACTICE_SCENE_AUTO_ADVANCE_MS`).
+   - Proved by: `tests/e2e/assessment-runner.spec.ts`'s `dismissAnyIntro`
+     helper now asserts, whenever the practice scene appears, that no
+     countdown text is rendered and the scene is still visible (not
+     auto-dismissed) after a 2s wait, before clicking through explicitly.
+
+7. **MINOR — non-constant-time digest comparison.**
+   `verifyResumeCode` (`src/lib/resume-code.ts`) compared SHA-256 digests
+   with `Buffer.equals()` instead of `crypto.timingSafeEqual`, inconsistent
+   with `src/lib/item-token.ts`'s `verifyItemToken`.
+   - Fixed: same length-check-then-`timingSafeEqual` pattern as
+     `item-token.ts`.
+   - Proved by: new cases in `tests/unit/resume-code.test.ts` (a
+     wrong-length hash is rejected without throwing — the precondition
+     `timingSafeEqual` requires — and a same-length tampered digest is
+     rejected).
+
+8. **MINOR — `render.yaml`'s `startCommand: pnpm start` is incompatible
+   with `output: "standalone"`.** `next start` works but defeats the
+   documented cold-start/image-size rationale for standalone output.
+   - Fixed: `render.yaml`'s `startCommand` is now `node
+     .next/standalone/server.js`, and `buildCommand` now copies `public/`
+     and `.next/static/` into `.next/standalone/` after `pnpm build`
+     (Next's standalone output traces server dependencies but does not
+     copy static assets there itself).
+   - Proved by: ran `pnpm build`, performed the same two `cp` steps
+     `render.yaml` now runs, then ran `node .next/standalone/server.js`
+     directly against real local Postgres — confirmed a real HTML response
+     (correct `<title>`) on `/jobs/student-tech-2026`, a `200` on the
+     page's actual `/_next/static/*` CSS asset (proving the static-asset
+     copy step is necessary and sufficient), and a healthy `/api/health`
+     response.
+
+9. **IMPORTANT — the `db_size` sweep invariant was unimplemented.**
+   `run_maintenance_sweep()` wrote `maintenance.db_size_bytes` every sweep
+   but never compared it to a threshold or raised an alert, unlike the
+   other 5 invariant checks — a solo operator who never opens Settings
+   would never know the database is approaching its plan limit.
+   - Fixed: `supabase/migrations/0011_db_size_sweep_check.sql` adds the
+     missing check, factored into its own `evaluate_db_size_alert(bigint)`
+     SECURITY DEFINER function (called by `run_maintenance_sweep()` with
+     the real `pg_database_size(...)`, and directly testable with a
+     synthetic byte count) using the same 70%/90% thresholds and 8 GiB
+     plan size `src/lib/admin-format.ts`'s `DB_SIZE_WARNING_FRACTION`/
+     `DB_PLAN_BYTES` already use for the Settings-page banner, upserting a
+     `db_size` `admin_alerts` row following the exact pattern the other 5
+     checks use (and clearing it again if the size drops back below 70%).
+   - Proved by: `tests/integration/db-size-alert.test.ts` — below 70% no
+     alert; crossing 70% raises a `warning`; crossing 90% escalates the
+     *same* row to `critical` (upsert, not a duplicate); dropping back
+     below 70% clears it; and `run_maintenance_sweep()` itself still
+     unconditionally records `maintenance.db_size_bytes` as before.
+
+### Verified this session
+
+```
+DATABASE_URL=postgresql://app_user:...@localhost/screening_test pnpm typecheck   # OK, 0 errors
+DATABASE_URL=postgresql://app_user:...@localhost/screening_test pnpm lint       # OK, 0 errors, 2 pre-existing warnings
+DATABASE_URL=postgresql://app_user:...@localhost/screening_test pnpm test       # OK, 347/347 (final run, fresh
+  ./scripts/local-pg-setup.sh + dev-seed.sql). Mid-session, before a final
+  clean reseed, tests/unit/assessment/bank.test.ts's content snapshot
+  briefly failed against an unrelated, concurrent difficulty-scaling pass
+  on the bank templates (src/assessment/bank/**) editing the same working
+  tree at the same time as this session (see its own commits
+  1756015/6092fef) — confirmed unrelated to any of the 9 fixes above
+  (excluding just that file: 275/275 passed at that point too), resolved
+  on its own once that other pass committed; nothing from it touched here.
+  Also caught and fixed a real leak in this session's own
+  tests/integration/candidate-delete.test.ts (a shared cleanup array's
+  `.length = 0` was wiping out an earlier test's tracked row) that had
+  left extra candidates in the shared local Postgres, which briefly broke
+  unrelated e2e assertions expecting the dev-seed data undisturbed — a
+  fresh reseed plus that fix made the full suite (unit + integration + e2e)
+  reproducibly green together.
+pnpm run bank:audit                                                            # OK, PASSED at 20,000 sessions
+pnpm build                                                                     # OK, all routes compile
+node .next/standalone/server.js (after render.yaml's new build-time copy steps) # OK, verified manually — see item 8
+```
+`pnpm exec playwright test --project=chromium` was run against a real
+production build with `EMAIL_ENABLED=true`, a well-formed dummy
+`SENTRY_DSN`, and `APP_BASE_URL=http://127.0.0.1:3000` matching
+Playwright's baseURL exactly, per this file's instructions — **33/33
+passed**, including the two new assertions added by this pass (finding #5's
+empty-date-of-birth Hebrew-message test in `candidate-flow.spec.ts`, and
+finding #6's no-auto-advance assertion in `assessment-runner.spec.ts`).
+
 ## Red-team review: two scoring-integrity bugs fixed (assessment engine)
 
 A red-team review against the *generated* item content and scoring code
