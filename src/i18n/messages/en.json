@@ -1,0 +1,11 @@
+{
+  "common": {
+    "appName": "Student Recruiting",
+    "loading": "Loading…"
+  },
+  "landing": {
+    "title": "Student — Technical Role",
+    "cta": "Apply now",
+    "privacyLink": "Privacy notice"
+  }
+}

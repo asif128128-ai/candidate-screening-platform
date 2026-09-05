@@ -1,0 +1,22 @@
+name: migrate
+
+# DEPLOYMENT.md §5: manual, workflow_dispatch only. Uses the
+# MIGRATION_DATABASE_URL repository secret (project-owner credential) —
+# this value must NEVER be added to Render (see .env.example).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: supabase db push
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+        run: supabase db push --db-url "$MIGRATION_DATABASE_URL"

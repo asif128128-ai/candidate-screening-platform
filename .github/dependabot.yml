@@ -1,0 +1,10 @@
+# ARCHITECTURE.md §8, DEPLOYMENT.md §13: Dependabot SECURITY ALERTS only —
+# no automatic PRs (Renovate/auto-PRs are explicitly not configured; the
+# annual maintenance session is the one planned dependency-update exception).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0

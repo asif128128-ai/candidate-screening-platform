@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Env files — never commit secrets (DEPLOYMENT.md §3)
+.env
+.env.local
+.env.*.local
+
+# Testing
+/coverage
+/playwright-report/
+/test-results/
+/tests/e2e/.auth/
+
+# Supabase local dev
+supabase/.branches
+supabase/.temp
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Build artifacts
+*.tsbuildinfo

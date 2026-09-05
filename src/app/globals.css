@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: var(--font-heebo), Heebo, system-ui, sans-serif;
+}
+
+/* CANDIDATE_FLOW.md §9 / ARCHITECTURE.md §9: technical tokens (numbers,
+   emails, phone numbers, code) stay LTR inside RTL sentences. The shared
+   <Term> component (src/components/term.tsx) wraps these in <bdi>; this
+   class is the low-level primitive it uses. */
+.ltr-inline {
+  direction: ltr;
+  unicode-bidi: isolate;
+}

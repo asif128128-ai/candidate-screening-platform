@@ -1,0 +1,58 @@
+{
+  "name": "candidate-screening-platform",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "predev": "tsx scripts/generate-schema-version.ts",
+    "dev": "next dev",
+    "prebuild": "tsx scripts/generate-schema-version.ts",
+    "build": "next build",
+    "start": "next start -p ${PORT:-10000}",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "migrate": "supabase db push --db-url \"$MIGRATION_DATABASE_URL\"",
+    "db:set-app-password": "tsx scripts/set-app-password.ts",
+    "admin:add": "tsx scripts/admin-add.ts",
+    "bank:audit": "tsx scripts/bank-audit.ts",
+    "sweep:now": "tsx scripts/sweep-now.ts",
+    "check-env": "tsx scripts/check-env.ts",
+    "check-migrations": "tsx scripts/check-migrations.ts",
+    "prestart": "tsx scripts/check-env.ts"
+  },
+  "dependencies": {
+    "next": "15.5.25",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "next-intl": "3.26.3",
+    "postgres": "3.4.5",
+    "zod": "3.24.1",
+    "@supabase/ssr": "0.5.2",
+    "@supabase/supabase-js": "2.48.1",
+    "resend": "4.0.1",
+    "@sentry/nextjs": "8.51.0"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "@types/node": "22.10.7",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "eslint": "9.18.0",
+    "eslint-config-next": "15.5.25",
+    "@eslint/eslintrc": "3.2.0",
+    "tailwindcss": "3.4.17",
+    "postcss": "8.5.1",
+    "autoprefixer": "10.4.20",
+    "vitest": "2.1.8",
+    "@vitejs/plugin-react": "4.3.4",
+    "@playwright/test": "1.63.0",
+    "tsx": "4.19.2",
+    "dotenv": "16.4.7"
+  }
+}

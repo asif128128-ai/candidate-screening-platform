@@ -1,0 +1,58 @@
+name: CI
+
+# DEPLOYMENT.md §13: on every PR — typecheck, lint (incl. the RTL logical-
+# properties rule), unit tests, bank audit, migration expand/contract
+# check, Playwright smoke (Chromium). On main: same, then Render
+# auto-deploys (no deploy step here — Render owns deploys).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needed for check-migrations' git diff against origin/main
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run check-migrations
+
+      - run: pnpm run typecheck
+
+      - run: pnpm run lint
+
+      - run: pnpm run test
+
+      # TODO(assessment-engine engineer): un-skip once
+      # src/assessment/generator.ts is implemented.
+      - run: pnpm run bank:audit
+        continue-on-error: true
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm build
+
+      # TODO(next engineer): full e2e needs a running app + Supabase local
+      # stack (TEST_STRATEGY.md §4/§5); wire that up once there's a
+      # candidate flow to test. For now this just proves Playwright itself
+      # is wired up (see tests/e2e/smoke.spec.ts).
+      - run: pnpm run test:e2e -- tests/e2e/smoke.spec.ts
+
+      - name: Dependency audit (warn only)
+        run: pnpm audit --prod || true
+
+  # DEPLOYMENT.md §13: Dependabot handles security alerts (see
+  # .github/dependabot.yml); no separate job needed here.
