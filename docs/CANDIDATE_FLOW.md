@@ -23,7 +23,7 @@ Nobody types their phone number before knowing the pay and the engagement type. 
 - Title and the two-line hook.
 - **כרטיס תנאים** (the same structured card used in step 2): 85 ₪ לשעה · כ-18 שעות שבועיות (כ-3 × 6) · קבלן/ית עצמאי/ת, לא העסקה ישירה · אזור ראשון לציון, היברידי אפשרי, לא מרחוק בלבד · התחלה מיידית.
 - One honest line about the tech-ops/support component ("כ-50% פיתוח, כ-50% תפעול טכנולוגי, כולל חלק של תמיכה טכנית פנימית").
-- **What the process is**: "הגשה: טופס קצר (כ-3 דקות) ← תיאור התפקיד ← מבחן מקוון של כ-30 דקות. **את המבחן עושים במחשב** (לא בטלפון); את הטופס אפשר למלא מכל מכשיר. אפשר לעצור אחרי הטופס ולחזור למבחן מאוחר יותר עם קוד החזרה שתקבלו."
+- **What the process is** ("איך התהליך עובד"), as a three-row numbered list: "1. טופס קצר — כ-3 דקות. 2. תיאור התפקיד ואישור התנאים — כ-2 דקות. 3. **מבחן מקוון — כ-30 דקות, במחשב** (לא בטלפון)." followed by: "כדאי לעבור את כל התהליך ברצף אחד מהמחשב — כ-35 דקות. אם בכל זאת תצטרכו לעצור, תקבלו קוד חזרה שמאפשר להמשיך מאותה נקודה."
 - Button "להגשת מועמדות". Below: link to the privacy notice.
 
 A candidate who would self-select out on rate, contractor status, location, or the computer requirement does so here, having given us nothing.
@@ -57,10 +57,10 @@ Inline validation on blur, all errors in Hebrew, focus moves to the first error 
 - Rate limit: 5 signups / IP-prefix / hour; 5 resume attempts / email / hour; 3 OTP requests / email / hour.
 
 ### 2.3 On success
-Server: transaction (upsert candidate, insert application with `resume_code_hash`, insert consent, attach the already-uploaded CV via `cv_upsert`, enqueue the confirmation email in `email_outbox`), set `app_session` cookie, redirect to step 2. The confirmation email ("קיבלנו את המועמדות שלך") contains the resume link, the resume code, and the response window.
+Server: transaction (upsert candidate, insert application with `resume_code_hash`, insert consent, attach the already-uploaded CV via `cv_upsert`, enqueue the confirmation email in `email_outbox`), set `app_session` cookie. The candidate sees a success panel in place (§2.4) pointing at step 2, not a redirect. The confirmation email — subject "השלב הבא במועמדות שלך — המבחן המקוון ({jobTitle})" — tells the candidate their details were saved and that completing the online assessment (~30 minutes, on a computer) is what remains before the application is reviewed; it contains the resume link and the resume code. It deliberately does **not** say "we received your application" or promise a reply date — that framing is reserved for the done page (`DECISIONS_LOG.md` #20).
 
 ### 2.4 Resume code — re-entry that does not depend on email
-Immediately after step 1 the candidate sees a full-width card: **"קוד החזרה שלך: `K7M4-Q2XP`** — שמרו אותו. אם תסגרו את הדפדפן או תעברו למחשב אחר, תוכלו להמשיך מאותה נקודה ב-{APP_BASE_URL}/resume עם האימייל והקוד הזה." (copy button; also in the confirmation email). The code is 8 characters from an unambiguous alphabet (no 0/O/1/I), stored only as SHA-256. `/resume` = email + code → cookie re-issued → redirect to the current step (timers are unaffected: `served_at` is immutable). Fallback on the same screen: "אין לך את הקוד? שלחו לי קוד למייל" (OTP). Admins can also copy a signed 24-hour resume link from the candidate page for support cases. Email being down therefore never strands a candidate.
+The step-1 success panel points at the *next* step (eyebrow "שלב 1 מתוך 3 הושלם", headline "הפרטים נשמרו. השלב הבא: התפקיד והמבחן.", primary CTA "ממשיכים לתיאור התפקיד"). The resume code is shown quietly below the CTA, not as the headline: a demoted row — **"קוד חזרה: `K7M4-Q2XP`** [העתקה]" — with a helper line: "אם תצטרכו לעצור באמצע, האימייל והקוד הזה מחזירים אתכם לאותה נקודה ב-{APP_BASE_URL}/resume. שלחנו אותו גם למייל." (also in the confirmation email). The code is 8 characters from an unambiguous alphabet (no 0/O/1/I), stored only as SHA-256. `/resume` = email + code → cookie re-issued → redirect to the current step (timers are unaffected: `served_at` is immutable). Fallback on the same screen: "אין לך את הקוד? שלחו לי קוד למייל" (OTP). Admins can also copy a signed 24-hour resume link from the candidate page for support cases. Email being down therefore never strands a candidate.
 
 ## 3. Step 2 — על התפקיד
 
@@ -100,7 +100,7 @@ Server writes `job_confirmed_at`. The checkbox texts are part of the job row (`c
 Content, in order:
 
 1. **מה זה** — "מבחן קצר ואינטנסיבי, כ-30 דקות, 27 שאלות ב-4 חלקים: חימום מהיר, חשיבה, חקירה, אינסטינקט טכנולוגי. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק החקירה יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך."
-2. **הכללים** — לכל שאלה זמן קצוב משלה; אין חזרה אחורה; אפשר לדלג (דילוג אף פעם לא גרוע מניחוש); רענון של הדף לא מאפס את השעון; אחרי שמתחילים — מסיימים באותו רצף (מגבלה כוללת של 75 דקות).
+2. **הכללים** — לכל שאלה זמן קצוב משלה; אין חזרה אחורה; אפשר לדלג על שאלה, אבל מומלץ תמיד לנסות לענות — כל מה שנדרש נמצא בשאלה עצמה; רענון של הדף לא מאפס את השעון; אחרי שמתחילים — מסיימים באותו רצף (מגבלה כוללת של 75 דקות).
 3. **מה לצפות** — "הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. לא צריך הכנה, חיפוש באינטרנט או כלי AI — השאלות בנויות כך שהם פשוט לא עוזרים בזמן הנתון. אין כל דבר שצריך לדעת בעל פה: כל מה שנדרש נמצא בשאלה עצמה."
 4. **גילוי נאות על ניטור** (`ANTI_CHEATING.md` §2 text). Checkbox: "קראתי ואני מסכים/ה". Records `consents(assessment_monitoring_v1)`.
 5. **בדיקת מכשיר** — viewport ≥ 900 px (else: "כדי להתחיל צריך מחשב עם מסך רחב"), JS on, cookie present, clock skew measured (`server_now` vs `Date.now()`), Fullscreen API available (informational).
@@ -118,7 +118,7 @@ The briefing has an "איך זה עובד" collapsed panel with a 4-screenshot w
 ## 6. Done page and closure
 Nobody who invested 40 minutes should be left in indefinite silence. Closure is built in at three points, none of which requires personalized feedback:
 
-1. **Done page**: "תודה, {first_name}! המבחן נשמר. **נחזור אליך עד {date}** (= today + `jobs.response_window_days`, default 14) במייל או בטלפון, בכל מקרה — גם אם לא נמשיך יחד הפעם. אם עבר התאריך ולא שמעת מאיתנו, אפשר לכתוב ל-{privacy_contact_email}." Plus a link to `/privacy` for data requests. No score is shown to candidates (avoids coaching future candidates and keeps the score an internal prioritization tool).
+1. **Done page** — the only "received" moment in the whole flow (`DECISIONS_LOG.md` #20): completed — H1 "המועמדות שלך התקבלה", sub "תודה, {first_name}. המבחן הושלם ונשמר — זה כל מה שנדרש מצידך."; abandoned — H1 "המבחן נסגר", sub "חלף זמן המקסימום למבחן. מה שנענה נשמר, והמועמדות שלך התקבלה." Both continue with: "**נחזור אליך עד {date}** (= today + `jobs.response_window_days`, default 14) במייל או בטלפון, בכל מקרה — גם אם לא נמשיך יחד הפעם. אם עבר התאריך ולא שמעת מאיתנו, אפשר לכתוב אלינו (פרטי הקשר בעמוד מדיניות הפרטיות)." Plus a link to `/privacy` for data requests. No score is shown to candidates (avoids coaching future candidates and keeps the score an internal prioritization tool).
 2. **"לא ממשיכים הפעם" email**: when an admin moves an application to `נדחה` (individually or in bulk), a short, non-personalized Hebrew email is queued — unless the admin unticks "שלח הודעת סיום" in the stage-change dialog, or the job has `send_rejection_email = false`. Text: "תודה שהקדשת זמן לתהליך אצלנו. הפעם החלטנו לא להמשיך, וזו לא אמירה על היכולות שלך — התחרות הייתה גבוהה. נשמח לראות אותך שוב במשרות עתידיות. לבקשות לגבי הפרטים שלך: {privacy_contact_email}." Recorded in `applications.rejection_email_sent_at`.
 3. **Overdue reminder for the admin**: applications still in `המבחן הושלם`/`בבדיקה` past their response date show a "עבר מועד התשובה" chip in the admin list and count in the header, so the manager sees who is owed an answer. This is a promise the system keeps visible; it does not send anything automatically on the candidate's behalf.
 

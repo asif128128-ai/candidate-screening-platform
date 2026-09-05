@@ -57,11 +57,17 @@ export default async function JobLandingPage({
       </p>
 
       <section className="mt-6 rounded-md bg-neutral-50 p-4 text-sm leading-relaxed" data-testid="process-outline">
-        <h2 className="font-semibold">מה התהליך</h2>
+        <h2 className="font-semibold">איך התהליך עובד</h2>
+        <ol className="mt-2 list-inside list-decimal space-y-1">
+          <li>טופס קצר — כ-3 דקות</li>
+          <li>תיאור התפקיד ואישור התנאים — כ-2 דקות</li>
+          <li>
+            <strong>מבחן מקוון — כ-30 דקות, במחשב</strong> (לא בטלפון)
+          </li>
+        </ol>
         <p className="mt-2">
-          הגשה: טופס קצר (כ-3 דקות) ← תיאור התפקיד ← מבחן מקוון של כ-30 דקות.{" "}
-          <strong>את המבחן עושים במחשב</strong> (לא בטלפון); את הטופס אפשר למלא מכל מכשיר. אפשר
-          לעצור אחרי הטופס ולחזור למבחן מאוחר יותר עם קוד החזרה שתקבלו.
+          כדאי לעבור את כל התהליך ברצף אחד מהמחשב — כ-35 דקות. אם בכל זאת תצטרכו לעצור, תקבלו קוד
+          חזרה שמאפשר להמשיך מאותה נקודה.
         </p>
       </section>
 

@@ -51,16 +51,16 @@ export interface AdminInviteNoticePayload {
 
 export function renderApplicationReceived(p: ApplicationReceivedPayload): EmailContent {
   return {
-    subject: `קיבלנו את המועמדות שלך — ${p.jobTitle}`,
+    subject: `השלב הבא במועמדות שלך — המבחן המקוון (${p.jobTitle})`,
     html: wrap(`
       <p>שלום ${p.firstName},</p>
-      <p>קיבלנו את המועמדות שלך למשרה "${p.jobTitle}". נחזור אליך עד <strong>${p.responseByDateHe}</strong>, בכל מקרה.</p>
-      <p>אם תסגרו את הדפדפן או תעברו למחשב אחר, אפשר להמשיך מאותה נקודה כאן:</p>
-      <p><a href="${p.resumeUrl}">${p.resumeUrl}</a></p>
+      <p>הפרטים שלך נשמרו למשרה "${p.jobTitle}".</p>
+      <p>כדי שהמועמדות תיבחן, נשאר להשלים את המבחן המקוון — כ-30 דקות, במחשב. מומלץ לעשות את זה בהקדם, ברצף אחד.</p>
+      <p><a href="${p.resumeUrl}">להמשך המבחן</a></p>
       <p>קוד החזרה שלך: <strong style="direction:ltr;unicode-bidi:isolate;font-family:monospace">${p.resumeCodeDisplay}</strong></p>
-      <p>שמרו את הקוד הזה — יחד עם האימייל שלכם הוא מאפשר לחזור לתהליך בכל שלב.</p>
+      <p>שמרו את הקוד — יחד עם האימייל שלכם הוא מאפשר לחזור לתהליך מכל מחשב.</p>
     `),
-    text: `שלום ${p.firstName},\nקיבלנו את המועמדות שלך למשרה "${p.jobTitle}". נחזור אליך עד ${p.responseByDateHe}.\nקישור לחזרה: ${p.resumeUrl}\nקוד החזרה: ${p.resumeCodeDisplay}`,
+    text: `שלום ${p.firstName},\nהפרטים שלך נשמרו למשרה "${p.jobTitle}". כדי שהמועמדות תיבחן, נשאר להשלים את המבחן המקוון (כ-30 דקות, במחשב).\nלהמשך: ${p.resumeUrl}\nקוד החזרה: ${p.resumeCodeDisplay}`,
   };
 }
 

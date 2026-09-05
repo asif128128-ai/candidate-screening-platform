@@ -33,12 +33,14 @@ export default async function DonePage({
       {info.sessionStatus === "abandoned" ? (
         <>
           <h1 className="text-xl font-semibold">המבחן נסגר</h1>
-          <p className="mt-2 text-neutral-600">המבחן נסגר כי חלף זמן המקסימום. מה שנענה נשמר.</p>
+          <p className="mt-2 text-neutral-600">חלף זמן המקסימום למבחן. מה שנענה נשמר, והמועמדות שלך התקבלה.</p>
         </>
       ) : (
         <>
-          <h1 className="text-xl font-semibold">תודה, {info.candidateFirstName}!</h1>
-          <p className="mt-2 text-neutral-600">המבחן נשמר.</p>
+          <h1 className="text-xl font-semibold">המועמדות שלך התקבלה</h1>
+          <p className="mt-2 text-neutral-600">
+            תודה, {info.candidateFirstName}. המבחן הושלם ונשמר — זה כל מה שנדרש מצידך.
+          </p>
         </>
       )}
 

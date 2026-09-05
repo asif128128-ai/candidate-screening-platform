@@ -17,13 +17,13 @@ A Hebrew-first, RTL web application that collects applicants for technology role
 
 ## 3. Candidate flow (`CANDIDATE_FLOW.md`)
 0. **Landing shows the terms first** — pay, hours, contractor status, Rishon LeZion, the tech-ops/support component, and "the test needs a computer" — before any form.
-1. **Personal details** (required: names, DOB, phone, email, institution, degree, year, average, Rishon availability; optional: LinkedIn, GitHub, CV ≤ 5 MB as PDF/DOCX, uploaded asynchronously). Normalized (E.164, lowercase email), duplicates flagged not blocked. Average never gates and is not even filterable in the admin; DOB never scores. Success screen shows a **resume code**.
+1. **Personal details** (required: names, DOB, phone, email, institution, degree, year, average, Rishon availability; optional: LinkedIn, GitHub, CV ≤ 5 MB as PDF/DOCX, uploaded asynchronously). Normalized (E.164, lowercase email), duplicates flagged not blocked. Average never gates and is not even filterable in the admin; DOB never scores. The success panel points at the next step; the resume code is shown quietly; "application received" appears only on the done page.
 2. **Job description** on its own step with the structured terms card and three explicit confirmations (with a branch acknowledging a "לא" on Rishon).
 3. **Briefing**: rules, a reassuring line about margins, integrity disclosure + consent, device check (≥ 900 px), then start.
 4. **Assessment** → **Done** with a promised response date. Re-entry via email + resume code (or OTP). **Closure**: a short "לא ממשיכים הפעם" email on rejection (admin can suppress), and an "overdue reply" counter in the admin so nobody is left in silence.
 
 ## 4. Assessment (`ASSESSMENT_DESIGN.md`)
-- **27 items, ≈ 30 minutes, four fixed blocks, one item at a time, no back, skip allowed (skip is never worse than a guess).**
+- **27 items, ≈ 30 minutes, four fixed blocks, one item at a time, no back, skip allowed (the skip-never-worse-than-guess invariant holds in scoring but is not disclosed to candidates — DECISIONS_LOG #21).**
   - חימום מהיר — 10 × 20 s (speed)
   - חשיבה — 6 × 75 s (reasoning; SVG grids, rule induction, state machines, constraints)
   - חקירה — **4 × 180 s** (independence; 4–5-artifact investigation scenes with root cause / next action / extracted fact, preceded by an untimed practice scene; process telemetry rewards reaching the decisive evidence efficiently, not opening every tab)

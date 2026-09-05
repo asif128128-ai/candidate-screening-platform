@@ -44,7 +44,7 @@ Five independent reviews (`docs/reviews/01…05`) were consolidated by the coord
 **Changed.** `ASSESSMENT_DESIGN.md` §2, §2.2; `DATA_MODEL.md` §3.3; `ANTI_CHEATING.md` §4; `DESIGN_SUMMARY.md` §4.
 
 ### 10. Skipping was worse than guessing in the investigation block
-**Resolution.** The "submitted" process component is removed; a skipped scene keeps whatever process credit was earned before skipping; a **blind guess** (wrong root cause with the decisive artifact never opened) is now counted as a guess regardless of timing and incurs the penalty. New invariant §3.6 "skip is never worse than a blind guess", with a 10,000-behavior property test. Briefing copy tells candidates so.
+**Resolution.** The "submitted" process component is removed; a skipped scene keeps whatever process credit was earned before skipping; a **blind guess** (wrong root cause with the decisive artifact never opened) is now counted as a guess regardless of timing and incurs the penalty. New invariant §3.6 "skip is never worse than a blind guess", with a 10,000-behavior property test. Briefing copy tells candidates so. **Superseded for disclosure only by #21:** the invariant stays; the briefing no longer states it.
 **Changed.** `SCORING.md` §3.3, §3.5, new §3.6; `TEST_STRATEGY.md` §2; `CANDIDATE_FLOW.md` §4 (rules line).
 
 ## Security / privacy / integrity
@@ -92,6 +92,24 @@ Five independent reviews (`docs/reviews/01…05`) were consolidated by the coord
 ### 19. Unbounded retention with no bulk path
 **Resolution.** Growth quantified (≈ 150–250 KB per completed candidate; ~8 GB at 30–40k) and a **bounded retention policy** adopted, enforced by the sweep: full IP 90 days; raw telemetry and rendered item content/keys 12 months after completion (scores, breakdown, integrity level and reasons kept); the whole candidate record 24 months after the latest application unless `hired` or flagged `keep_indefinitely`. The privacy notice states these windows. Admin tooling: **bulk archive-and-delete** (filter → CSV export → `delete_candidate()` in batches, excluding hired/kept rows), a keep-forever toggle, and DB size vs. plan in Settings with a 70 % banner and Sentry warning.
 **Changed.** `DATA_MODEL.md` §3.5 (`keep_indefinitely`), §3.11 (nullable content), §8 (rewritten); `CANDIDATE_FLOW.md` §7 (privacy notice); `ADMIN_UX.md` §3.5, §4.1, §7; `ARCHITECTURE.md` §8, §10; `DEPLOYMENT.md` §1; `TEST_STRATEGY.md` §2 (sweep and bulk rows); `DESIGN_SUMMARY.md` §6.
+
+## Client feedback round 1 (`FINTECH_REDESIGN_PLAN.md`)
+
+### 20. Early "application received" framing removed (client feedback)
+**Resolution.** The client's actual ask was not "delete the resume code" but "stop telling candidates they are done before the test". Every early "received / accepted / we'll get back to you" signal is removed or reworded to talk about the *next* step; the done page becomes the only place the application is described as received. Touchpoints fixed:
+1. `personal-details-form.tsx:183` — `<h2>המועמדות התקבלה!</h2>` (the literal string the client saw) → new eyebrow/H2/body hierarchy pointing at step 2 (§2.3).
+2. same file `:198` — "נחזור אליך עד {date}, בכל מקרה." (a closure promise before the test) → removed from this panel entirely.
+3. same file `:84` — submit button "שליחת מועמדות" ("submit application" implies the form *is* the application) → "שמירה והמשך".
+4. same file `:207` — CTA "המשך לשלב הבא" (generic, doesn't name the destination) → "ממשיכים לתיאור התפקיד".
+5. `src/lib/email/templates.ts` `renderApplicationReceived` — subject "קיבלנו את המועמדות שלך — {job}", body "נחזור אליך עד {date}, בכל מקרה." (sent right after step 1; the strongest "you're done" signal in the funnel) → subject "השלב הבא במועמדות שלך — המבחן המקוון ({jobTitle})", body pointing at the assessment, no response-date promise.
+6. `jobs/[slug]/page.tsx:63-64` — "אפשר לעצור אחרי הטופס ולחזור למבחן מאוחר יותר עם קוד החזרה שתקבלו." (actively invites pausing after the form) → replaced by a three-row process outline that puts the test as the finish line, with the pause option demoted to a trailing sentence.
+7. `apply/[applicationId]/done/page.tsx:40-41` — "תודה, {name}! המבחן נשמר." (the one place that *should* say "received" — and didn't) → "המועמדות שלך התקבלה" / "תודה, {name}. המבחן הושלם ונשמר — זה כל מה שנדרש מצידך."
+8. `docs/CANDIDATE_FLOW.md` §1.1, §2.3, §2.4, §6; `docs/DESIGN_SUMMARY.md` §3 step 1 — docs described "success screen shows a resume code" and quoted "קיבלנו את המועמדות שלך"; updated to match.
+**Changed.** `personal-details-form.tsx`, `jobs/[slug]/page.tsx`, `src/lib/email/templates.ts`, `apply/[applicationId]/done/page.tsx`, `tests/e2e/assessment-runner.spec.ts`, `CANDIDATE_FLOW.md`, `DESIGN_SUMMARY.md`.
+
+### 21. Skip-vs-guess invariant no longer disclosed to candidates
+**Resolution.** Removed the briefing disclosure that skipping is never worse than guessing, replacing it with neutral encouragement to attempt an answer that reveals nothing about the mechanic in either direction. We must not imply skipping is penalized harder (it is not), and in the speed block a wrong answer is in fact −0.5 vs. skip 0 — so we also must not claim guessing beats skipping. "Try to answer" is honest under every block's rules: an *attempted* answer with partial knowledge beats a skip, and the item design guarantees everything needed is in the item. The scoring invariant (`SCORING.md` §3.6, `scoring.ts`, the property test) is unchanged and remains an internal fairness guarantee — this is a disclosure change only, per #10 above.
+**Changed.** `briefing/page.tsx:48`; `CANDIDATE_FLOW.md:103`; `DESIGN_SUMMARY.md` §4 (skip line); `DECISIONS_LOG.md` #10 (superseded-for-disclosure note).
 
 ## Reviewer findings considered and deliberately not changed
 - **Speed pace leaking across blocks** (review 2 #9): kept as a whole-assessment tempo measure; it is documented as such, carries only 15 %, counts correct answers only, and the accuracy gate prevents it from rewarding haste. Revisit after the pilot if Speed variance is dominated by investigation-item timing.

@@ -81,7 +81,7 @@ function SubmitButton() {
       disabled={pending}
       className="w-full rounded-md bg-neutral-900 py-3 font-medium text-white disabled:opacity-50"
     >
-      {pending ? "שולח…" : "שליחת מועמדות"}
+      {pending ? "שומר…" : "שמירה והמשך"}
     </button>
   );
 }
@@ -180,32 +180,42 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
     const o = state.outcome;
     return (
       <div className="rounded-md border-2 border-neutral-900 p-6" data-testid="resume-code-card">
-        <h2 className="text-lg font-semibold">המועמדות התקבלה!</h2>
-        <p className="mt-2">
-          קוד החזרה שלך: <Term><strong data-testid="resume-code">{o.resumeCodeDisplay}</strong></Term>
+        <p className="text-sm text-neutral-500">שלב 1 מתוך 3 הושלם</p>
+        <h2 className="mt-1 text-lg font-semibold">הפרטים נשמרו. השלב הבא: התפקיד והמבחן.</h2>
+        <p className="mt-2 text-sm text-neutral-600">
+          המועמדות נבחנת רק אחרי השלמת המבחן המקוון (כ-30 דקות, במחשב).
+          מומלץ להמשיך עכשיו ברצף — זה החלק שבאמת חשוב לנו.
         </p>
-        <p className="mt-1 text-sm text-neutral-600">
-          שמרו אותו. אם תסגרו את הדפדפן או תעברו למחשב אחר, תוכלו להמשיך מאותה נקודה ב-
-          <Term>/resume</Term> עם האימייל והקוד הזה.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigator.clipboard?.writeText(o.resumeCodeDisplay)}
-          className="mt-2 text-sm underline"
+
+        <Link
+          href={`/apply/${o.applicationId}/job`}
+          className="mt-4 block rounded-md bg-neutral-900 px-4 py-3 text-center font-medium text-white"
+          data-testid="continue-to-step2"
         >
-          העתקת הקוד
-        </button>
-        <p className="mt-4">נחזור אליך עד <Term>{o.responseByDateHe}</Term>, בכל מקרה.</p>
+          ממשיכים לתיאור התפקיד
+        </Link>
+
+        <div className="mt-6 rounded-md bg-neutral-50 p-3 text-sm">
+          <p className="text-xs text-neutral-500">קוד חזרה</p>
+          <p className="mt-1">
+            <Term><strong data-testid="resume-code">{o.resumeCodeDisplay}</strong></Term>{" "}
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(o.resumeCodeDisplay)}
+              className="text-sm underline"
+            >
+              העתקה
+            </button>
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">
+            אם תצטרכו לעצור באמצע, האימייל והקוד הזה מחזירים אתכם לאותה נקודה ב-
+            <Term>/resume</Term>. שלחנו אותו גם למייל.
+          </p>
+        </div>
+
         {!o.cvAttached && o.cvError ? (
           <p className="mt-2 text-sm text-amber-700">קובץ קורות החיים לא צורף בהצלחה. אפשר להמשיך בלעדיו.</p>
         ) : null}
-        <Link
-          href={`/apply/${o.applicationId}/job`}
-          className="mt-6 inline-block rounded-md bg-neutral-900 px-4 py-3 font-medium text-white"
-          data-testid="continue-to-step2"
-        >
-          המשך לשלב הבא
-        </Link>
       </div>
     );
   }

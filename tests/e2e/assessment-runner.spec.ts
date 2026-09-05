@@ -243,7 +243,7 @@ test.describe(hasDb ? "assessment runner (real Postgres)" : "assessment runner (
     }
 
     await page.waitForURL(/\/done/, { timeout: 15000 });
-    await expect(page.locator("body")).toContainText("המבחן נשמר");
+    await expect(page.locator("body")).toContainText("המועמדות שלך התקבלה");
   });
 
   test("a timer expiring auto-advances to the next item without any candidate action", async ({ page }, testInfo) => {

@@ -86,7 +86,7 @@ test("empty date-of-birth on step 1 shows the Hebrew message, not 'Invalid date'
   await page.getByRole("radio", { name: "כן" }).check();
   await page.getByRole("checkbox", { name: /מדיניות הפרטיות/ }).check();
 
-  await page.getByRole("button", { name: "שליחת מועמדות" }).click();
+  await page.getByRole("button", { name: "שמירה והמשך" }).click();
 
   await expect(page.getByText("יש לבחור תאריך לידה")).toBeVisible();
   await expect(page.getByText(/invalid date/i)).toHaveCount(0);
@@ -104,7 +104,7 @@ test("full step 1 -> 2 -> 3 journey, resume, and step-order guards", async ({ pa
     await expect(page.getByLabel("אימייל")).toHaveAttribute("dir", "ltr");
     await expect(page.getByLabel("אימייל")).toHaveAttribute("placeholder", "name@example.com");
     await fillPersonalDetails(page, email);
-    await page.getByRole("button", { name: "שליחת מועמדות" }).click();
+    await page.getByRole("button", { name: "שמירה והמשך" }).click();
     await expect(page.getByTestId("resume-code-card")).toBeVisible({ timeout: 10_000 });
   });
 
