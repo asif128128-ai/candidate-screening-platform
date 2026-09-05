@@ -62,6 +62,36 @@ test.describe("landing page — terms before any form (decision #1)", () => {
   });
 });
 
+// Red-team finding #5: an empty date-of-birth field used to surface zod's
+// raw, untranslated "Invalid date" in the otherwise all-Hebrew step-1 form
+// (src/lib/validation.ts). The `required` attribute on the real <input
+// type="date"> blocks the browser's own native validation from ever
+// submitting an empty value, so this test removes it first — exactly what
+// a JS-disabled client, a non-browser client, or any other bypass of the
+// browser's own date-widget constraints would do, which is the exact case
+// this validation exists to catch server-side. Doesn't consume the shared
+// signup rate-limit budget: schema validation (and therefore this failure)
+// happens before the server action's rate-limit check.
+test("empty date-of-birth on step 1 shows the Hebrew message, not 'Invalid date'", async ({ page }) => {
+  await page.goto("/jobs/student-tech-2026/apply");
+  await page.getByLabel("שם פרטי").fill("דנה");
+  await page.getByLabel("שם משפחה").fill("כהן");
+  await page.locator("#dateOfBirth").evaluate((el: HTMLInputElement) => el.removeAttribute("required"));
+  await page.getByLabel("טלפון נייד").fill(`050${Math.floor(1000000 + Math.random() * 8999999)}`);
+  await page.getByLabel("אימייל").fill(uniqueEmail("dob-empty"));
+  await page.locator("#institution").fill("הטכניון");
+  await page.locator("#degreeProgram").fill("מדעי המחשב");
+  await page.locator("#studyYear").selectOption("2");
+  await page.locator("#academicAverage").fill("88");
+  await page.getByRole("radio", { name: "כן" }).check();
+  await page.getByRole("checkbox", { name: /מדיניות הפרטיות/ }).check();
+
+  await page.getByRole("button", { name: "שליחת מועמדות" }).click();
+
+  await expect(page.getByText("יש לבחור תאריך לידה")).toBeVisible();
+  await expect(page.getByText(/invalid date/i)).toHaveCount(0);
+});
+
 test("full step 1 -> 2 -> 3 journey, resume, and step-order guards", async ({ page, context }) => {
   const email = uniqueEmail("flow");
 

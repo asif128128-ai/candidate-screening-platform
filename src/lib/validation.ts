@@ -31,9 +31,19 @@ export const personalDetailsSchema = z.object({
     .min(2, "שם משפחה חייב להכיל לפחות 2 תווים")
     .max(40, "שם משפחה ארוך מדי")
     .regex(nameRe, "שם משפחה יכול להכיל אותיות בעברית או באנגלית בלבד"),
-  dateOfBirth: z.coerce
-    .date()
-    .refine((d) => !Number.isNaN(d.getTime()), { message: "יש לבחור תאריך לידה" }),
+  // Red-team finding #5: `z.coerce.date().refine(...)` could never reach its
+  // custom Hebrew message — `z.coerce.date()` itself throws zod's own
+  // built-in English "Invalid date" error for any empty/unparseable input
+  // *before* `.refine()` ever runs, which is exactly the case (an empty
+  // date-of-birth field, the very first form in the funnel) this message
+  // exists to handle. Fixed by validating the raw string is non-empty
+  // *before* coercing to a Date, via `.pipe()`.
+  dateOfBirth: z
+    .string({ required_error: "יש לבחור תאריך לידה" })
+    .trim()
+    .min(1, "יש לבחור תאריך לידה")
+    .refine((v) => !Number.isNaN(Date.parse(v)), { message: "יש לבחור תאריך לידה" })
+    .pipe(z.coerce.date()),
   phone: z.string().trim().min(1, "יש להזין מספר טלפון"),
   email: z.string().trim().min(1, "יש להזין כתובת אימייל"),
   institution: z.string().trim().min(1, "יש לבחור מוסד לימודים").max(120),
