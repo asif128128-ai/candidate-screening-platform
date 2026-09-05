@@ -170,7 +170,10 @@ function generateInvestigationBlock(
   if (!alreadyHasEscalation && escalationCapable.length > 0) {
     const notChosen = escalationCapable.filter((s) => !chosen.includes(s));
     const forced = selectionRng.pick(notChosen.length > 0 ? notChosen : escalationCapable);
-    chosen = [forced, ...chosen.slice(1)];
+    // Replace the *most*-used pick (chosen is still usage-sorted ascending
+    // here), not the least-used one — this keeps the cohort-balancing hook
+    // (§3.3.1) from being undone by the escalation-invariant fixup.
+    chosen = [...chosen.slice(0, -1), forced];
     forcedScenarioId = forced.id;
   } else if (alreadyHasEscalation) {
     forcedScenarioId = (chosen.find((s) => s.escalationCauses.length > 0) as InvestigationScenario).id;

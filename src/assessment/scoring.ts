@@ -448,6 +448,25 @@ export function scoreSession(input: ScoreSessionInput): ScoreSessionResult {
     [...processByPos.entries()].map(([pos, p]) => [pos, p.decisiveArtifactOpened]),
   );
 
+  // SCORING.md §3.6: "A blind wrong guess scores s_i = 0" — a root cause
+  // miss made without ever opening the decisive artifact isn't measuring
+  // partial investigative judgment on q2/q3, it's undifferentiated
+  // guessing, so the whole item's composite is zeroed (not just q1). This
+  // is what makes the skip-never-worse-than-a-blind-guess invariant hold
+  // structurally: skip already scores sI = 0, and a blind guess additionally
+  // loses its process credit and incurs the guess penalty (§3.5), so it can
+  // never come out ahead. A non-blind wrong root cause (decisive artifact
+  // opened, per the §10 worked example's scene B) keeps its q2/q3 credit.
+  for (const item of investigationItems) {
+    const response = responseByPos.get(item.position);
+    if (response?.status !== "answered") continue;
+    const score = itemScores.get(item.position);
+    const opened = decisiveOpenedMap.get(item.position) ?? false;
+    if (score && !score.isCorrect && !opened) {
+      itemScores.set(item.position, { sI: 0, isCorrect: false });
+    }
+  }
+
   const guesses = computeGuesses(items, responseByPos, itemScores, decisiveOpenedMap);
 
   // ---- Reasoning ----
@@ -517,7 +536,14 @@ export function scoreSession(input: ScoreSessionInput): ScoreSessionResult {
   );
 
   // ---- Confidence — SCORING.md §5 ----
-  const finalizedCount = responses.filter((r) => r.status === "answered" || r.status === "expired").length;
+  // SCORING.md §5: confidence counts every item that was served and
+  // finalized somehow (answered, expired, or an honest skip) — a skip is a
+  // deliberate, completed interaction, not a missing one. Only items with
+  // no response row at all (never served, e.g. session abandoned mid-way)
+  // reduce confidence.
+  const finalizedCount = responses.filter(
+    (r) => r.status === "answered" || r.status === "expired" || r.status === "skipped",
+  ).length;
   const confidence = items.length > 0 ? finalizedCount / items.length : 0;
 
   // ---- Breakdown (§7) ----
