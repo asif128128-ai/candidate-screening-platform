@@ -3,10 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 // ARCHITECTURE.md §6: `app_session` = base64url(application_id ‖
 // HMAC-SHA256(application_id, secret)), httpOnly, Secure, SameSite=Lax,
 // path "/", max-age 14 days. This module only does the sign/verify math;
-// TODO(candidate-flow engineer): wire this into an actual `Set-Cookie` /
-// cookie-read helper (e.g. via `next/headers`), the /apply/* route guard
-// that 404s on an application_id mismatch, and the /resume re-issue flow
-// (CANDIDATE_FLOW.md §2.4).
+// wired into real `next/headers` cookie read/write, the /apply/* route
+// guard, and the /resume re-issue flow by src/lib/candidate-session.ts.
 
 export const CANDIDATE_COOKIE_NAME = "app_session";
 export const CANDIDATE_COOKIE_MAX_AGE_S = 14 * 24 * 60 * 60; // 14 days
