@@ -38,7 +38,17 @@ describe("isOverdueForReply (DECISIONS_LOG.md #3)", () => {
     const appliedAt = new Date("2026-01-01T00:00:00Z"); // 31 days ago
     expect(isOverdueForReply(appliedAt, "assessment_completed", 14, now)).toBe(true);
     expect(isOverdueForReply(appliedAt, "under_review", 14, now)).toBe(true);
-    expect(isOverdueForReply(appliedAt, "applied", 14, now)).toBe(true);
+  });
+
+  test("never overdue before the candidate has actually finished the assessment (Fable's final review, DECISIONS_LOG #3: the reply-by promise is made on the done page, not at application time)", () => {
+    const appliedAt = new Date("2026-01-01T00:00:00Z"); // 31 days ago
+    expect(isOverdueForReply(appliedAt, "applied", 14, now)).toBe(false);
+    expect(isOverdueForReply(appliedAt, "assessment_started", 14, now)).toBe(false);
+  });
+
+  test("interview stage is not overdue — reaching it means the candidate already got their reply", () => {
+    const appliedAt = new Date("2026-01-01T00:00:00Z");
+    expect(isOverdueForReply(appliedAt, "interview", 14, now)).toBe(false);
   });
 
   test("rejected or hired is never overdue, however long ago applied", () => {

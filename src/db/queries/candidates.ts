@@ -203,10 +203,15 @@ export async function getHeaderCounts(tx: TransactionSql, jobId: string): Promis
     union all
     select 'interview', count(*) from applications where job_id = ${jobId} and stage = 'interview'
     union all
+    -- Only stages reached after the candidate actually finished the
+    -- assessment: the reply-by-date promise (DECISIONS_LOG #3) is made on
+    -- the done page, not at raw application time — see isOverdueForReply's
+    -- comment in admin-format.ts for why 'applied'/'assessment_started'/
+    -- 'interview' rows must not count here.
     select 'overdue', count(*)
       from applications a join jobs j on j.id = a.job_id
       where a.job_id = ${jobId}
-        and a.stage not in ('rejected', 'hired')
+        and a.stage in ('assessment_completed', 'under_review')
         and a.created_at + make_interval(days => j.response_window_days) < now()
     union all
     select 'new_24h', count(*) from applications where job_id = ${jobId} and created_at > now() - interval '24 hours'

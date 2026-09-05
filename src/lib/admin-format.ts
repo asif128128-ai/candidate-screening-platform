@@ -93,6 +93,17 @@ export function scoreBand(score: number | null | undefined): ScoreBand | "unknow
  * the application hasn't reached a terminal, decided stage (DECISIONS_LOG.md
  * #3: "moving to נדחה" — or hiring — resolves the promise; anything else
  * still stuck past the window is overdue).
+ *
+ * Only counts stages reached *after* the candidate actually finished the
+ * assessment (`assessment_completed`, `under_review`) — the "we'll reply by
+ * X" promise (DECISIONS_LOG #3) is made on the done page once the
+ * assessment is submitted, never at raw application time. Fable's final
+ * holistic review found the original version counted every non-terminal
+ * application, including `applied`/`assessment_started` rows that abandoned
+ * before ever finishing — people never promised a reply timeline at all —
+ * which would make the overdue counter permanent noise at any real volume
+ * of drop-off. `interview` is likewise excluded: reaching it means the
+ * candidate already received their reply.
  */
 export function isOverdueForReply(
   appliedAt: Date | string,
@@ -100,7 +111,7 @@ export function isOverdueForReply(
   responseWindowDays: number,
   now: Date = new Date(),
 ): boolean {
-  if (stage === "rejected" || stage === "hired") return false;
+  if (stage !== "assessment_completed" && stage !== "under_review") return false;
   const deadline = new Date(appliedAt).getTime() + responseWindowDays * 24 * 60 * 60 * 1000;
   return now.getTime() > deadline;
 }
