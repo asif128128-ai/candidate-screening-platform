@@ -17,6 +17,13 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_JWT_SECRET: z.string().min(1),
   CANDIDATE_COOKIE_SECRET: z.string().min(16),
+  // ARCHITECTURE.md §5.2/§6, DATA_MODEL.md §3.11: HMAC key for the per-serve
+  // `item_token` (assessment hot path). Deliberately a separate secret from
+  // CANDIDATE_COOKIE_SECRET even though both are HMAC keys over an
+  // application-scoped id — they protect different things (long-lived
+  // session identity vs. a single item's answer window) and rotating one
+  // should never invalidate the other.
+  ITEM_TOKEN_SECRET: z.string().min(16),
   EMAIL_ENABLED: z.enum(["true", "false"]).default("false"),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
@@ -68,6 +75,11 @@ export function assertProductionInvariants(env: Env): void {
   if (env.MIGRATION_DATABASE_URL) {
     problems.push(
       "MIGRATION_DATABASE_URL must not be set on the running server (it is a developer/CI-only credential).",
+    );
+  }
+  if (env.TEST_CLOCK_OFFSET_MS !== undefined) {
+    problems.push(
+      "TEST_CLOCK_OFFSET_MS must not be set in production (it would let the timed-assessment clock be shifted).",
     );
   }
   if (problems.length > 0) {

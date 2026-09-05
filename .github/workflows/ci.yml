@@ -1,9 +1,11 @@
 name: CI
 
 # DEPLOYMENT.md §13: on every PR — typecheck, lint (incl. the RTL logical-
-# properties rule), unit tests, bank audit, migration expand/contract
-# check, Playwright smoke (Chromium). On main: same, then Render
-# auto-deploys (no deploy step here — Render owns deploys).
+# properties rule), unit + integration tests (against this job's own
+# Postgres service), bank audit, migration expand/contract check, the full
+# Playwright suite (Chromium) against a real production build. On main:
+# same, then Render auto-deploys (no deploy step here — Render owns
+# deploys).
 on:
   pull_request:
   push:
@@ -12,6 +14,48 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    services:
+      # A plain Postgres, not the Supabase CLI's local stack (no Docker
+      # Compose / supabase-cli step here) — supabase/test-stubs.sql fills in
+      # the handful of Supabase-managed objects our migrations assume exist
+      # (see that file's own comment; the same stubs scripts/local-pg-setup.sh
+      # uses for local dev, so both environments stay in sync). This proves
+      # our own schema/RLS/triggers are correct; it does not exercise real
+      # Supabase Auth/Storage/PostgREST, which still needs verification
+      # against a real project before launch (IMPLEMENTATION_NOTES.md).
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Dummy-but-well-formed values for everything that would normally be a
+      # real secret — nothing here ever talks to a real Supabase project or
+      # Resend/Sentry account; the app is designed to fail closed (queued
+      # email, logged Sentry init failure) rather than block on those, and
+      # admin e2e tests mint locally-signed JWT cookies instead of doing a
+      # real Supabase Auth network round trip (tests/e2e/admin-fixtures.ts).
+      NODE_ENV: test
+      APP_BASE_URL: http://127.0.0.1:3000
+      DATABASE_URL: postgresql://app_user:ci_test_password@127.0.0.1:5432/screening_ci
+      SUPABASE_URL: https://dummy.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: dummy
+      SUPABASE_ANON_KEY: dummy
+      SUPABASE_JWT_SECRET: dummy_jwt_secret_at_least_32_characters_long_for_ci
+      CANDIDATE_COOKIE_SECRET: dummy_cookie_secret_at_least_32_characters_for_ci
+      ITEM_TOKEN_SECRET: dummy_item_token_secret_at_least_32_characters_for_ci
+      EMAIL_ENABLED: "true"
+      RESEND_API_KEY: re_dummy_key_for_ci
+      EMAIL_FROM: "גיוס <jobs@example.co.il>"
+      SENTRY_DSN: "https://dummy@o0.ingest.sentry.io/0"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,22 +78,50 @@ jobs:
 
       - run: pnpm run lint
 
+      - name: Set up Postgres (roles, stubs, migrations, dev-seed)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create database screening_ci;
+          SQL
+          psql -h 127.0.0.1 -U postgres -d screening_ci -v ON_ERROR_STOP=1 -f supabase/test-stubs.sql
+          for f in supabase/migrations/*.sql; do
+            echo "applying $f"
+            psql -h 127.0.0.1 -U postgres -d screening_ci -v ON_ERROR_STOP=1 -f "$f"
+          done
+          psql -h 127.0.0.1 -U postgres -d screening_ci -v ON_ERROR_STOP=1 \
+            -c "alter role app_user with password 'ci_test_password';"
+          psql -h 127.0.0.1 -U postgres -d screening_ci -v ON_ERROR_STOP=1 \
+            -f scripts/dev-seed.sql
+
       - run: pnpm run test
 
-      # TODO(assessment-engine engineer): un-skip once
-      # src/assessment/generator.ts is implemented.
       - run: pnpm run bank:audit
-        continue-on-error: true
 
       - run: pnpm exec playwright install --with-deps chromium
 
       - run: pnpm build
 
-      # TODO(next engineer): full e2e needs a running app + Supabase local
-      # stack (TEST_STRATEGY.md §4/§5); wire that up once there's a
-      # candidate flow to test. For now this just proves Playwright itself
-      # is wired up (see tests/e2e/smoke.spec.ts).
-      - run: pnpm run test:e2e -- tests/e2e/smoke.spec.ts
+      # Full suite, Chromium only (the only browser installed above — the
+      # firefox/webkit/mobile projects exist for an occasional full-matrix
+      # run, not every PR, partly because several suites do a real signup
+      # against a shared rate limit — see e.g. candidate-flow.spec.ts's own
+      # "e2e rate-limit budget" comment), real production build
+      # (playwright.config.ts's webServer runs `pnpm build && pnpm start`),
+      # one worker (every spec here shares this one Postgres + its fixed
+      # dev-seed data, so cross-file parallelism races those fixtures — see
+      # that config's own comment).
+      # `pnpm run test:e2e -- --project=chromium` does NOT reliably forward
+      # the flag through this pnpm version's script-arg passthrough (it
+      # silently fell back to running every project, including firefox/
+      # webkit/the webkit-based mobile preset — none of which are installed
+      # above); calling the Playwright binary directly does.
+      - run: pnpm exec playwright test --project=chromium
 
       - name: Dependency audit (warn only)
         run: pnpm audit --prod || true

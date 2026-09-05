@@ -19,6 +19,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_JWT_SECRET ??= "test-jwt-secret-0123456789abcdef";
 process.env.CANDIDATE_COOKIE_SECRET ??= "test-candidate-cookie-secret-01234567890123456789";
+process.env.ITEM_TOKEN_SECRET ??= "test-item-token-secret-0123456789012345";
 
 describe.runIf(hasDb)("application-flow (integration, local Postgres)", () => {
   let withSystem: typeof import("@/db/postgres").withSystem;

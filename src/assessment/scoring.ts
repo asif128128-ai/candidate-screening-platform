@@ -396,6 +396,18 @@ export interface ItemBreakdown {
   firstMs: number | null;
   changes: number;
   outageCreditMs?: number;
+  /**
+   * Investigation items only: whether the decisive artifact (answerKey.
+   * decisiveArtifactKeyQ1) was opened with >= 3s dwell, per this function's
+   * own process-score computation. Exposed so a caller building
+   * computeIntegrity's IntegrityResponse.decisiveArtifactOpened (integrity.ts)
+   * can reuse this instead of re-deriving it from raw events (see
+   * IMPLEMENTATION_STATE.md's interface note for the runner-UI engineer:
+   * "should come from scoreSession's per-item process computation, not
+   * recomputed" — this field is what makes that possible; before it existed
+   * scoreSession had no public way to hand this value back at all).
+   */
+  decisiveArtifactOpened?: boolean;
 }
 
 export interface ScoreSessionResult {
@@ -609,6 +621,7 @@ export function scoreSession(input: ScoreSessionInput): ScoreSessionResult {
       firstMs: response?.firstInteractionMs ?? null,
       changes: response?.answerChanges ?? 0,
       outageCreditMs: item.outageCreditMs,
+      decisiveArtifactOpened: item.kind === "investigation" ? decisiveOpenedMap.get(item.position) : undefined,
     };
   });
 

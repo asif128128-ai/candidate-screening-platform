@@ -643,3 +643,171 @@ environment either, same as the foundation layer) — the RLS-at-the-`app_user`-
 layer boundary that pgTAP would normally cover is instead exercised by
 `tests/integration/admin-rls-security.test.ts` against the local Postgres
 stand-in.
+
+## Assessment-runner engineer's pass — the hot-path routes and the runner UI
+
+This was the last major placeholder. Everything named in
+`IMPLEMENTATION_STATE.md`'s earlier "assessment runner UI + its two hot-path
+API routes" row is now built: `POST /api/assessment/start`,
+`GET /api/assessment/current`, `POST /api/assessment/answer`,
+`POST /api/assessment/events`, and the full runner UI at
+`.../apply/[applicationId]/assessment/page.tsx` (`runner.tsx`,
+`item-views.tsx`, `item-text.tsx`, `timer-bar.tsx`, `block-intro.tsx`,
+`practice-scene.tsx`, `use-integrity-telemetry.tsx`), backed by
+`src/db/queries/assessment.ts`/`assessment-blueprint.ts` and
+`src/lib/{assessment-block-copy,assessment-client-types,assessment-request,
+assessment-runner-logic,clock,outage-boot-check}.ts`. Three new migrations
+(`0005_assessment_runner_support.sql`, `0006_variant_seed_widen.sql`,
+`0007_assessment_stage_transitions.sql`) fix two real bugs this pass found
+in already-merged code (a `bigint` overflow on `variant_seed` for
+high-bit SplitMix64 seeds, and an RLS gap on `application_stage_history`
+for the two system-driven stage transitions the hot path makes) and add
+the columns/functions the runner needs (`last_ip_prefix`, `last_skew_ms`,
+`assessment_mark_stage`). Full reasoning for every design call — the
+block-boundary/intro-screen protocol, the `ITEM_TOKEN_SECRET` secret, the
+outage-boot-check's move out of `instrumentation.ts`, pipe-table/code-fence
+rendering, telemetry simplifications — is in
+`IMPLEMENTATION_NOTES.md`'s "Assessment-runner engineer's pass" section;
+read that before touching any of this code.
+
+That engineer's own pass (unit, integration-against-local-Postgres, e2e,
+manual click-through of a full 27-item run) is documented in
+`IMPLEMENTATION_NOTES.md`. This paragraph and the ones below record what
+changed **after** that pass, while integrating and verifying all four
+engineers' work together for the first time (the lead pass — see
+`docs/DECISIONS_LOG.md`'s introduction for context on the overall project
+structure):
+
+### Merging four parallel passes
+
+The assessment-engine, candidate-flow, and admin-UI passes were built in
+parallel git worktrees and merged in that order, then this runner pass was
+built directly on the merged result (no worktree — it was the last piece,
+so no parallelism risk). Merge conflicts were only ever in append-only
+sections of `IMPLEMENTATION_STATE.md`/`IMPLEMENTATION_NOTES.md` (resolved by
+keeping both sides), one add/add conflict in `src/db/queries/jobs.ts`
+(candidate-flow's `getJobBySlug` and admin's job-CRUD functions are
+disjoint call sites — kept both), and `src/middleware.ts` (candidate-flow's
+fix for a real bug — a nonce-less CSP silently broke Next.js's own
+hydration scripts in *every* environment, not just admin — unified with
+admin's more elaborate `guardAdminRoute`/JWT/aal2 logic, applied uniformly
+rather than admin-only as admin's pass had scoped it, since candidate-flow's
+fix was strictly the broader, correct one).
+
+### Bugs found integrating the runner pass, not caught by that pass's own (real, but isolated) test runs
+
+1. **ESLint was scanning `.claude/worktrees/**`** (stale subagent worktree
+   checkouts still containing old placeholder code with intentional
+   `@ts-ignore`s) — 30,000+ spurious errors. Fixed: `.claude/**` added to
+   `eslint.config.mjs`'s ignores and to `.gitignore` (worktree directories
+   were also being accidentally `git add -A`'d).
+2. **`next build` failed outright**: none of the admin pages under
+   `(protected)/` declared `dynamic = "force-dynamic"`, so Next attempted to
+   statically prerender pages that read live session/DB state at build
+   time — which only works at all if build-time env vars happen to line up
+   with runtime ones, and is wrong regardless (a static page baking in
+   build-time candidate data). Fixed by setting it once on
+   `src/app/admin/(protected)/layout.tsx` (inherited by the whole subtree).
+3. **`src/lib/admin-jwt.ts`'s `import { jwtVerify } from "jose"`** pulled in
+   `jose`'s JWE code path (`CompressionStream`/`DecompressionStream`,
+   unavailable in the Edge Runtime this file runs in via
+   `src/middleware.ts`) purely because of barrel-import bundling, despite
+   only using JWS verification. Fixed with the deep import
+   `jose/jwt/verify`.
+4. **`next start` + `output: "standalone"`**: Next itself warns this
+   combination isn't the intended way to run a standalone build (the
+   intended command is `node .next/standalone/server.js`), but it does
+   still start and correctly serve real requests (verified directly:
+   `/api/health` responded correctly against real local Postgres). Not
+   changed — `render.yaml`'s `startCommand: pnpm start` matches
+   `DEPLOYMENT.md` and works; this is noted here only so a future engineer
+   who sees the same warning doesn't chase a phantom bug. If Render's cold-
+   start time or image size ever become a real concern, switching to the
+   standalone server entrypoint is the documented lever to pull.
+5. **`POST /api/assessment/start` returning 403** in e2e testing traced to
+   `src/lib/csrf.ts`'s `isSameOrigin` correctly rejecting a request whose
+   `Origin` header didn't match `APP_BASE_URL` — a **test-environment
+   config mismatch** (Playwright's `baseURL` is `http://127.0.0.1:PORT`;
+   `APP_BASE_URL` must match that exactly, not `http://localhost:PORT` —
+   browsers treat those as different origins), not an application bug. No
+   code changed; documented here because it's an easy trap for the next
+   person configuring a local/CI env file.
+6. **`playwright.config.ts`'s `webServer` was still `pnpm dev`**, deferred
+   by three prior engineers' notes in `IMPLEMENTATION_NOTES.md` each in
+   turn ("switch this once there's a real backend"). There is now one.
+   Switched to `pnpm build && pnpm start` (with `env: { PORT }`, since
+   `pnpm start` reads `$PORT`, not a CLI flag) — this is also what actually
+   surfaced bug #2 above (dev mode never attempts static generation, so it
+   never hit the prerender failure).
+7. **Running the full e2e suite together for the first time** (previously
+   only individual spec files had ever been run, and `ci.yml` only ran
+   `smoke.spec.ts`) surfaced a cross-file test-isolation gap: every spec
+   file shares one Postgres instance and `scripts/dev-seed.sql`'s fixed rows
+   (e.g. multiple files independently create/edit/delete `jobs` rows;
+   `admin-candidates.spec.ts`'s lookup of the seeded "יעל כהן" candidate by
+   name assumes the surrounding list/pagination state is undisturbed).
+   `assessment-runner.spec.ts` had already discovered and solved this
+   *within* one file (`test.describe.configure({ mode: "serial" })`);
+   fixed the same problem *across* files by setting `fullyParallel: false`
+   and `workers: 1` globally in `playwright.config.ts`. None of the
+   failures this surfaced pointed to an application bug — every suite
+   passed cleanly running alone; see that config's own comment for the
+   full reasoning and the eventual right fix (per-worker DB isolation) if
+   suite runtime ever becomes a real problem.
+8. **`.github/workflows/ci.yml` never actually ran a real backend** (its
+   own TODO said as much) — rewritten to spin up a `postgres:16` service
+   container, apply `supabase/test-stubs.sql` + all migrations +
+   `scripts/dev-seed.sql` (extracted the Supabase-object stubs from
+   `scripts/local-pg-setup.sh` into `supabase/test-stubs.sql` so the local
+   script and CI apply identically-stubbed schemas), then run the real
+   `pnpm test` (now exercising the integration suites, not just unit),
+   un-skip `pnpm run bank:audit` (was `continue-on-error: true`, blocked on
+   a generator that now exists and passes cleanly at 20k sessions), and run
+   the full Chromium e2e suite against a real production build. Also
+   discovered along the way: `pnpm run test:e2e -- --project=chromium`
+   does **not** reliably forward the flag through this pnpm version's
+   script-arg passthrough (it silently ran every project, including
+   firefox/webkit/the webkit-based mobile preset — none of which `ci.yml`
+   installs) — `ci.yml` calls `pnpm exec playwright test --project=chromium`
+   directly instead, which does work.
+
+### Verified working (full integration pass, all four engineers' work together)
+
+```
+pnpm typecheck                          # OK, 0 errors
+pnpm lint                               # OK, 0 errors, 2 pre-existing warnings
+pnpm test                               # OK, 311/311 (unit + integration, against local Postgres)
+pnpm run bank:audit                     # OK, PASSED at 20,000 generated sessions
+pnpm build                              # OK, all routes compile, no warnings
+pnpm exec playwright test --project=chromium   # OK, 32/32 (full suite: candidate flow,
+                                         #     assessment runner incl. a real 27-item run,
+                                         #     timer expiry, refresh-mid-item resume,
+                                         #     integrity telemetry, admin auth/candidates/
+                                         #     jobs/security), against a real production
+                                         #     build + real local Postgres + dev-seed data
+```
+Also independently reproduced the exact CI database bootstrap
+(`supabase/test-stubs.sql` → migrations in order → `dev-seed.sql`) against a
+disposable local database before trusting `ci.yml`, and ran the exact CI
+e2e command (`pnpm exec playwright test --project=chromium`) against it
+end-to-end — 32/32 passed in ~55s.
+
+### Next steps (essentially just launch-readiness, not missing functionality)
+
+Every candidate-flow → assessment → admin path described in `docs/` is now
+implemented and covered by passing tests. What's left is what
+`IMPLEMENTATION_NOTES.md`'s various "not run in this environment" notes
+already name — none of it is code:
+1. A real (even free-tier) Supabase project: run the migrations for real
+   (`supabase db push`), verify Storage/Auth/PostgREST-enforced RLS
+   actually behave the way the local-Postgres stand-in predicts, run
+   `supabase test db` (pgTAP).
+2. Point a real deploy at it on Render using `render.yaml` + `.env.example`
+   + `DEPLOYMENT.md`'s setup steps, and verify `/api/health`'s
+   migration-version check against the Supabase-CLI-managed
+   `supabase_migrations` schema (untestable against the plain-Postgres
+   stand-in, which has no such schema).
+3. A small human pilot group to calibrate per-item time limits against
+   real behavior, per `ASSESSMENT_DESIGN.md`'s own stated plan.
+4. The k6 load scenarios (`TEST_STRATEGY.md` §8), particularly the
+   synchronized-start burst scenario the performance/cost review flagged.

@@ -1,0 +1,30 @@
+-- 0006_variant_seed_widen.sql
+-- Bug fix found while wiring the assessment runner's session-creation path
+-- (src/db/queries/assessment.ts `startAssessmentSession`) against a real
+-- Postgres: `assessment_items.variant_seed` was declared `bigint` (signed
+-- 64-bit, max 9223372036854775807), but `src/assessment/rng.ts`'s
+-- `deriveItemSeed` is SplitMix64 exactly as ASSESSMENT_DESIGN.md §4.1
+-- specifies — its output is masked to the FULL unsigned 64-bit range
+-- (`& ((1n<<64n)-1n)`), which is >= 2^63 (i.e. would need the sign bit)
+-- for roughly half of all seeds. Inserting a real generated session hits
+-- "value ... is out of range for type bigint" nondeterministically
+-- (whichever items happen to draw a seed with the top bit set).
+--
+-- The fix is on the storage side, not the pure module: `rng.ts` is
+-- deliberately a standard, frozen SplitMix64 (its exact output sequence is
+-- pinned by the bank's 50-seed snapshot test and 1,000-seed property tests
+-- in generator.test.ts) — narrowing it to 63 bits would silently change
+-- every generated item for every seed. `variant_seed` is a display/audit
+-- column only (never re-derived from, never queried by value anywhere in
+-- src/ — content/answer_key are stored directly at generation time), so
+-- widening it to `numeric` (arbitrary precision, holds any 64-bit unsigned
+-- value as plain decimal digits) is the correct, low-risk fix.
+--
+-- contract: pre-launch (this schema has not been deployed to any real
+-- Postgres instance yet — 0001_init.sql's own header notes it has "not
+-- been executed against a live Postgres instance"), so there is no
+-- existing data or running application to migrate around; the type change
+-- is included here as a separate, clearly-attributed step anyway rather
+-- than editing 0001_init.sql in place, so the fix and its reasoning are
+-- visible in history.
+alter table assessment_items alter column variant_seed type numeric using variant_seed::numeric;

@@ -11,10 +11,10 @@ import { expect, test, type Page } from "@playwright/test";
 // application for the resume-flow and step-order-guard assertions instead
 // of creating a fresh candidate per assertion.
 //
-// The assessment-start endpoint (`POST /api/assessment/start`) doesn't
-// exist in this worktree yet (assessment-engine engineer's work, in
-// parallel — see IMPLEMENTATION_STATE.md for the assumed contract this
-// suite mocks via `page.route`).
+// The assessment-start endpoint (`POST /api/assessment/start`) is real
+// (assessment-engine engineer's work — see IMPLEMENTATION_STATE.md); this
+// suite exercises it directly rather than mocking it via `page.route`, so
+// the full journey below also creates a real assessment_sessions row.
 
 function uniqueEmail(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}@example.com`;
@@ -112,18 +112,19 @@ test("full step 1 -> 2 -> 3 journey, resume, and step-order guards", async ({ pa
     await page.goto(`/apply/${applicationId}/briefing`);
   });
 
-  await test.step("step 3: monitoring consent + device check + mocked assessment-start", async () => {
+  await test.step("step 3: monitoring consent + real assessment-start", async () => {
+    // `POST /api/assessment/start` is real now (assessment-engine engineer's
+    // work, IMPLEMENTATION_STATE.md) — this used to mock it via page.route()
+    // since the route didn't exist yet; now it exercises the genuine start
+    // -> session-created -> runner-guard path, which is a strictly better
+    // test (and the mock stopped matching reality: the real assessment page
+    // guard redirects back to /briefing when no session actually exists,
+    // which a mocked 200 with no real DB write would always trigger).
     await expect(page.getByTestId("monitoring-disclosure")).toBeVisible();
-    await page.route("**/api/assessment/start", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ applicationId, redirectTo: `/apply/${applicationId}/assessment` }),
-      });
-    });
     await page.getByTestId("monitoring-consent-checkbox").check();
     await page.getByTestId("start-assessment-button").click();
     await expect(page).toHaveURL(new RegExp(`/apply/${applicationId}/assessment$`), { timeout: 10_000 });
+    await expect(page.getByTestId("block-intro")).toBeVisible({ timeout: 10_000 });
   });
 
   await test.step("resume flow: clearing cookies and using email + resume code returns to the same step", async () => {
@@ -133,10 +134,9 @@ test("full step 1 -> 2 -> 3 journey, resume, and step-order guards", async ({ pa
     await page.locator("#email").fill(email);
     await page.locator("#code").fill(resumeCodeText);
     await page.getByRole("button", { name: "כניסה" }).click();
-    // The candidate had only confirmed the job step (no session exists in
-    // this worktree without the assessment-engine's start route actually
-    // persisting one), so resume lands back on briefing.
-    await expect(page).toHaveURL(new RegExp(`/apply/${applicationId}/briefing$`), { timeout: 10_000 });
+    // A real assessment session now exists (in_progress), so resume lands
+    // on the assessment runner, not briefing.
+    await expect(page).toHaveURL(new RegExp(`/apply/${applicationId}/assessment$`), { timeout: 10_000 });
   });
 
   await test.step("resume flow: a wrong code is rejected", async () => {

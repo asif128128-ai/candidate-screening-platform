@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Spins up a local Postgres 16 (via Homebrew) standing in for a Supabase
 # project, for environments without Docker/the Supabase CLI available
-# (this dev machine has neither). Creates minimal stubs for the
-# Supabase-managed objects our migrations assume already exist
-# (anon/authenticated/service_role roles, auth/storage schemas,
-# storage.buckets table) — these stubs are NOT part of the real schema,
-# they only exist so `supabase/migrations/*.sql` can be smoke-tested here.
+# (this dev machine has neither). Creates the anon/authenticated/
+# service_role roles (cluster-wide, so handled here) and applies
+# supabase/test-stubs.sql (per-database stand-ins for auth/storage schemas
+# etc. — shared with .github/workflows/ci.yml's Postgres service so both
+# environments stub the same things the same way) — these stubs are NOT
+# part of the real schema, they only exist so `supabase/migrations/*.sql`
+# can be smoke-tested here.
 #
 # Usage: ./scripts/local-pg-setup.sh [dbname]
 # Then:  psql -d <dbname> ...   or   DATABASE_URL=postgres://localhost/<dbname>
@@ -38,17 +40,7 @@ EOF
 dropdb --if-exists "$DB"
 createdb "$DB"
 
-psql -d "$DB" -v ON_ERROR_STOP=1 <<'EOF'
-create schema auth;
-create schema storage;
-create table storage.buckets (
-  id text primary key,
-  name text not null,
-  public boolean not null default false,
-  file_size_limit bigint,
-  allowed_mime_types text[]
-);
-EOF
+psql -d "$DB" -v ON_ERROR_STOP=1 -f "$REPO_ROOT/supabase/test-stubs.sql"
 
 for f in "$REPO_ROOT"/supabase/migrations/*.sql; do
   echo "applying $f"

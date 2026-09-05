@@ -389,6 +389,28 @@ describe("scoreSession — SCORING.md §10 worked example", () => {
     const investigateBlock = result.breakdown.blocks.find((b) => b.key === "investigate");
     expect(investigateBlock?.process).toBeCloseTo(0.9, 5);
   });
+
+  // Regression test (IMPLEMENTATION_STATE.md's interface note for the
+  // runner-UI engineer): computeIntegrity's IntegrityResponse.
+  // decisiveArtifactOpened must come from scoreSession's own process
+  // computation, "not recomputed" — which requires scoreSession to actually
+  // expose it somewhere in its public output. Every worked-example scene
+  // here opens the decisive artifact (with >= 3s dwell), so every
+  // investigation item's breakdown entry must report it opened; every
+  // non-investigation item must leave the field undefined (it's not a
+  // meaningful concept outside the investigate block).
+  it("exposes per-item decisiveArtifactOpened in the breakdown for investigation items only", () => {
+    const investigationPositions = new Set(
+      items.filter((i) => i.kind === "investigation").map((i) => i.position),
+    );
+    for (const entry of result.breakdown.items) {
+      if (investigationPositions.has(entry.pos)) {
+        expect(entry.decisiveArtifactOpened).toBe(true);
+      } else {
+        expect(entry.decisiveArtifactOpened).toBeUndefined();
+      }
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

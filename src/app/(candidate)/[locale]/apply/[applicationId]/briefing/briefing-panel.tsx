@@ -9,19 +9,20 @@ import { confirmMonitoringConsentAction } from "./actions";
 // required to reach this page, clock skew, Fullscreen API availability).
 // Step 6: "מתחילים" -> startAssessment.
 //
-// TODO(assessment-engine engineer): this button POSTs to
-// `/api/assessment/start`, which does not exist yet in this worktree
-// (only `current`/`answer`/`events` placeholders do, per
-// IMPLEMENTATION_STATE.md's ownership table). The assumed contract (see
-// IMPLEMENTATION_STATE.md's candidate-flow section for the full writeup):
-//   POST /api/assessment/start, empty JSON body, candidate cookie only.
+// `POST /api/assessment/start` is now implemented (src/app/api/assessment/
+// start/route.ts, src/db/queries/assessment.ts `startAssessmentSession`),
+// matching the contract assumed here exactly:
 //   200 { applicationId, redirectTo } -> this component navigates to
 //     redirectTo (falls back to `/apply/{applicationId}/assessment`).
 //   400 { error: "job_not_confirmed" | "consent_missing" }
-//   409 { error: "already_started" | "already_completed" }
+//   409 { error: "already_completed" } — an `in_progress` session is
+//     idempotent-ok (200, no error) rather than a 409, since a page reload
+//     on the briefing step before navigating away is a normal resume path,
+//     not a conflict (one deviation from the originally assumed contract's
+//     "already_started" 409 branch — see IMPLEMENTATION_NOTES.md).
 //   401 { error: "unauthorized" }
-// Until that route exists, clicking "מתחילים" here will surface a clear
-// Hebrew error rather than fail silently or hang.
+// The 404/501 branch below is now unreachable in production but stays as
+// defense-in-depth against a route that somehow isn't deployed.
 
 const MIN_VIEWPORT_WIDTH = 900;
 
