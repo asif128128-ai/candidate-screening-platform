@@ -1,4 +1,8 @@
-import { jwtVerify } from "jose";
+// Deep import (not the `jose` barrel) so bundlers only pull in the JWS
+// verification path — the barrel re-exports JWE code too, which uses
+// CompressionStream/DecompressionStream and isn't available in the Edge
+// Runtime this file runs in (src/middleware.ts). We never use JWE.
+import { jwtVerify } from "jose/jwt/verify";
 
 // ARCHITECTURE.md §6 / ADMIN_UX.md §8: admin auth is Supabase Auth (email +
 // password, magic link fallback) with mandatory TOTP MFA. The middleware

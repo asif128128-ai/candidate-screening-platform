@@ -18,6 +18,7 @@ const eslintConfig = [
     // to surface a lint error here once actually running the app locally.
     ignores: [
       ".next/**",
+      ".claude/**",
       "node_modules/**",
       "supabase/**",
       "playwright-report/**",

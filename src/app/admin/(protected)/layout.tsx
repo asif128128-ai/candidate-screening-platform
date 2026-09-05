@@ -8,6 +8,17 @@ import { AlertBanners, type StaticBanner } from "../../../components/admin/alert
 import { dbSizeFraction, formatBytes, DB_SIZE_WARNING_FRACTION } from "../../../lib/admin-format";
 import { signOutAction } from "../login/actions";
 
+// Every admin page reads live, per-request session/DB state (allowlist
+// check, candidate list, alerts, DB-size banner) — none of it is ever safe
+// to statically prerender or cache. Without this, `next build` attempts to
+// prerender these routes at build time (before real env vars/DB access are
+// guaranteed to be wired up the same way they are at runtime) and fails;
+// worse, if it ever succeeded it would bake a build-time snapshot into a
+// static page instead of rendering per-request. Setting it on this layout
+// applies to the whole `(protected)` subtree (Next.js route segment config
+// is inherited by child segments).
+export const dynamic = "force-dynamic";
+
 // Second auth layer (ARCHITECTURE.md §6, ADMIN_UX.md §8): src/middleware.ts
 // already rejected requests without a valid, aal2 session JWT (Edge-safe,
 // no DB). This Server Component (always Node.js runtime) does the part
