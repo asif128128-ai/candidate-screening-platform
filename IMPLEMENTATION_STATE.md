@@ -318,3 +318,196 @@ sessions), `scenario_drift` (per-job first-50-vs-last-50 accuracy on
 (sessions credited for downtime in the last 24h, from `server_outage`
 integrity events). `db_size` is intentionally left alone — see
 `IMPLEMENTATION_NOTES.md`.
+## Candidate-flow engineer's pass (steps 1-3, resume, privacy, cookie, rate limiting)
+
+Everything in `CANDIDATE_FLOW.md` except the assessment runner itself (steps
+1-3, done, resume, privacy) is now implemented against the real schema —
+no more placeholders in `src/app/(candidate)/[locale]/**` except
+`.../assessment/page.tsx` (assessment-engine's runner UI).
+
+### What's built
+
+- **Landing** (`/jobs/{slug}`, `src/app/(candidate)/[locale]/jobs/[slug]/page.tsx`):
+  terms card, tech-ops honesty line, and process outline all render above
+  any button/input (decision #1); inactive/unknown job shows the friendly
+  Hebrew message. `src/db/queries/jobs.ts` reads it in `candidate` context
+  with no `application_id` (see "RLS/FK ordering" below for why that's safe).
+- **Step 1** (`/jobs/{slug}/apply`): `personal-details-form.tsx` (client) +
+  `actions.ts`'s `submitPersonalDetailsAction` (server action). Full zod
+  validation (`src/lib/validation.ts`) plus normalization
+  (`src/lib/normalize.ts`: phone -> E.164, email lowercase/trim, LinkedIn/
+  GitHub URL normalization, DOB 16-70y sanity check, average rounding) —
+  40+ phone cases and email/URL edge cases unit-tested. Duplicate handling
+  (`src/lib/duplicate-detection.ts`, pure decision function +
+  `src/db/queries/application-flow.ts`'s `submitPersonalDetails` doing the
+  lookups) implements CANDIDATE_FLOW.md §2.2 exactly: same email + same job
+  not completed -> redirect to `/resume` (never auto-logs in — that would be
+  an account-takeover vector); same email + same job completed ->
+  "already_completed" message with the real response-by date; same email +
+  different job -> candidate row upserted, new application; same phone +
+  different email -> `duplicate_phone_of` set, never blocks. Rate limited
+  5/IP-prefix/hour (`src/lib/rate-limit.ts`, atomic UPSERT token bucket
+  against `rate_limits`, unit-and-integration-tested for the deny-after-N
+  behavior). CV upload is genuinely async (`src/app/api/cv/upload/route.ts`,
+  magic-byte sniffing in `src/lib/cv-validation.ts` — PDF/DOCX only, `.doc`/
+  renamed-exe/SVG rejected, 5 MB cap) — it lands in Storage under
+  `pending/{uuid}.ext` *before* the application exists, then
+  `attachCvToApplication` moves it to `{application_id}/{uuid}.ext` and
+  calls the existing `cv_upsert()` after the application row is created; a
+  failed CV attach never fails the signup (candidate sees a note, can
+  continue — CANDIDATE_FLOW.md §2.1's "המשך בלי קורות חיים"). On success the
+  resume-code card (§2.4) renders **in place of the form** (not a redirect —
+  the plaintext code only ever exists in this one response; only its
+  SHA-256 is stored) with a copy button and a "המשך לשלב הבא" link that
+  carries the already-set `app_session` cookie forward.
+- **Step 2** (`/apply/{id}/job`): full job description (`description_html`,
+  pre-rendered, no runtime markdown per ARCHITECTURE.md §7) + terms card +
+  the 3 confirmations from `jobs.confirmations_he`, with the "לא בראשון"
+  amber note wired to the candidate's actual step-1 answer.
+  `confirmJobUnderstandingAction` writes `job_confirmed_at`.
+- **Step 3** (`/apply/{id}/briefing`): timing rationale, rules, integrity
+  disclosure text verbatim from `ANTI_CHEATING.md` §2
+  (`src/lib/consent-text.ts`, also used for the privacy notice — both hashed
+  for `consents.text_version`), device check (viewport >= 900px gates the
+  button, Fullscreen API availability shown informationally, clock-skew
+  wiring left as a TODO comment since it needs `GET /api/assessment/current`
+  to exist first). The "מתחילים" button (`briefing-panel.tsx`) does two
+  things in sequence: (1) calls `confirmMonitoringConsentAction` (a plain
+  server action, not tied to `useActionState`, since a second async step
+  follows) to record `consents(assessment_monitoring_v1)` and
+  `briefing_seen_at`; (2) `POST /api/assessment/start` — **not implemented
+  in this worktree**; see the contract below. A 404/501 from that route
+  surfaces a clear Hebrew "not available yet" message instead of hanging.
+- **Done** (`/apply/{id}/done`): response-by date (decision #3), no score
+  ever shown, the wall-clock-abandoned variant copy, link to `/privacy`.
+- **`/resume`** (decision #2): email + 8-char resume code
+  (`src/lib/resume-code.ts`: unambiguous 32-char alphabet, SHA-256 only,
+  never the plaintext, stored) works with **no email dependency** — this is
+  the path that must survive `EMAIL_ENABLED=false`. An OTP fallback also
+  works (`requestOtp`/`verifyOtp` in `application-flow.ts`) but that one
+  *does* need email — see "OTP storage" below for the schema gap it needed
+  and the simplification made. Both rate-limited independently.
+- **`/privacy`**: verbatim notice text (`consent-text.ts`), request form
+  (access/correction/deletion) -> `privacy_requests`, rate-limited. The
+  spec's "email-verified with a one-click link" isn't built — see
+  IMPLEMENTATION_NOTES.md.
+- **Cookie wiring** (`src/lib/candidate-session.ts`): wraps the existing
+  sign/verify primitives in `next/headers` cookie read/write;
+  `checkCandidateCookie()` implements the missing-vs-mismatch distinction
+  from CANDIDATE_FLOW.md §1/§8 (missing -> `/resume`, mismatch -> 404).
+  `src/lib/application-guard.ts` is the shared step-order guard every
+  `/apply/{id}/*` page calls: skip-ahead redirects to the real current step
+  (computed from `job_confirmed_at` + assessment-session status +
+  monitoring-consent presence); revisiting an earlier completed step
+  renders a read-only "כבר עברת את השלב הזה" summary instead of the live
+  form, per spec.
+- **Email** (`src/lib/email/{templates,send}.ts`): the first real sender
+  code against `email_outbox` (previously just a table with no sender —
+  see the old placeholder table's "Email sending" row). Resend integration,
+  gated on `EMAIL_ENABLED`; enqueue always happens (so retries/audit exist
+  regardless), the immediate best-effort send is fire-and-forget and never
+  blocks or fails the candidate's request (ARCHITECTURE.md §8). Covers all
+  four `email_outbox.template` values for the dispatcher's sake, though
+  `not_moving_forward`/`admin_invite_notice` are *triggered* by admin-ui
+  code this engineer doesn't own — only `application_received`/`resume_otp`
+  are actually called from this codebase today.
+- **Tests**: `tests/unit/{normalize,resume-code,duplicate-detection,
+  cv-validation,ip}.test.ts` (pure functions, no I/O — 65 cases total),
+  `tests/integration/application-flow.test.ts` (10 cases against a real
+  local Postgres — signup, both duplicate-signal branches, cross-job reuse,
+  phone-match flagging, step routing, resume-by-code, OTP round-trip +
+  expiry, privacy request, rate-limit denial), `tests/e2e/
+  candidate-flow.spec.ts` (Playwright: terms-first on desktop + 390px
+  mobile with a bdi/LTR-input RTL check, then one full serial journey —
+  signup -> resume-code card -> step 2 -> step-order guard -> step 3 ->
+  mocked assessment-start -> resume-by-code -> wrong-code rejection).
+  `tests/e2e/smoke.spec.ts` updated to match the real (no longer
+  placeholder) landing page.
+
+### Assumed `POST /api/assessment/start` contract (for the assessment-engine engineer)
+
+This route doesn't exist in this worktree (only `current`/`answer`/`events`
+placeholders do). The briefing page's "מתחילים" button
+(`briefing-panel.tsx`) calls it with this assumed shape — please match it,
+or tell me what changed so I can adjust the button:
+
+```
+POST /api/assessment/start
+Request:  credentials: same-origin (candidate cookie only), JSON body {} is sent
+          but the server should resolve everything from the app_session cookie.
+Response 200 (created or already in_progress — idempotent):
+  { "applicationId": string, "redirectTo": string }
+  -- the client navigates to redirectTo, falling back to
+     `/apply/{applicationId}/assessment` if redirectTo is absent.
+Response 400: { "error": "job_not_confirmed" | "consent_missing" }
+  -- job_confirmed_at or the assessment_monitoring_v1 consent row is
+     missing; both are guaranteed present by the time a real candidate
+     reaches this button through the UI, but a route handler shouldn't
+     trust that.
+Response 401: { "error": "unauthorized" }  -- missing/invalid candidate cookie.
+Response 409: { "error": "already_completed" }
+  -- assessment_sessions.status is 'completed'/'abandoned' for this application.
+Response 404 / 501: treated by the client as "not deployed yet" and shown
+  as a Hebrew "not available yet" message (this is what happens right now,
+  since the route doesn't exist).
+```
+
+The client code doesn't care about the session/item creation details
+(that's `generator.ts` + the 27-row insert per ARCHITECTURE.md §5.1 step 4)
+— it only needs `{ applicationId, redirectTo }` back. `tests/e2e/
+candidate-flow.spec.ts` mocks this exact response shape via `page.route()`
+so the e2e suite doesn't depend on the real route existing.
+
+### Also touched (shared infrastructure, not admin-auth — see IMPLEMENTATION_NOTES.md for the reasoning on each)
+
+- **`src/middleware.ts`**: fixed a real bug in the shared CSP header
+  (`script-src 'self'` with no nonce/`unsafe-inline`) that silently broke
+  hydration on *every* route — candidate, admin, and API — in a production
+  build. Not part of the admin-auth TODO block; this is the
+  `withSecurityHeaders` function used by all three branches.
+- **`src/db/postgres.ts`**: widened `withCandidate`'s `applicationId`
+  parameter from `string` to `string | undefined` (backward compatible —
+  the two existing call sites still pass a string) so pre-application reads
+  (the public job landing page) can use `candidate` context without a
+  cookie yet, matching the `jobs`/`assessment_configs` RLS policies which
+  only check `app_ctx() = 'candidate'`, not an id.
+- **`supabase/migrations/0003_resume_otp.sql`**: additive-only, two nullable
+  columns + a counter on `applications` for OTP storage (see
+  IMPLEMENTATION_NOTES.md "OTP storage" — no dedicated table existed for
+  this in `DATA_MODEL.md`).
+- **`playwright.config.ts`**: added `screenshot: "only-on-failure"` (useful
+  for debugging, was previously off); did **not** flip `webServer` to
+  `pnpm build && pnpm start` — see IMPLEMENTATION_NOTES.md "dev-mode Server
+  Action slowness" for why that's now recommended but I left the decision
+  for whoever owns CI readiness next.
+- **`tests/e2e/smoke.spec.ts`**: updated to assert against the real landing
+  page instead of the old placeholder text.
+
+### Verified this session
+
+```
+pnpm typecheck                                          # OK, 0 errors
+pnpm lint                                                # OK, 0 errors, warnings only in other engineers' placeholder files
+pnpm test                                                # OK, 66/66 unit tests (no DB needed)
+DATABASE_URL=postgresql://app_user:...@localhost/screening_test pnpm test
+                                                          # OK, 76/76 (adds the 10 integration tests)
+pnpm build                                               # OK, all routes compile, bundle sizes within budget
+                                                          # (apply-form route ~4 KB own JS, well under the 60 KB
+                                                          # top-of-funnel budget in ARCHITECTURE.md §7)
+pnpm exec playwright test tests/e2e/ --project=chromium  # OK, 4/4 (production build, see note below)
+pnpm exec playwright test ... --project=firefox/webkit/mobile -g "landing page"
+                                                          # OK, 6/6 (cross-browser RTL/terms-first checks)
+```
+
+Manually clicked through the whole flow against `./scripts/local-pg-setup.sh
+screening_test`, screenshotted the landing page at 1366px and 390px and the
+step-1 form — RTL is correct throughout (labels right-aligned, form flows
+right-to-left, numbers/currency isolated in `<bdi>` via `<Term>`, phone/
+email inputs LTR with English placeholders, no horizontal scroll on
+mobile).
+
+**Not run**: the full nightly Playwright matrix's *signup-heavy* tests on
+firefox/webkit (only the no-signup landing-page tests were run
+cross-browser, deliberately — see IMPLEMENTATION_NOTES.md "e2e rate-limit
+budget"); k6 load scenarios (pre-launch, not this engineer's milestone);
+`pnpm bank:audit` (assessment-engine's).
