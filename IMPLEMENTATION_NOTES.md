@@ -1146,3 +1146,67 @@ scope) would close this residual gap and is worth doing if leak-and-farm
 gaming shows up in real pilot data (the `scenario_drift` alert added by an
 earlier pass, per DECISIONS_LOG #7's mitigations list, would be the
 detection signal to watch for this).
+
+## Fable's final holistic review — two fixes landed, three caveats accepted as-is
+
+Fable's final fresh-context review (see IMPLEMENTATION_STATE.md) found two
+"fake precision" bugs, both now fixed (see that section for the fix
+details and proving tests): `admin_application_rows.pct_rank` ranking
+against every application instead of only scored ones, and the "overdue"
+header count including applications that never reached the assessment.
+
+Fable explicitly separated those two ("must fix before a real deployment")
+from three others it labeled "caveats to schedule but not block on." Given
+the scope of everything else already fixed in this review cycle, those
+three are being left as documented, accepted follow-ups rather than fixed
+now — closing them is straightforward but each touches a different part of
+the system (outage-credit semantics, client state, a display constant) and
+none is a correctness or security defect, unlike everything else this
+review cycle addressed:
+
+1. **Outage-credit measures process idle time, not actual downtime.**
+   `liveness` is only touched by the three assessment hot-path functions,
+   and the boot check runs on the first hot-path request of a process
+   (`outage-boot-check.ts`). After a redeploy following a quiet stretch
+   (no candidate mid-assessment), the "gap" since the last hot-path call
+   can be hours even though the service was never actually down — crediting
+   nobody in practice (there's no live session to credit) but still writing
+   a `server_outage` integrity event and firing the `outage_credit`
+   sweep alert/Sentry event as if a real outage occurred. Conversely, a
+   genuine Supabase-side outage while the Node process itself stays up
+   never gets detected at all (`liveness` was never stale from the app's
+   own point of view). Both directions are cosmetic-alert-noise-or-silence,
+   not data corruption — no candidate's actual timer is ever wrongly
+   docked or credited by this, since crediting only ever extends a
+   currently-live item's deadline, never shortens one. A more accurate
+   design would need a real external heartbeat/uptime source instead of
+   inferring downtime from the app's own request pattern — worth doing if
+   the false `outage_credit` alerts turn out to be frequent enough in
+   practice to be annoying, not before.
+2. **Block-boundary UI state (intro screens, the practice scene) is
+   client-only, tracked in `sessionStorage`.** A refresh, crash, or
+   resume-code re-entry landing exactly on a fresh block boundary serves
+   the next item directly via `GET /current` (which always serves the
+   lowest pending item, correctly, per its refresh-safety contract) without
+   re-showing that block's intro/practice screen. This was already an
+   accepted trade-off from the original assessment-runner pass (see that
+   section above, "The one-round-trip-per-answer vs. block-intro-screens
+   tension") — the candidate loses a cosmetic orientation screen, never any
+   scored time or a changed deadline. Fable's review re-surfaced it as
+   still-open, not as a new finding; still true that this only matters for
+   the narrow case of a crash/resume landing exactly on a block's first
+   item, and still judged not worth a server-side "session is gated on an
+   intro" flag for a screen with no scoring consequence.
+3. **The DB-size warning threshold (70%/90% of the Supabase plan's included
+   storage) is a literal constant in both `evaluate_db_size_alert()`
+   (SQL, migration `0011_db_size_sweep_check.sql`) and
+   `DB_PLAN_BYTES`/`DB_SIZE_WARNING_FRACTION` (`src/lib/admin-format.ts`).**
+   Two sources of truth for a number that only ever changes if the Supabase
+   plan itself changes (a rare, deliberate, human-driven event — upgrading
+   plans is not something that happens by accident). Worth collapsing to
+   one source (e.g., an app-config row the SQL function reads, or
+   generating the SQL constant from the TS one at migration-write time) if
+   the plan is ever actually upgraded and someone has to remember to update
+   both places — not worth the added complexity (a new config table, or a
+   codegen step) to prevent a mistake that requires a human to already be
+   mid-plan-upgrade to make.
