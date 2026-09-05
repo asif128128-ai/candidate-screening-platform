@@ -14,6 +14,21 @@ function getSql(): postgres.Sql {
     max: 20,
     idle_timeout: 30,
     connect_timeout: 5,
+    // Supabase's Supavisor pooler in transaction mode (port 6543 — what
+    // DATABASE_URL actually points at in production) hands out a
+    // different backend connection per transaction, but the `postgres`
+    // library prepares statements by default and prepared statements are
+    // tied to one specific backend connection. The result — verified live,
+    // the first real error the first real deploy hit — is every query
+    // after the first randomly fails with "prepared statement ... does not
+    // exist" (Postgres error 26000) once a transaction lands on a backend
+    // where that statement was never prepared. `prepare: false` makes
+    // postgres.js send plain (unprepared) queries instead, which is the
+    // documented requirement for any client using Supavisor transaction
+    // mode. Harmless for the local-Postgres-direct-connection stand-in
+    // (scripts/local-pg-setup.sh) this was tested against — that setup has
+    // no pooler at all, so it never exercised this failure mode.
+    prepare: false,
     // DEPLOYMENT.md §10: statement_timeout set on the pooler connection.
     connection: { statement_timeout: 10_000 },
   });
