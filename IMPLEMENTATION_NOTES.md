@@ -202,6 +202,171 @@ can't directly `DELETE` from, while still being *called* by `app_user`
 `SECURITY DEFINER` alone bypasses RLS, when it's actually the definer's
 role attributes that do.
 
+## Assessment engine — decisions made where the spec was silent or two readings were both plausible
+
+Cross-linked from `IMPLEMENTATION_STATE.md`'s "Assessment engine" section.
+Each of these is a place where `ASSESSMENT_DESIGN.md`/`SCORING.md`/
+`ANTI_CHEATING.md` under-specified something the implementation had to pin
+down. All are covered by unit tests (`tests/unit/assessment/*.test.ts`) so a
+future change to any of them shows up as a failing, explainable test rather
+than a silent drift.
+
+**`guess_penalty` (SCORING.md §3.3) is session-wide, not investigation-block-scoped.**
+The formula line reads "guess_penalty = min(6, 2 · guessed_items) // see 3.5;
+includes blind guesses in this block", which reads two ways: (a) count only
+guesses within the investigation block, or (b) count every guess in the
+session (§3.5's single global "ניחושים: k" metric), with the parenthetical
+just clarifying that investigation blind-guesses are folded into that same
+count rather than tracked separately. **§10's own worked example decides
+this**: its one guessed item is explicitly in the speed block, yet the
+Independence score still takes the −2 penalty. Implemented as (b) — see
+`scoreSession`'s `totalGuessedItems` in `scoring.ts`. This means a candidate
+who guesses fast on a speed item pays a small Independence penalty too; that
+is what the worked example requires, not a bug.
+
+**A blind wrong guess zeroes the whole item's `s_i`, not just its correctness gate.**
+§3.6 states "A blind wrong guess scores s_i = 0" as if it were a consequence
+of the composite formula, but the literal 0.5/0.25/0.25 formula in §2 doesn't
+gate on q1 — and the §10 worked example's scene B (wrong root cause, correct
+action+fact, **not** blind) explicitly scores 0.5, proving the composite
+formula alone doesn't zero non-blind wrong-q1 items. Read together, the only
+consistent interpretation is: **when q1 is wrong AND the decisive artifact
+was never opened, the whole item is forced to `s_i = 0`** (implemented as a
+post-hoc override in `scoreSession`, after the process/decisive-artifact
+computation, so it doesn't touch scene-B-shaped non-blind wrong answers).
+Without this, the skip-never-worse-than-a-blind-guess invariant (§3.6) is
+mathematically false in general — a lucky blind guess with q2/q3 both right
+could outscore a skip (`I_correct` would favor the guess by up to ~16 points
+for a difficulty-3 scene, more than the 6-point penalty cap can claw back).
+With the override, the invariant holds structurally (skip and blind guess
+both contribute `s_i = 0`; skip's process score is only ever ≥ the blind
+guess's; only the guess incurs the penalty). See
+`tests/unit/assessment/scoring.test.ts`'s `skip_dominates_blind_guess`
+10,000-trial property test.
+
+**Confidence (SCORING.md §5) counts an honest skip as "served and finalized".**
+"items never served count as missing" implies the complement — served items,
+whether answered, expired, or skipped — all count toward confidence. A skip
+is an explicit candidate action (clicking "דלג/י"), not an absence of one.
+Implemented in `scoreSession` accordingly; a session where the candidate
+legitimately skipped one item and answered the other 26 has confidence 1.00,
+not 0.96.
+
+**Investigation `isCorrect` (the ✔/✘ shown per item, SCORING.md §8) is sub-question 1 only.**
+The composite `s_i` is a fraction (0, 0.25, 0.5, 0.75, or 1); a single ✔/✘
+glyph needs a boolean. Root cause (q1) is the headline judgment the pillar is
+named for, so `scoreItem`'s `isCorrect` for `kind: 'investigation'` reflects
+q1 specifically. `sI` (the 0.5/0.25/0.25 composite) is the value stored in
+`assessment_responses.partial_credit` and used for all pillar-score math;
+`isCorrect` is what's stored in `.is_correct` and used for guess detection's
+generic "answered wrong" check and the item-table ✔/✘ column.
+
+**Investigation sub-question 3 needs a per-scenario question text, not a generic prompt.**
+`ASSESSMENT_DESIGN.md`'s worked example 6 shows a specific question ("מה
+מספר ההזמנה הראשונה שנכשלה?"), not a boilerplate "extract the fact" prompt —
+obvious in hindsight, easy to miss when building the shared
+`buildInvestigationItem()` plumbing first. `bank/investigate/helpers.ts`'s
+`VariantWorld` has a required `q3Prompt` field; every one of the 36 cause
+variants sets its own. The bank-audit and generator tests both check that
+`answerKey.q3CorrectText` appears verbatim in exactly its declared decisive
+artifact and nowhere else among the scene's tabs — this caught (and this
+session fixed) several first-draft variants where the fact incidentally also
+appeared in a second, non-decisive tab or only in a differently-formatted
+non-matching string.
+
+**`conventions_stated` is per-generated-item, not purely per-template.**
+`ASSESSMENT_DESIGN.md` §3/§4.4 describes it as a template-level declaration,
+but several families (`tech.http_status_next`, `tech.api_pagination_math`,
+`speed.timezone_shift`) embed a doc excerpt or stated rule whose *exact
+text* varies by draw (which HTTP status was picked, what the offset is this
+instance). `ItemTemplate.generate()`'s return type carries an optional
+`conventionsStated` override; when present it replaces the template's static
+declaration for that one generated item, and the bank audit's verbatim check
+runs against whichever value actually applies. Templates whose embedded text
+never varies (`speed.ip_valid`, `speed.regex_match`, `speed.path_resolve`,
+`speed.units_math`, `speed.bool_logic`, `reasoning.state_machine`) just use
+the static template-level string, which must then be an exact substring of
+every instance's rendered prompt — this is why those templates share a
+`RULE`/`LEGEND` constant between the declaration and the prompt text instead
+of writing the sentence twice.
+
+**Speed items are always difficulty 1.** `ASSESSMENT_DESIGN.md` §2's block
+table gives reasoning/tech/investigate explicit per-session difficulty mixes
+but says nothing for speed, and `SCORING.md` §3.4's speed formula never
+multiplies by `DIFFICULTY_WEIGHT` at all (unlike every other pillar). Read
+together this means speed has no difficulty axis in practice; `generator.ts`'s
+`DIFFICULTY_MIX.speed` is ten 1s. The `difficulty` column is still populated
+(the DB requires it, `1-3` check constraint) and technically feeds
+`IMPOSSIBLE_TIMING`'s difficulty-3 check in `integrity.ts`, but no speed item
+can ever trigger that branch as a result — an accepted, harmless consequence
+of this reading, not a bug to fix.
+
+**Which four (scenario, cause) pairs are escalation-required (DECISIONS_LOG.md #6).**
+The decisions log names the *categories* ("rotating a shared secret owned by
+another team", "paying for a plan upgrade", "a security incident",
+"deleting a production resource") but not which scenarios instantiate them.
+Chosen, one per category, spread across four different scenario families so
+no single scenario always carries the session's escalation slot:
+`investigate.webhook_missing` cause `c` (CRM API key owned by an external
+vendor), `investigate.sso_login_subset` cause `c` (security-incident-driven
+MFA policy), `investigate.backup_silently_failing` cause `b` (credential
+rotated by another team), `investigate.saas_seat_limit` cause `a` (seat
+upgrade needs budget authority). `generator.ts` guarantees at least one of a
+session's 4 investigation slots lands on one of these four pairs — see
+`INVESTIGATION_SCENARIOS[].escalationCauses` in `bank/index.ts` and the
+forcing logic in `generateInvestigationBlock()`. The escalation-forcing
+fixup deliberately swaps out the **most**-used cohort-balancing pick (not the
+least-used one) when it has to substitute a scenario, so the two invariants
+(escalation coverage, cohort balance) don't fight each other — see
+`tests/unit/assessment/generator.test.ts`'s cohort-balancing test for the
+regression guard.
+
+**SVG option markup is excluded from the §4.4 "≤ 1,600 character" content budget.**
+`reasoning.grid_pattern` renders its 6 options as inline `<svg>` strings per
+`ASSESSMENT_DESIGN.md` §2.4; raw SVG source easily exceeds 1,600 characters
+even though the on-screen visual is small. The budget is about reading load,
+not byte count of a graphical asset the candidate never reads as text, so
+`scripts/bank-audit.ts`'s character counter skips any string starting with
+`<svg`. If a future template renders large inline SVG *and* has a genuinely
+too-long textual prompt alongside it, this exclusion would hide that — worth
+revisiting if grid_pattern-style templates multiply.
+
+**Sample-size floors for the three new statistical sweep checks are not in the docs; chosen conservatively.**
+`ARCHITECTURE.md` §10 names the checks ("last 50 servings", "first 50 vs.
+most recent 50") but not a minimum-N floor before a young template/scenario
+is judged at all. `0003_sweep_checks.sql` requires ≥ 50 servings for
+`template_accuracy` (matches "last 50" literally), ≥ 20 for
+`template_expiry_strong` (a smaller floor since "strong candidate" sessions
+are a subset of all sessions and 50 of those could take a while for a new
+template), and ≥ 100 for `scenario_drift` (so the first-50 and last-50
+windows are guaranteed disjoint, never double-counting the same servings in
+early rounds). All three are easy to tighten later; they're a floor against
+false alarms on day one, not a claim of statistical rigor.
+
+**`db_size` was left as a TODO, on purpose, not "forgotten".** The brief asked
+for "the 4 currently-TODO sweep invariant checks... blocked on bank/results
+data not existing yet" — `db_size` (`pg_database_size` vs. a plan threshold)
+was never blocked on the bank or results pipeline; `run_maintenance_sweep()`
+already calls `pg_database_size()` every run and stores it in
+`maintenance.db_size_bytes`. What's missing is a *threshold* and a Settings-
+page display, which `IMPLEMENTATION_STATE.md`'s original placeholder table
+assigns to the admin-ui engineer alongside the rest of Settings — adding an
+`admin_alerts` row for it here would mean guessing at a threshold value with
+no UI to show it against, on infrastructure outside this engineer's scope.
+
+**Excusal windows (ANTI_CHEATING.md §5.2) are per-item, not millisecond-precise interval overlap.**
+The spec says a hidden/blur span is excused when it "overlaps a
+network_retry or server_outage window". `integrity.ts` implements this as:
+if an item has *any* `network_retry` event or `outageCreditMs > 0`, **all**
+of that item's hidden/blur spans are excused, rather than computing exact
+timestamp-range intersection between each span and each retry/outage event.
+This is simpler and strictly more generous to the candidate (never under-
+excuses); the only way it differs from precise overlap math is in the
+vanishingly rare case where an item has both a genuine long hidden span *and*
+an unrelated network retry that doesn't actually overlap it — a false
+negative for integrity risk, not a false accusation. Revisit if the pilot
+(TEST_STRATEGY.md §9) shows this matters at the volumes involved.
+
 ## What was not run end-to-end
 
 There is no live Supabase project in the environment this was built in, so
