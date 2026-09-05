@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type {
   Artifact,
   ChoiceContent,
@@ -289,17 +289,20 @@ export function InvestigationView({
   const [activeTab, setActiveTab] = useState(0);
   const active = content.tabs[activeTab];
 
-  // The default (first) tab is visible without a click — a real candidate
-  // dwells on it from the moment the item renders, so it should be eligible
-  // for the process score's "decisive artifact opened" check the same way
-  // an explicit click is (scoring.ts's computeProcessScore only sees
-  // artifact_open events, so one is emitted here too).
-  useEffect(() => {
-    const first = content.tabs[0];
-    if (first) onArtifactOpen?.(first.key);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // Red-team finding B (IMPLEMENTATION_STATE.md): the default (first) tab
+  // used to fire an artifact_open event on mount, purely because it renders
+  // visible without a click. Since the decisive artifact is tabs[0] in a
+  // large share of scenes, that gave every candidate free "opened the
+  // decisive artifact" credit — including one who clicks nothing and just
+  // waits out the dwell threshold — for close to half the scenario pool,
+  // and made `deliberation` trivially true by construction (the fabricated
+  // open always preceded any real answer interaction). Deliberately NOT
+  // firing onArtifactOpen here: only a genuine click via selectTab() below
+  // counts as "opening" an artifact for scoring purposes, regardless of
+  // which tab is shown by default. See IMPLEMENTATION_NOTES.md for the
+  // full reasoning and the accepted tradeoff (a candidate who reads the
+  // default tab's content without ever clicking a tab gets no process
+  // credit for it, even if it happens to be the decisive one).
   function selectTab(i: number) {
     setActiveTab(i);
     const tab = content.tabs[i];
