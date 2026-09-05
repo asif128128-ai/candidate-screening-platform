@@ -88,7 +88,11 @@ export function CandidateTableClient({
       if (selectAllFiltered) fd.set("filtersQuery", filtersQuery);
       else fd.set("applicationIds", selectedIds);
       const result = await bulkArchiveAndDeleteAction(fd);
-      setArchiveResult(`נמחקו ${result.deleted} מועמדים. ${result.skippedReasons.join(" ")}`);
+      const parts = [`נמחקו ${result.deleted} מועמדים.`, ...result.skippedReasons];
+      if (result.failed > 0) {
+        parts.push(`${result.failed} מועמדים נכשלו במחיקה: ${result.failedReasons.join("; ")}`);
+      }
+      setArchiveResult(parts.join(" "));
       setSelected(new Set());
       setSelectAllFiltered(false);
       confirmDialogRef.current?.close();

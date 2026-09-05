@@ -82,6 +82,8 @@ export interface BulkArchiveResult {
   deleted: number;
   skipped: number;
   skippedReasons: string[];
+  failed: number;
+  failedReasons: string[];
 }
 
 /**
@@ -99,11 +101,23 @@ export interface BulkArchiveResult {
  * candidate already deleted simply won't match `applicationIds` clause
  * gathered from the current page's selection and is skipped harmlessly if
  * pointed at again.
+ *
+ * Red-team finding #1: each row's `deleteCandidate` call runs inside its own
+ * `tx.savepoint(...)` rather than directly in the outer admin transaction —
+ * one bad row (an unexpected FK violation, a constraint the row happens to
+ * trip, etc.) used to abort and roll back the *entire* batch with zero
+ * deletions and an unhandled error surfaced to the admin. Now a per-row
+ * failure only rolls back to that row's savepoint (leaving every other
+ * row's already-applied delete intact) and is collected into
+ * `failedReasons` instead of throwing, so the admin gets a partial-success
+ * summary ("47 deleted, 2 failed: <reason>") rather than silently nothing.
  */
 export async function bulkArchiveAndDeleteAction(formData: FormData): Promise<BulkArchiveResult> {
   return withCurrentAdmin(async (tx, admin) => {
     const applicationIds = await resolveApplicationIds(tx, formData);
-    if (applicationIds.length === 0) return { deleted: 0, skipped: 0, skippedReasons: [] };
+    if (applicationIds.length === 0) {
+      return { deleted: 0, skipped: 0, skippedReasons: [], failed: 0, failedReasons: [] };
+    }
     const rows = await tx<{ application_id: string; candidate_id: string; stage: string; keep_indefinitely: boolean }[]>`
       select id as application_id, candidate_id, stage::text, keep_indefinitely
       from applications where id = any(${applicationIds}::uuid[])
@@ -113,17 +127,37 @@ export async function bulkArchiveAndDeleteAction(formData: FormData): Promise<Bu
 
     const BATCH = 100;
     let deleted = 0;
+    let failed = 0;
+    const failedReasons: string[] = [];
     for (let i = 0; i < eligible.length; i += BATCH) {
       const batch = eligible.slice(i, i + BATCH);
       for (const row of batch) {
-        await deleteCandidate(tx, row.candidate_id, admin.id);
-        deleted++;
+        try {
+          await tx.savepoint((sp) => deleteCandidate(sp, row.candidate_id, admin.id));
+          deleted++;
+        } catch (err) {
+          failed++;
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(
+            JSON.stringify({
+              event: "bulk_archive_delete_row_failed",
+              candidateId: row.candidate_id,
+              applicationId: row.application_id,
+              error: message,
+            }),
+          );
+          if (failedReasons.length < 5) {
+            failedReasons.push(`מועמד ${row.candidate_id}: ${message}`);
+          }
+        }
       }
     }
     return {
       deleted,
       skipped,
       skippedReasons: skipped > 0 ? [`${skipped} מועמדים הוחרגו (התקבלו או מסומנים לשמירה לתמיד)`] : [],
+      failed,
+      failedReasons,
     };
   });
 }
