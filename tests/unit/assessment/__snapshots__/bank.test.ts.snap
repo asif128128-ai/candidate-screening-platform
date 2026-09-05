@@ -176,8 +176,8 @@ exports[`bank content snapshot (guards against accidental template drift) > free
         "15:30",
         "17:30",
       ],
-      "prompt": "בתקופה הנוכחית ההפרש בין UTC לשעון ישראל הוא 3 שעות (ישראל מוקדמת יותר).
-השעה 13:30 UTC היא איזו שעה בישראל?",
+      "prompt": "בתקופה הנוכחית השעה בישראל מאוחרת ב-3 שעות משעון UTC.
+כשהשעה ב-UTC היא 13:30, מה השעה בישראל?",
     },
     "difficulty": 1,
     "id": "speed.timezone_shift",
@@ -267,18 +267,15 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   },
   {
     "content": {
+      "figureSvg": "<svg viewBox="0 0 232 232" width="232" height="232" role="img" aria-label="רשת 3 על 3, התא הימני-תחתון חסר"><g transform="translate(0,0) scale(0.72)"><circle cx="50" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(80,0) scale(0.72)"><circle cx="32" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="68" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(160,0) scale(0.72)"><circle cx="20" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="50" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="80" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(0,80) scale(0.72)"><polygon points="50,36 36,62 64,62" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(80,80) scale(0.72)"><polygon points="32,36 18,62 46,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="68,36 54,62 82,62" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(160,80) scale(0.72)"><polygon points="20,36 6,62 34,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="50,36 36,62 64,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="80,36 66,62 94,62" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(0,160) scale(0.72)"><rect x="38" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(80,160) scale(0.72)"><rect x="20" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/><rect x="56" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(160,160)"><rect x="0" y="0" width="72" height="72" fill="none" stroke="#999999" stroke-width="2" stroke-dasharray="6 4"/><text x="36" y="46" text-anchor="middle" font-size="32" fill="#999999">?</text></g></svg>",
       "options": [
         "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="square x3 מלא"><rect x="8" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/><rect x="38" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/><rect x="68" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
         "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="square x1 מלא"><rect x="38" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
         "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="circle x3 מלא"><circle cx="20" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="50" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="80" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
         "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="triangle x3 מלא"><polygon points="20,36 6,62 34,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="50,36 36,62 64,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="80,36 66,62 94,62" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
       ],
+      "optionsFormat": "svg",
       "prompt": "לפניכם רשת 3x3 עם שני כללים: כל שורה משתמשת בצורה קבועה, וכל עמודה קובעת את מספר הצורות בתא. התא הימני-תחתון חסר.
-
-מבנה הרשת (השורות מייצגות צורות שונות, העמודות כמות שונה):
-[תא] [תא] [תא]
-[תא] [תא] [תא]
-[תא] [תא] [?]
 
 בחרו את התא שמשלים את הרשת כך שכל שני הכללים מתקיימים.",
     },
@@ -288,15 +285,15 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "שירה · אלון · נועה · יוסי",
-        "יוסי · אלון · נועה · שירה",
-        "שירה · נועה · יוסי · אלון",
-        "אלון · יוסי · שירה · נועה",
+        "1 שירה · 2 אלון · 3 נועה · 4 יוסי",
+        "1 יוסי · 2 אלון · 3 נועה · 4 שירה",
+        "1 שירה · 2 נועה · 3 יוסי · 4 אלון",
+        "1 אלון · 2 יוסי · 3 שירה · 4 נועה",
       ],
-      "prompt": "4 אנשים (שירה, יוסי, נועה, אלון) יושבים בשורה של 4 מקומות, משמאל לימין. ידוע:
+      "prompt": "4 אנשים (שירה, יוסי, נועה, אלון) יושבים בשורה של 4 מקומות, מימין לשמאל (מקום 1 הוא הימני ביותר). ידוע:
 1. נועה לא יושב/ת בקצה (לא במקום הראשון ולא באחרון)
 2. נועה ואלון לא יושבים זה לצד זה
-3. יוסי יושב/ת מיד משמאל לאלון
+3. יוסי יושב/ת מיד מימין לאלון
 
 איזה סידור ישיבה מתאים לכל התנאים?",
     },
@@ -763,8 +760,8 @@ Last rotated: 21:02 by רועי@store.example.co.il",
         "options": [
           "לבקש מהעובדים לנסות להתחבר שוב כמה פעמים, בלי לתקן את רשימת הדומיינים שגורמת לדחייה",
           "לאסוף רשימה של כל העובדים בחברה ולבדוק כל אחד לפני שמוסיפים את הדומיין שכבר אותר כחסר",
-          "למחוק את חשבונות המשתמשים החוסמים וליצור חשבונות חדשים, במקום להוסיף את הדומיין לרשימה המורשית",
-          "להוסיף את example-tech.co.il לרשימת הדומיינים המורשים ב-IdP ולוודא שהעובדים החוסמים מצליחים להתחבר",
+          "למחוק את חשבונות המשתמשים החסומים וליצור חשבונות חדשים, במקום להוסיף את הדומיין לרשימה המורשית",
+          "להוסיף את example-tech.co.il לרשימת הדומיינים המורשים ב-IdP ולוודא שהעובדים החסומים מצליחים להתחבר",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -778,7 +775,7 @@ Last rotated: 21:02 by רועי@store.example.co.il",
 מאיה   maya@example-tech.co.il    נכשל
 אורי   ori@example.co.il     הצליח",
           "key": "users",
-          "label": "טבלת משתמשים חוסמים",
+          "label": "טבלת משתמשים חסומים",
         },
         {
           "body": "דומיינים מורשים לכניסה: example.co.il

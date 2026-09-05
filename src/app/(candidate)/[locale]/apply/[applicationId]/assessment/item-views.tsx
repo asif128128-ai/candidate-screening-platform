@@ -18,9 +18,32 @@ import type {
   SingleChoiceAnswer,
 } from "@/assessment/scoring";
 import { Term } from "@/components/term";
-import { ItemText } from "./item-text";
+import { InlineText, ItemText } from "./item-text";
 
 const OPTION_LETTERS = ["א", "ב", "ג", "ד", "ה", "ו"];
+
+/**
+ * The grid_pattern figure (`content.figureSvg`) is composed entirely by our
+ * own server-side generator code (src/assessment/bank/reasoning/grid_pattern.ts)
+ * from a fixed set of shape/count/fill parameters — it never includes
+ * candidate input or any other untrusted string, so injecting it via
+ * dangerouslySetInnerHTML is safe here (FINTECH_REDESIGN_PLAN.md §4 A1).
+ */
+function Figure({ svg }: { svg: string }) {
+  return <div dir="ltr" className="figure" dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+
+/** Renders one option's label: SVG tiles for `optionsFormat: "svg"` (reasoning.grid_pattern), inline-rendered text otherwise. */
+function OptionLabel({ opt, format, keyPrefix }: { opt: string; format: "text" | "svg" | undefined; keyPrefix: string }) {
+  if (format === "svg") {
+    return <span className="option-tile" dir="ltr" dangerouslySetInnerHTML={{ __html: opt }} />;
+  }
+  return (
+    <span>
+      <InlineText text={opt} keyPrefix={keyPrefix} />
+    </span>
+  );
+}
 
 function ArtifactBlock({ artifact }: { artifact: Pick<Artifact, "label" | "body"> }) {
   return (
@@ -57,6 +80,7 @@ export function SingleChoiceView({
       <div className="text-lg" data-testid="item-prompt">
         <ItemText text={content.prompt} />
       </div>
+      {content.figureSvg ? <Figure svg={content.figureSvg} /> : null}
       {content.artifacts?.length ? (
         <div className="mt-4 space-y-3">
           {content.artifacts.map((a) => (
@@ -64,9 +88,36 @@ export function SingleChoiceView({
           ))}
         </div>
       ) : null}
-      <div className="mt-6 space-y-2" role="radiogroup" aria-label="אפשרויות תשובה">
+      <div
+        className={
+          content.optionsFormat === "svg"
+            ? "mt-6 grid gap-2"
+            : "mt-6 space-y-2"
+        }
+        style={content.optionsFormat === "svg" ? { gridTemplateColumns: "repeat(auto-fill, 112px)" } : undefined}
+        role="radiogroup"
+        aria-label="אפשרויות תשובה"
+      >
         {content.options.map((opt, i) => {
           const selected = answer?.selectedIndex === i;
+          if (content.optionsFormat === "svg") {
+            return (
+              <button
+                key={i}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                data-testid={`option-${i}`}
+                onClick={() => onChange({ selectedIndex: i })}
+                className={`flex flex-col items-center gap-1 rounded-md border p-2 transition-colors ${
+                  selected ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:bg-neutral-50"
+                }`}
+              >
+                <OptionLabel opt={opt} format={content.optionsFormat} keyPrefix={`opt-${i}`} />
+                <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}</span>
+              </button>
+            );
+          }
           return (
             <button
               key={i}
@@ -80,7 +131,7 @@ export function SingleChoiceView({
               }`}
             >
               <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
-              <span>{opt}</span>
+              <OptionLabel opt={opt} format={content.optionsFormat} keyPrefix={`opt-${i}`} />
             </button>
           );
         })}
@@ -132,7 +183,7 @@ export function MultiChoiceView({
               }`}
             >
               <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
-              <span>{opt}</span>
+              <OptionLabel opt={opt} format={undefined} keyPrefix={`opt-${i}`} />
             </button>
           );
         })}
@@ -202,7 +253,7 @@ export function ShortTextView({
       ) : null}
       <input
         type="text"
-        dir="ltr"
+        dir="auto"
         value={answer?.text ?? ""}
         onChange={(e) => onChange({ text: e.target.value })}
         onPaste={(e) => e.preventDefault()}
@@ -336,50 +387,59 @@ export function InvestigationView({
                 }`}
               >
                 <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
-                <span>{opt}</span>
+                <OptionLabel opt={opt} format={undefined} keyPrefix={`q1-opt-${i}`} />
               </button>
             ))}
           </div>
         </div>
 
-        <div className="mt-4">
-          <p className="font-medium" data-testid="investigation-q2-prompt">
-            2. {content.q2.prompt}
-          </p>
-          <div className="mt-2 space-y-2">
-            {content.q2.options.map((opt, i) => (
-              <button
-                key={i}
-                type="button"
-                role="radio"
-                aria-checked={a.q2 === i}
-                data-testid={`q2-option-${i}`}
-                onClick={() => onChange({ ...a, q2: i })}
-                className={`flex w-full items-start gap-2 rounded-md border p-2 text-start text-sm ${
-                  a.q2 === i ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:bg-neutral-50"
-                }`}
-              >
-                <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
-                <span>{opt}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* A5/B15 (FINTECH_REDESIGN_PLAN.md §4): the untimed practice scene
+            (scored === false) only ever has a real q1 — its q2/q3 are
+            "not relevant in practice" placeholders (PRACTICE_CONTENT.q2/q3
+            stays as data for type-shape reasons, just not rendered here). */}
+        {scored ? (
+          <>
+            <div className="mt-4">
+              <p className="font-medium" data-testid="investigation-q2-prompt">
+                2. {content.q2.prompt}
+              </p>
+              <div className="mt-2 space-y-2">
+                {content.q2.options.map((opt, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    role="radio"
+                    aria-checked={a.q2 === i}
+                    data-testid={`q2-option-${i}`}
+                    onClick={() => onChange({ ...a, q2: i })}
+                    className={`flex w-full items-start gap-2 rounded-md border p-2 text-start text-sm ${
+                      a.q2 === i ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:bg-neutral-50"
+                    }`}
+                  >
+                    <span className="font-semibold">{OPTION_LETTERS[i] ?? i + 1}.</span>
+                    <OptionLabel opt={opt} format={undefined} keyPrefix={`q2-opt-${i}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <div className="mt-4">
-          <p className="font-medium">3. {content.q3.prompt}</p>
-          <input
-            type="text"
-            dir="ltr"
-            value={a.q3 ?? ""}
-            onChange={(e) => onChange({ ...a, q3: e.target.value })}
-            onPaste={(e) => e.preventDefault()}
-            placeholder={content.q3.placeholder}
-            className="mt-2 w-full max-w-xs rounded-md border border-neutral-300 p-2 text-start text-sm"
-            data-testid="q3-input"
-          />
-        </div>
-        {!scored ? <p className="mt-3 text-xs text-neutral-400">תרגול בלבד — לא נשמר ולא נספר.</p> : null}
+            <div className="mt-4">
+              <p className="font-medium">3. {content.q3.prompt}</p>
+              <input
+                type="text"
+                dir="auto"
+                value={a.q3 ?? ""}
+                onChange={(e) => onChange({ ...a, q3: e.target.value })}
+                onPaste={(e) => e.preventDefault()}
+                placeholder={content.q3.placeholder}
+                className="mt-2 w-full max-w-xs rounded-md border border-neutral-300 p-2 text-start text-sm"
+                data-testid="q3-input"
+              />
+            </div>
+          </>
+        ) : (
+          <p className="mt-3 text-xs text-neutral-400">תרגול בלבד — לא נשמר ולא נספר.</p>
+        )}
       </div>
 
       <div className="order-1 lg:order-2">

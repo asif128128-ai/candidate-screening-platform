@@ -346,6 +346,23 @@ describe("fixed templates: content genuinely scales with declared difficulty (re
     expect(genAt("reasoning.grid_pattern", 1, 0).prompt).toContain("כל שורה משתמשת בצורה קבועה");
   });
 
+  it("reasoning.grid_pattern: every generated item has a real SVG figure and SVG-tile options (FINTECH_REDESIGN_PLAN.md §4 A1)", () => {
+    const t = tpl("reasoning.grid_pattern");
+    for (const difficulty of t.difficulties) {
+      for (const s of SEEDS) {
+        const seed = deriveItemSeed(BigInt(s) * 97n + 13n, t.id, s);
+        const { content } = t.generate(createRng(seed), difficulty) as {
+          content: { options: string[]; figureSvg?: string; optionsFormat?: string };
+        };
+        expect(content.figureSvg?.startsWith("<svg")).toBe(true);
+        expect(content.optionsFormat).toBe("svg");
+        for (const opt of content.options) {
+          expect(opt.startsWith("<svg")).toBe(true);
+        }
+      }
+    }
+  });
+
   it("reasoning.table_must_be_true: more rows to scan as difficulty rises (5 -> 6 -> 9)", () => {
     for (const s of SEEDS) {
       expect(markdownDataRowCount(genAt("reasoning.table_must_be_true", 1, s).prompt)).toBe(5);

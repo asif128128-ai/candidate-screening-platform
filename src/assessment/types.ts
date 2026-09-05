@@ -32,6 +32,10 @@ export interface ChoiceContent {
   /** Rendered option text, already in the final (shuffled) display order. */
   options: string[];
   artifacts?: Artifact[];
+  /** A single composed SVG figure (e.g. reasoning.grid_pattern's 3x3 grid) shown above the options. */
+  figureSvg?: string;
+  /** When "svg", every entry in `options` is itself a complete `<svg>` string to be rendered as a tile, not read as text. Defaults to "text". */
+  optionsFormat?: "text" | "svg";
 }
 
 export interface NumericContent {

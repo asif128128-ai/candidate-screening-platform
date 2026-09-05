@@ -17,14 +17,25 @@ import { Fragment } from "react";
 // bold key terms).
 
 function renderInline(text: string, keyPrefix: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) =>
-    part.startsWith("**") && part.endsWith("**") ? (
-      <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>
-    ) : (
-      <Fragment key={`${keyPrefix}-${i}`}>{part}</Fragment>
-    ),
-  );
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+      return (
+        <code key={`${keyPrefix}-${i}`} dir="ltr" className="inline-code">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return <Fragment key={`${keyPrefix}-${i}`}>{part}</Fragment>;
+  });
+}
+
+/** Shared inline renderer (`**bold**` / `` `code` ``) for anywhere item content shows short runs of text outside a prompt paragraph — e.g. choice-option labels in item-views.tsx. */
+export function InlineText({ text, keyPrefix }: { text: string; keyPrefix: string }) {
+  return <>{renderInline(text, keyPrefix)}</>;
 }
 
 function isPipeTableBlock(lines: string[]): boolean {
@@ -36,17 +47,26 @@ function parsePipeRow(line: string): string[] {
   return trimmed.split("|").map((c) => c.trim());
 }
 
+/** Hebrew block range (U+0590-U+05FF) — same test used by ASSESSMENT_DESIGN.md's other script-detection spots. */
+const HEBREW_RE = /[֐-׿]/;
+
 function renderTable(lines: string[], key: string) {
   const header = parsePipeRow(lines[0]!);
   const bodyRows = lines.slice(2).map(parsePipeRow);
+  // A6/A8: direction follows the header row's script, not a hardcoded
+  // "ltr" — a Hebrew-headed table (עיר/סטטוס, קלט/פלט, ...) must read
+  // right-to-left or its columns show up reversed for a Hebrew reader.
+  const rtl = HEBREW_RE.test(header.join(""));
   return (
-    <div key={key} dir="ltr" className="my-3 overflow-x-auto">
+    <div key={key} dir={rtl ? "rtl" : "ltr"} className="my-3 overflow-x-auto">
       <table className="min-w-full border-collapse text-start text-sm">
         <thead>
           <tr>
             {header.map((h, i) => (
               <th key={i} className="border border-neutral-300 bg-neutral-50 px-2 py-1 font-medium">
-                {h}
+                <span className="cell">
+                  <InlineText text={h} keyPrefix={`${key}-h${i}`} />
+                </span>
               </th>
             ))}
           </tr>
@@ -56,7 +76,9 @@ function renderTable(lines: string[], key: string) {
             <tr key={ri}>
               {row.map((cell, ci) => (
                 <td key={ci} className="border border-neutral-200 px-2 py-1">
-                  {cell}
+                  <span className="cell">
+                    <InlineText text={cell} keyPrefix={`${key}-c${ri}-${ci}`} />
+                  </span>
                 </td>
               ))}
             </tr>

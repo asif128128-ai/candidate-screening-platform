@@ -22,7 +22,7 @@ const PRACTICE_CONTENT: InvestigationContent = {
   ticket: 'כרטיס תרגול — "אתר החברה מציג שגיאת תעודת אבטחה (SSL) כשנכנסים אליו הבוקר."',
   tabs: [
     { key: "cert", label: "פרטי תעודה" },
-    { key: "decoy", label: "הערות פריסה (decoy)", decoy: true },
+    { key: "decoy", label: "הערות פריסה", decoy: true },
   ].map((t) => ({
     ...t,
     body:

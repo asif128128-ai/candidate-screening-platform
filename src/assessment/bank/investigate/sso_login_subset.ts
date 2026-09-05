@@ -15,7 +15,7 @@ function buildA(rng: Rng): VariantWorld {
     tabs: [
       {
         key: "users",
-        label: "טבלת משתמשים חוסמים",
+        label: "טבלת משתמשים חסומים",
         body: `דנה   dana@${domainNew}    נכשל\nיוסי   yossi@${domainOld}   הצליח\nמאיה   maya@${domainNew}    נכשל\nאורי   ori@${domainOld}     הצליח`,
       },
       {
@@ -54,10 +54,10 @@ function buildA(rng: Rng): VariantWorld {
     ],
     q3Prompt: "לפני כמה זמן עודכנה לאחרונה רשימת הדומיינים המורשים ב-IdP?",
     q3Fact: "3 חודשים",
-    correctActionText: `להוסיף את ${domainNew} לרשימת הדומיינים המורשים ב-IdP ולוודא שהעובדים החוסמים מצליחים להתחבר`,
+    correctActionText: `להוסיף את ${domainNew} לרשימת הדומיינים המורשים ב-IdP ולוודא שהעובדים החסומים מצליחים להתחבר`,
     isEscalationRequired: false,
     antiPatterns: genericAntiPatterns({
-      irreversible_action: "למחוק את חשבונות המשתמשים החוסמים וליצור חשבונות חדשים, במקום להוסיף את הדומיין לרשימה המורשית",
+      irreversible_action: "למחוק את חשבונות המשתמשים החסומים וליצור חשבונות חדשים, במקום להוסיף את הדומיין לרשימה המורשית",
       treat_symptom: "לבקש מהעובדים לנסות להתחבר שוב כמה פעמים, בלי לתקן את רשימת הדומיינים שגורמת לדחייה",
       fix_decoy: "לחקור לעומק את איטיות האתר שדווחה בצ'אט, למרות שלוג האימות מצביע במפורש על דומיין לא מורשה",
       busywork_gather_more: "לאסוף רשימה של כל העובדים בחברה ולבדוק כל אחד לפני שמוסיפים את הדומיין שכבר אותר כחסר",
@@ -74,13 +74,13 @@ function buildB(rng: Rng): VariantWorld {
     tabs: [
       {
         key: "users",
-        label: "טבלת משתמשים חוסמים",
+        label: "טבלת משתמשים חסומים",
         body: "דנה   group=staff-il      נכשל\nיוסי   group=employees-il  הצליח\nמאיה   group=staff-il      נכשל",
       },
       {
         key: "mapping",
         label: "מיפוי קבוצות (IdP -> SaaS)",
-        body: `${groupOld} -> Standard User\n(הקבוצה ${groupNew} שונתה השם שלה ביום שני מ-${groupOld}, אבל המיפוי לא עודכן)`,
+        body: `${groupOld} -> Standard User\n(שם הקבוצה ${groupOld} שונה ל-${groupNew} ביום שני, אבל המיפוי לא עודכן)`,
       },
       {
         key: "errlog",
@@ -98,7 +98,7 @@ function buildB(rng: Rng): VariantWorld {
     decisiveArtifactKeyQ3: "mapping",
     q1Options: [
       {
-        text: "הדומיין של העובדים החוסמים לא נמצא ברשימת הדומיינים המורשים ב-IdP, ולכן ההתחברות שלהם נדחית",
+        text: "הדומיין של העובדים החסומים לא נמצא ברשימת הדומיינים המורשים ב-IdP, ולכן ההתחברות שלהם נדחית",
       },
       {
         text: `קבוצת ה-IdP שונתה שם ל-${groupNew} ביום שני, אבל מיפוי ההרשאות ב-SaaS עדיין מצביע לשם הישן`,
@@ -113,11 +113,11 @@ function buildB(rng: Rng): VariantWorld {
     ],
     q3Prompt: `לאיזה role ב-SaaS ממופה הקבוצה הישנה (${groupOld}) לפי מסך המיפוי?`,
     q3Fact: "Standard User",
-    correctActionText: `לעדכן את מיפוי הקבוצות כך ש-${groupNew} ימופה ל-Standard User, ולוודא שהעובדים החוסמים מצליחים להתחבר`,
+    correctActionText: `לעדכן את מיפוי הקבוצות כך ש-${groupNew} ימופה ל-Standard User, ולוודא שהעובדים החסומים מצליחים להתחבר`,
     isEscalationRequired: false,
     antiPatterns: genericAntiPatterns({
       irreversible_action: "למחוק את הקבוצה הישנה מה-IdP לגמרי, במקום פשוט לעדכן את מיפוי ההרשאות לשם החדש שלה",
-      treat_symptom: "לבקש מהעובדים החוסמים להתחבר עם חשבון אישי אחר, במקום לתקן את מיפוי הקבוצות ב-SaaS",
+      treat_symptom: "לבקש מהעובדים החסומים להתחבר עם חשבון אישי אחר, במקום לתקן את מיפוי הקבוצות ב-SaaS",
       fix_decoy: "לבדוק לעומק את פרטי החיוב של השירות, למרות שהחשבונית מוצגת כמשולמת בזמן וללא חריגות",
       busywork_gather_more: "לאסוף את כל היסטוריית שינויי הקבוצות של השנה האחרונה לפני שמעדכנים את המיפוי שכבר אותר כשגוי",
     }),
@@ -132,7 +132,7 @@ function buildC(rng: Rng): VariantWorld {
     tabs: [
       {
         key: "users",
-        label: "טבלת משתמשים חוסמים",
+        label: "טבלת משתמשים חסומים",
         body: `דנה   group=${group}  נכשל (MFA required)\nיוסי   group=hq       הצליח`,
       },
       {
@@ -172,7 +172,7 @@ function buildC(rng: Rng): VariantWorld {
     q3Prompt: "מדוע הוחלט לאכוף MFA על הקבוצה, לפי מדיניות האבטחה?",
     q3Fact: "אירוע אבטחה",
     correctActionText:
-      "לדווח לצוות האבטחה עם הראיות (מדיניות ה-MFA והעובדים החוסמים) ולהציע לתאם מועד הרשמה מבוקר ל-MFA לקבוצה",
+      "לדווח לצוות האבטחה עם הראיות (מדיניות ה-MFA והעובדים החסומים) ולהציע לתאם מועד הרשמה מבוקר ל-MFA לקבוצה",
     isEscalationRequired: true,
     antiPatterns: genericAntiPatterns({
       irreversible_action: "לבטל את מדיניות ה-MFA לגמרי כדי לפתור מיד, ולחזור בכך על החולשה שגרמה לאירוע האבטחה",
@@ -185,7 +185,7 @@ function buildC(rng: Rng): VariantWorld {
 
 export const scenario: InvestigationScenario = {
   id: "investigate.sso_login_subset",
-  version: 1,
+  version: 2,
   causeVariants: ["a", "b", "c"],
   escalationCauses: ["c"],
   generate(rng: Rng, cause: Cause) {

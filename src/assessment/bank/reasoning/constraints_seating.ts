@@ -56,7 +56,7 @@ function constraintsTrueFor(order: string[]): Constraint[] {
     const x = order[i] as string;
     const y = order[i + 1] as string;
     out.push({
-      text: `${x} יושב/ת מיד משמאל ל${y}`,
+      text: `${x} יושב/ת מיד מימין ל${y}`,
       test: (o) => o.indexOf(y) === o.indexOf(x) + 1,
       adjacency: true,
     });
@@ -100,7 +100,7 @@ function constraintsTrueFor(order: string[]): Constraint[] {
       const dist = j - i;
       if (dist < 2) continue;
       out.push({
-        text: `${x} יושב/ת לפני ${y} (לא בהכרח מיד לפניו/ה)`,
+        text: `${x} יושב/ת ימינה מ${y} (לא בהכרח צמוד/ה)`,
         test: (o) => o.indexOf(x) < o.indexOf(y),
         adjacency: false,
       });
@@ -124,7 +124,7 @@ function constraintsTrueFor(order: string[]): Constraint[] {
 
 export const template: ItemTemplate = {
   id: "reasoning.constraints_seating",
-  version: 1,
+  version: 2,
   pillar: "reasoning",
   kind: "single_choice",
   difficulties: [1, 2, 3],
@@ -168,7 +168,7 @@ export const template: ItemTemplate = {
         const x = target[i] as string;
         const y = target[i + 1] as string;
         chain.push({
-          text: `${x} יושב/ת מיד משמאל ל${y}`,
+          text: `${x} יושב/ת מיד מימין ל${y}`,
           test: (o) => o.indexOf(y) === o.indexOf(x) + 1,
           adjacency: true,
         });
@@ -191,7 +191,7 @@ export const template: ItemTemplate = {
         const x = target[i] as string;
         const y = target[(i + 1) % n] as string;
         chosenConstraints.push({
-          text: `${x} יושב/ת מיד משמאל ל${y}`,
+          text: `${x} יושב/ת מיד מימין ל${y}`,
           test: (o) => o.indexOf(y) === o.indexOf(x) + 1,
           adjacency: true,
         });
@@ -217,9 +217,14 @@ export const template: ItemTemplate = {
       3,
     );
 
-    const fmt = (o: string[]) => o.join(" · ");
+    // A4 (FINTECH_REDESIGN_PLAN.md §4): seats are numbered right-to-left
+    // (seat 1 = rightmost), matching how the option string itself is read
+    // by a Hebrew reader — the seat numbers are inline in the option text
+    // so the mapping from array order to on-screen position is unambiguous
+    // regardless of paragraph direction.
+    const fmt = (o: string[]) => o.map((name, i) => `${i + 1} ${name}`).join(" · ");
     const prompt =
-      `${n} אנשים (${people.join(", ")}) יושבים בשורה של ${n} מקומות, משמאל לימין. ידוע:\n` +
+      `${n} אנשים (${people.join(", ")}) יושבים בשורה של ${n} מקומות, מימין לשמאל (מקום 1 הוא הימני ביותר). ידוע:\n` +
       chosenConstraints.map((c, i) => `${i + 1}. ${c.text}`).join("\n") +
       "\n\nאיזה סידור ישיבה מתאים לכל התנאים?";
 

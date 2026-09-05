@@ -11,11 +11,11 @@ function fmtTime(h: number, m: number): string {
 
 export const template: ItemTemplate = {
   id: "speed.timezone_shift",
-  version: 1,
+  version: 2,
   pillar: "speed",
   kind: "single_choice",
   difficulties: [1],
-  conventionsStated: "ההפרש בין UTC לשעון ישראל מצוין בפריט עצמו.",
+  conventionsStated: "השעה בישראל מאוחרת ב-{offset} שעות משעון UTC",
   generate(rng: Rng) {
     const offset = rng.pick([2, 3]); // winter/summer, stated explicitly
     const hourUtc = rng.nextIntBetween(0, 23);
@@ -24,8 +24,8 @@ export const template: ItemTemplate = {
     const correct = fmtTime(correctHour, minute);
 
     const prompt =
-      `בתקופה הנוכחית ההפרש בין UTC לשעון ישראל הוא ${offset} שעות (ישראל מוקדמת יותר).\n` +
-      `השעה ${fmtTime(hourUtc, minute)} UTC היא איזו שעה בישראל?`;
+      `בתקופה הנוכחית השעה בישראל מאוחרת ב-${offset} שעות משעון UTC.\n` +
+      `כשהשעה ב-UTC היא ${fmtTime(hourUtc, minute)}, מה השעה בישראל?`;
 
     const distractors = generateDistinctDistractors(
       3,
@@ -37,7 +37,7 @@ export const template: ItemTemplate = {
     return {
       content: { prompt, options },
       answerKey: { kind: "single_choice", correctIndex },
-      conventionsStated: `ההפרש בין UTC לשעון ישראל הוא ${offset} שעות (ישראל מוקדמת יותר)`,
+      conventionsStated: `השעה בישראל מאוחרת ב-${offset} שעות משעון UTC`,
     };
   },
 };
