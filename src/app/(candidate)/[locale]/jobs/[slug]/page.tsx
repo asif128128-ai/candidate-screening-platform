@@ -67,12 +67,12 @@ export default async function JobLandingPage({
             </span>
             <span className="rtl-row flex-1 flex-wrap items-center gap-2 text-[16px] leading-[26px] text-text">
               <strong className="font-semibold">מבחן מקוון, במחשב (לא בטלפון)</strong>{" "}
-              <Chip>כ-30 דקות</Chip>
+              <Chip>כ-20 דקות</Chip>
             </span>
           </li>
         </ol>
         <p className="mt-4 text-[14px] leading-[22px] text-text-2">
-          כדאי לעבור את כל התהליך ברצף אחד מהמחשב — כ-35 דקות. אם בכל זאת תצטרכו לעצור, תקבלו קוד
+          כדאי לעבור את כל התהליך ברצף אחד מהמחשב — כ-25 דקות. אם בכל זאת תצטרכו לעצור, תקבלו קוד
           חזרה שמאפשר להמשיך מאותה נקודה.
         </p>
       </Card>

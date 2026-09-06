@@ -1,18 +1,16 @@
-// TODO(candidate-flow engineer): the bare "/" route isn't in
-// CANDIDATE_FLOW.md's route map (candidates always land on /jobs/{slug}).
-// This placeholder just points at the one seeded job so the root route
-// resolves to something during early development; replace or remove once
-// there's a real reason to have content at "/" (e.g. a jobs index).
-import { Link } from "@/i18n/navigation";
+// The bare "/" route isn't in CANDIDATE_FLOW.md's route map (candidates
+// always land on /jobs/{slug}) — there's exactly one active job at V1, so
+// "/" redirects straight there rather than showing an intermediate page.
+// Revisit if a real jobs index is ever needed (multiple concurrent active
+// jobs), per DESIGN_SUMMARY.md's "clean without unnecessary complexity"
+// multi-job note.
+import { redirect } from "@/i18n/navigation";
 
-export default function RootPage() {
-  return (
-    <main className="mx-auto max-w-xl p-8">
-      <p>
-        <Link href="/jobs/student-tech-2026" className="underline">
-          לצפייה במשרה הפתוחה
-        </Link>
-      </p>
-    </main>
-  );
+export default async function RootPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  redirect({ href: "/jobs/student-tech-2026", locale });
 }

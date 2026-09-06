@@ -55,12 +55,12 @@ export function renderApplicationReceived(p: ApplicationReceivedPayload): EmailC
     html: wrap(`
       <p>שלום ${p.firstName},</p>
       <p>הפרטים שלך נשמרו למשרה "${p.jobTitle}".</p>
-      <p>כדי שהמועמדות תיבחן, נשאר להשלים את המבחן המקוון — כ-30 דקות, במחשב. מומלץ לעשות את זה בהקדם, ברצף אחד.</p>
+      <p>כדי שהמועמדות תיבחן, נשאר להשלים את המבחן המקוון — כ-20 דקות, במחשב. מומלץ לעשות את זה בהקדם, ברצף אחד.</p>
       <p><a href="${p.resumeUrl}">להמשך המבחן</a></p>
       <p>קוד החזרה שלך: <strong style="direction:ltr;unicode-bidi:isolate;font-family:monospace">${p.resumeCodeDisplay}</strong></p>
       <p>שמרו את הקוד — יחד עם האימייל שלכם הוא מאפשר לחזור לתהליך מכל מחשב.</p>
     `),
-    text: `שלום ${p.firstName},\nהפרטים שלך נשמרו למשרה "${p.jobTitle}". כדי שהמועמדות תיבחן, נשאר להשלים את המבחן המקוון (כ-30 דקות, במחשב).\nלהמשך: ${p.resumeUrl}\nקוד החזרה: ${p.resumeCodeDisplay}`,
+    text: `שלום ${p.firstName},\nהפרטים שלך נשמרו למשרה "${p.jobTitle}". כדי שהמועמדות תיבחן, נשאר להשלים את המבחן המקוון (כ-20 דקות, במחשב).\nלהמשך: ${p.resumeUrl}\nקוד החזרה: ${p.resumeCodeDisplay}`,
   };
 }
 
