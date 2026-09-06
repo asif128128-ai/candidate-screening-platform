@@ -81,7 +81,10 @@ export const template: ItemTemplate = {
   generate(rng: Rng, difficulty: Difficulty) {
     // d1: fewer rows, less scanning. d2: the original 6-row baseline. d3:
     // more rows plus compound predicates (see buildPredicates).
-    const rowCount = difficulty === 1 ? 5 : difficulty === 2 ? 6 : 9;
+    // Round 3 (ASSESSMENT_DESIGN.md §2.2): the 9-row d3 table was
+    // careful-reader-with-time rather than reasoning, and does not fit 35 s.
+    // d3 keeps its compound predicates (below) but on a 6-row table.
+    const rowCount = difficulty === 1 ? 5 : 6;
     const rows: Row[] = Array.from({ length: rowCount }, (_, i) => ({
       id: i + 1,
       team: rng.pick(TEAMS),

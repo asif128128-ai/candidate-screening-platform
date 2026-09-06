@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BLOCK_INTRO_AUTO_ADVANCE_MS, BLOCK_ORDER, type BlockCopy } from "@/lib/assessment-block-copy";
+import { AI_DECLARATION_HE, BLOCK_INTRO_AUTO_ADVANCE_MS, BLOCK_ORDER, type BlockCopy } from "@/lib/assessment-block-copy";
 import { Term } from "@/components/term";
 import { Chip } from "@/components/ui/chip";
 import { Button, PAGE_CTA_WIDTH_CLASS } from "@/components/ui/button";
@@ -82,6 +82,16 @@ export function BlockIntro({ block, onProceed }: { block: BlockCopy; onProceed: 
         </div>
 
         <p className="mt-5 text-base leading-[26px] text-ink-200">{block.ruleHe}</p>
+
+        {/* ASSESSMENT_DESIGN.md §2.2: the anti-externalization declaration,
+            repeated on every block intro rather than only in the briefing —
+            it is the moment the candidate is actually deciding how to play
+            the next block, and it is the last screen before the clock starts.
+            Rendered in white against the ink background so it reads as the
+            house rule it is, not as fine print. */}
+        <p className="mt-3 text-base font-medium leading-[26px] text-white" data-testid="ai-declaration">
+          {AI_DECLARATION_HE}
+        </p>
 
         <button
           type="button"

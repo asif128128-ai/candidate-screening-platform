@@ -39,7 +39,9 @@ export const template: ItemTemplate = {
   difficulties: [1, 2, 3],
   conventionsStated: "כל אירוע שלא מצויר מהמצב הנוכחי מתעלמים ממנו",
   generate(rng: Rng, difficulty: Difficulty) {
-    const eventCount = difficulty === 1 ? 4 : difficulty === 2 ? 6 : 8;
+    // Round 3 (ASSESSMENT_DESIGN.md §2.2): capped at 6 events for the 35 s
+    // limit — tracing 8 events is more transcription than reasoning.
+    const eventCount = difficulty === 1 ? 4 : difficulty === 2 ? 5 : 6;
     const allEvents = TRANSITIONS.map((t) => t.event);
     const events: string[] = [];
     for (let i = 0; i < eventCount; i++) events.push(rng.pick(allEvents));

@@ -78,7 +78,10 @@ export const template: ItemTemplate = {
   difficulties: [1],
   conventionsStated: "n/a",
   generate(rng: Rng) {
-    const pairCount = rng.nextIntBetween(4, 6);
+    // Round 3 (ASSESSMENT_DESIGN.md §2.2): capped at 5 pairs (<= 10 chars) so
+    // that at a 15 s limit "which position breaks it" stays a stack-tracking
+    // question and not an eye test.
+    const pairCount = rng.nextIntBetween(4, 5);
     const base = buildBalanced(rng, pairCount);
     const isBalanced = rng.chance(0.4);
     const length = base.length;

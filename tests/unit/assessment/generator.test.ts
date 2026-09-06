@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { generateSession, type Blueprint } from "@/assessment/generator";
+import { blockKeyForPosition } from "@/lib/assessment-block-copy";
 import { scoreItem, type CandidateAnswer } from "@/assessment/scoring";
 import type { AnswerKey, GeneratedItem } from "@/assessment/types";
 
-// The seed blueprint (supabase/migrations/0002_seed.sql, DATA_MODEL.md §3.3,
-// as amended by DECISIONS_LOG.md #4/#9): 27 items, weights 0.30/0.30/0.25/0.15.
+// The seed blueprint (supabase/migrations/0013_blueprint_v2_fast_items.sql,
+// DATA_MODEL.md §3.3, as amended by DECISIONS_LOG.md #4/#9): 30 items,
+// weights 0.30/0.30/0.25/0.15.
 const BLUEPRINT: Blueprint = {
-  version: 1,
+  version: 2,
   blocks: [
-    { key: "speed", pillar: "speed", count: 10, time_limit_s: 20, pool: "speed.*" },
-    { key: "reasoning", pillar: "reasoning", count: 6, time_limit_s: 75, pool: "reasoning.*" },
-    { key: "tech", pillar: "tech", count: 7, time_limit_s: 60, pool: "tech.*" },
-    { key: "investigate", pillar: "independence", count: 4, time_limit_s: 180, pool: "investigate.*" },
+    { key: "speed", pillar: "speed", count: 10, time_limit_s: 15, pool: "speed.*" },
+    { key: "reasoning", pillar: "reasoning", count: 8, time_limit_s: 30, pool: "reasoning.*" },
+    { key: "tech", pillar: "tech", count: 8, time_limit_s: 30, pool: "tech.*" },
+    { key: "investigate", pillar: "independence", count: 4, time_limit_s: 150, pool: "investigate.*" },
   ],
   weights: { reasoning: 0.3, independence: 0.3, tech: 0.25, speed: 0.15 },
   session_wall_clock_min: 75,
@@ -38,15 +40,57 @@ function correctAnswerFor(item: GeneratedItem): CandidateAnswer {
 const SEEDS = Array.from({ length: 1000 }, (_, i) => BigInt(i) * 6364136223846793005n + 1442695040888963407n);
 
 describe("generateSession — structural invariants over 1,000 seeds", () => {
-  it("always produces exactly 27 items, numbered 1..27 in block order", () => {
+  it("always produces exactly 30 items, numbered 1..30 in block order", () => {
     for (const seed of SEEDS) {
       const items = generateSession(BLUEPRINT, seed);
-      expect(items).toHaveLength(27);
-      expect(items.map((i) => i.position)).toEqual(Array.from({ length: 27 }, (_, k) => k + 1));
+      expect(items).toHaveLength(30);
+      expect(items.map((i) => i.position)).toEqual(Array.from({ length: 30 }, (_, k) => k + 1));
       expect(items.slice(0, 10).every((i) => i.blockKey === "speed")).toBe(true);
-      expect(items.slice(10, 16).every((i) => i.blockKey === "reasoning")).toBe(true);
-      expect(items.slice(16, 23).every((i) => i.blockKey === "tech")).toBe(true);
-      expect(items.slice(23, 27).every((i) => i.blockKey === "investigate")).toBe(true);
+      expect(items.slice(10, 18).every((i) => i.blockKey === "reasoning")).toBe(true);
+      expect(items.slice(18, 26).every((i) => i.blockKey === "tech")).toBe(true);
+      expect(items.slice(26, 30).every((i) => i.blockKey === "investigate")).toBe(true);
+    }
+  });
+
+  // The block boundaries above are what the candidate-facing runner assumes
+  // when it decides which intro screen to show; keep them in lockstep.
+  it("block boundaries match blockKeyForPosition (assessment-block-copy.ts)", () => {
+    const items = generateSession(BLUEPRINT, SEEDS[0] as bigint);
+    for (const item of items) {
+      expect(blockKeyForPosition(item.position), `position ${item.position}`).toBe(item.blockKey);
+    }
+  });
+
+  // Regression: DIFFICULTY_MIX is written for the shipped blueprint's block
+  // counts, and generateChoiceBlock used to throw when a blueprint disagreed.
+  // Blueprint v1 is still a row in every deployed database (0002_seed.sql) and
+  // assessment_configs is admin-editable, so after v2 changed reasoning 6->8
+  // and tech 7->8, starting an assessment on a job still pointing at v1 threw
+  // — a 500 from POST /api/assessment/start, i.e. a candidate who cannot begin
+  // the test. Any blueprint shape must generate.
+  it("generates for a blueprint whose block counts differ from the shipped mix (legacy/custom configs)", () => {
+    const legacy: Blueprint = {
+      version: 1,
+      blocks: [
+        { key: "speed", pillar: "speed", count: 10, time_limit_s: 20, pool: "speed.*" },
+        { key: "reasoning", pillar: "reasoning", count: 6, time_limit_s: 75, pool: "reasoning.*" },
+        { key: "tech", pillar: "tech", count: 7, time_limit_s: 60, pool: "tech.*" },
+        { key: "investigate", pillar: "independence", count: 4, time_limit_s: 180, pool: "investigate.*" },
+      ],
+      weights: { reasoning: 0.3, independence: 0.3, tech: 0.25, speed: 0.15 },
+      session_wall_clock_min: 75,
+    };
+    for (const seed of SEEDS.slice(0, 100)) {
+      const items = generateSession(legacy, seed);
+      expect(items).toHaveLength(27);
+      for (const block of legacy.blocks) {
+        expect(items.filter((i) => i.blockKey === block.key)).toHaveLength(block.count);
+      }
+      // Every item is still scoreable and every difficulty is in range.
+      for (const item of items) {
+        expect([1, 2, 3]).toContain(item.difficulty);
+        expect(scoreItem(item.kind, correctAnswerFor(item), item.answerKey).sI).toBe(1);
+      }
     }
   });
 
@@ -69,9 +113,9 @@ describe("generateSession — structural invariants over 1,000 seeds", () => {
     for (const seed of SEEDS.slice(0, 200)) {
       const items = generateSession(BLUEPRINT, seed);
       const reasoning = items.filter((i) => i.blockKey === "reasoning").map((i) => i.difficulty).sort();
-      expect(reasoning).toEqual([1, 1, 2, 2, 2, 3]);
+      expect(reasoning).toEqual([1, 1, 2, 2, 2, 2, 3, 3]);
       const tech = items.filter((i) => i.blockKey === "tech").map((i) => i.difficulty).sort();
-      expect(tech).toEqual([1, 1, 2, 2, 2, 2, 3]);
+      expect(tech).toEqual([1, 1, 2, 2, 2, 2, 3, 3]);
       const investigate = items.filter((i) => i.blockKey === "investigate").map((i) => i.difficulty).sort();
       expect(investigate).toEqual([1, 2, 2, 3]);
       const speed = items.filter((i) => i.blockKey === "speed").map((i) => i.difficulty);

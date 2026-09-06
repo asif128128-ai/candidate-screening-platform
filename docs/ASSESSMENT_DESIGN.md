@@ -5,11 +5,11 @@ Status: **Decided.** Defines the assessment a candidate takes, the question bank
 ## 1. Design goals, restated as constraints
 
 1. The assessment must be a stronger signal than the CV for: reasoning, independence, technology aptitude, speed.
-2. Every item has a strict server-enforced time limit, chosen so that the "copy → paste into an LLM → read → answer" loop is not viable *for that item type*.
+2. Every item has a strict server-enforced time limit, chosen so that the "photograph it → ask a model → read → answer" loop is not viable *for that item type* — and where an item honestly needs more thinking time than that loop takes (§2.2), it is defended by transfer cost and item design instead of by its clock.
 3. No trivia, no LeetCode, no memorization, no personality test. Everything is either "figure it out from what is in front of you" or "what would a technically sensible person do next".
 4. Hundreds of candidates must not see the same test. Variability is built into content generation, not into a big hand-written pool.
 5. Zero runtime LLM dependency. Zero post-launch content maintenance.
-6. Total time ≈ 30 minutes. Intense, not exhausting.
+6. Total time ≈ 25 minutes (20:30 of items plus intros and the practice scene). Intense, not exhausting.
 
 ## 2. Structure
 
@@ -17,32 +17,59 @@ Status: **Decided.** Defines the assessment a candidate takes, the question bank
 
 | # | Block (Hebrew name) | Pillar | Items | Time / item | Block time | Item kinds |
 |---|---|---|---|---|---|---|
-| 1 | חימום מהיר | Speed | 10 | 20 s | 3:20 | single choice / numeric |
-| 2 | חשיבה | Reasoning | 6 | 75 s | 7:30 | single choice / numeric / ordering |
-| 3 | חקירה | Independence | 4 | 180 s | 12:00 | investigation (4–5 artifacts, 3 sub-answers) |
-| 4 | אינסטינקט טכנולוגי | Tech aptitude | 7 | 60 s | 7:00 | single choice / multi choice |
-| | | | **27** | | **≈ 29:50** | |
+| 1 | חימום מהיר | Speed | 10 | 15 s | 2:30 | single choice / numeric |
+| 2 | חשיבה | Reasoning | 8 | 30 s | 4:00 | single choice / numeric / ordering |
+| 3 | אינסטינקט טכנולוגי | Tech aptitude | 8 | 30 s | 4:00 | single choice / multi choice |
+| 4 | חקירה | Independence | 4 | 150 s | 10:00 | investigation (4–5 artifacts, 3 sub-answers) |
+| | | | **30** | | **≈ 20:30** | |
 
-Plus four block intro screens (each auto-advances after 45 s or on click; the countdown for the block's first item starts only when the item is served), and one **untimed interactive practice scene** before block 3 (a one-artifact, one-question mini-investigation with the real tab UI; not scored, not telemetered, auto-advances after 90 s). Advertised to candidates as "כ-30 דקות".
+**Blueprint v2** (`0013_blueprint_v2_fast_items.sql`) replaced v1's 27 items / 29:50 after the threat model in §2.2 was re-derived against a phone camera rather than retyping. The rows above are the shipped blueprint; the block order in this table is also the order the runner serves (`BLOCK_ORDER`, `blockKeyForPosition`), which v1's docs contradicted.
 
-**Why 4 investigation items, not 3.** Independence carries the highest weight, so it must not rest on the fewest data points. Four scenes × 3 sub-answers = 12 scored judgments plus process telemetry; scenes were tightened to 4–5 artifacts so that four of them fit in 12 minutes. The pilot (`TEST_STRATEGY.md` §9) must compute split-half reliability for this block; if it is materially below the reasoning block's, the blueprint weights shift to I 0.25 / T 0.30 **before launch** — that fallback is pre-committed here so it is a data decision, not a debate.
+Plus four block intro screens (each auto-advances after 45 s or on click; the countdown for the block's first item starts only when the item is served), and one **untimed interactive practice scene** before the investigation block (a one-artifact, one-question mini-investigation with the real tab UI; not scored, not telemetered, and not auto-advanced — see `assessment-block-copy.ts` on why the 90 s auto-advance was removed). Advertised to candidates as "כ-25 דקות".
+
+**Why 4 investigation items, not 3.** Independence carries the highest weight, so it must not rest on the fewest data points. Four scenes × 3 sub-answers = 12 scored judgments plus process telemetry; scenes were tightened to 4–5 artifacts so that four of them fit in 10 minutes. The pilot (`TEST_STRATEGY.md` §9) must compute split-half reliability for this block; if it is materially below the reasoning block's, the blueprint weights shift to I 0.25 / T 0.30 **before launch** — that fallback is pre-committed here so it is a data decision, not a debate.
 
 Session wall-clock cap: **75 minutes** from `started_at`. After that the session is `abandoned`; unanswered items count as expired; results are still computed (with low confidence) so the admin sees whatever exists.
 
 ### 2.1 Why this order
-Speed first: a short, low-stakes warm-up gets the candidate into the rhythm and calibrates the pace before the important material. Reasoning second while fresh. **Investigation third, not last**: independence is the hiring manager's most important pillar, so it must not be measured on a fatigued candidate. Tech last: its items are short and instinct-driven, robust to mild fatigue.
+Speed first: a short, low-stakes warm-up gets the candidate into the rhythm and calibrates the pace before the important material. Reasoning second while fresh. Tech third: its items are short and instinct-driven. Investigation last.
+
+**Known open question — investigation's position.** The original argument here was that investigation belongs *third*, not last, because independence is the hiring manager's most important pillar and should not be measured on a fatigued candidate. That argument was never implemented: the seed blueprint, `BLOCK_ORDER`, `blockKeyForPosition` and the runner have always served tech third and investigation last, while this document and the briefing screen told the candidate the opposite. Round 3 made the docs and the candidate-facing copy tell the truth about what the code does; it did **not** settle which order is actually better. The fatigue argument still stands on its merits and is worth revisiting with pilot data — investigation is now 10:00 of a 20:30 test, so where it sits matters more than it did. Whoever changes it must move the blueprint, `BLOCK_ORDER`, `blockKeyForPosition`, the briefing copy and this table together.
 
 ### 2.2 Why these time limits
-The limits were set per item type by asking: "what is the minimum time a strong candidate needs to read, think and answer" and "what is the minimum time to externalize the item to an LLM and get a usable answer back".
 
-| Item type | Strong candidate needs | LLM loop needs | Limit |
+**The threat model changed, and v1's limits were derived from the old one.** Every v1 limit was set against a *transcription* loop: how long it takes to retype an item into an LLM and read the answer back. A candidate with a phone camera and a multimodal assistant transcribes nothing. The real loop is: raise phone → photograph → send → read → click.
+
+| Step | Fast | Typical | Slow |
 |---|---|---|---|
-| Speed micro-item (one glance, one fact) | 5–12 s | ≥ 25 s (retype or screenshot, wait, read) | 20 s |
-| Reasoning (grid/sequence/constraints; grids are SVG) | 30–60 s | 60–120 s (SVG grids need description; tables need retyping) | 75 s |
-| Tech scenario (6-line log + 4 options) | 25–45 s | 45–90 s | 60 s |
-| Investigation (4–5 artifacts across tabs, 3 sub-answers) | 100–150 s | > 200 s (must transcribe several artifacts; the model doesn't know which one matters) | 180 s |
+| Raise, frame, shoot (one photo captures a whole non-investigation item) | 3 s | 4 s | 5 s, +4 s per extra photo |
+| Send + upload | 1 s | 2 s | 2 s |
+| Model returns a usable answer | 4 s | 10 s | 25–60 s (multi-step deduction, or a reasoning model) |
+| Read answer, map to option, click | 3 s | 4 s | 6 s; typed string +5–10 s; 5 dropdowns +15 s |
+| **Total round trip** | **≈ 11–12 s** | **≈ 20 s** | **≈ 40–80 s** |
 
-The limits are tight but honest: pilot targets in `TEST_STRATEGY.md` §9 require that ≥ 70 % of a reference group of strong students finish each item type with ≥ 15 % time left, **and** that the investigation block's margin holds for non-native Hebrew readers in the pilot group (the pilot must include at least three). If the pilot violates either, the limit is raised in the blueprint (a data change, not a code change). The 180 s figure is the single source of truth and is what the seed blueprint in `DATA_MODEL.md` §3.3 ships. Post-launch, the sweep's "expiry among strong candidates" invariant check (`ARCHITECTURE.md` §10) is the ongoing guard that the timer, not ability, has become the binding constraint for the best candidates. Accepted residual risk: a genuinely brilliant but very deliberate thinker can be under-measured by strict timing; this is the price of the anti-LLM constraint and is mitigated, not eliminated, by the margins above and by the human interview.
+Consequences, stated plainly:
+- **≤ 15 s**: the loop fails except by luck. This is the only band where *timing alone* is a defense.
+- **30 s**: the typical loop fits. Only items where the model must genuinely compute resist, and only weakly. **No item in the bank is above this** — a client constraint (`DECISIONS_LOG.md` #22), and the right one: at 30 s the loop is at least *expensive*, and every second above it is free for a cheater.
+- **60–75 s** (v1 reasoning and tech): every single-screen item in the bank was beatable with time to spare.
+- **150–180 s multi-tab**: 2–3 photos ≈ 60–90 s. Beatable, but it costs the candidate half their budget and leaves a visible tab-open trace.
+
+**Two v1 arguments are now retired as false.** (1) "Grids and diagrams are inline SVG, so they resist externalization" — a photo captures the grid and all six option tiles at once; SVG defeats copy-paste, not a camera. (2) "Options are labelled א/ב/ג/ד so an LLM answer like 'B' doesn't map trivially" — the labels are in the photo. Both remain worth keeping as cheap friction against the *copy-paste* loop, but neither is load-bearing.
+
+**The honest limit of the approach: no item that a strong human needs more than ~15 s to think about can be made photo-proof by its clock.** Reasoning and investigation therefore do not try. They rest on transfer cost (typed answers, five-dropdown orderings, evidence spread across tabs the candidate has not opened yet), on item count so no single externalized item is worth much, on the telemetry in `ANTI_CHEATING.md` §5, on the open declaration to candidates (§2.5), and on the interview.
+
+| Item type | Strong candidate needs | Photo loop needs | Limit |
+|---|---|---|---|
+| Speed micro-item (one glance, one fact) | 5–10 s | ≥ 11 s at its fastest | **15 s** |
+| Reasoning (sequence/constraints/trace; fast-tier shapes only) | 15–30 s | 20–50 s | **30 s** |
+| Tech scenario (≤ 250-char prompt + 4 short options) | 15–25 s | ≈ 20–25 s | **30 s** |
+| Investigation (4–5 artifacts across tabs, 3 sub-answers) | 70–110 s (measured artifact sizes) | 60–90 s, 2–3 photos | **150 s** |
+
+Where a family could not honestly meet its new limit, the family changed rather than the limit: `reasoning.constraints_seating` is fixed at 4 entities (the n=5 shape needs 45–60 s of real deduction), `reasoning.table_must_be_true` scales d3 through compound predicates instead of a 9-row table, `reasoning.state_machine` caps at 6 events, and the speed families were trimmed (`json_diff` 4 keys, `count_matches` 6 lines, `table_lookup` 5 rows, `bracket_balance` ≤ 5 pairs). **Nothing with a typed answer goes below 30 s, and investigation is not cut below 150 s before the non-native-reader pilot** (`TEST_STRATEGY.md` §9).
+
+**Known gap at 30 s — the tech block's reading load.** Several tech families still render ~350-character prompts with four ~90-character options that each carry their own justification clause (`tech.log_root_cause`, `tech.cloud_waste`, `tech.http_status_next`, `tech.env_diff_bug`). That is ~700 characters of Hebrew: roughly 40 s of honest reading, against a 30 s limit. The limit is correct and the *text* is what must give — capping prompts at 250 characters and options at 60 with no justification clause (which also removes the "pick the hedged option" shortcut a test-wise candidate can use without reading the artifact). Until that pass lands, expect elevated expiries on those four families in the pilot; they are the first thing to look at, not the limit.
+
+The limits are tight but honest: pilot targets in `TEST_STRATEGY.md` §9 require that ≥ 70 % of a reference group of strong students finish each item type with ≥ 15 % time left, **and** that the investigation block's margin holds for non-native Hebrew readers in the pilot group (the pilot must include at least three). If the pilot violates either, the limit is raised in the blueprint (a data change, not a code change). The blueprint is the single source of truth for every limit; `0013_blueprint_v2_fast_items.sql` is what ships (`DATA_MODEL.md` §3.3). The pilot matters more under v2 than it did under v1, because v2's margins are genuinely thinner — the 15 s speed limit in particular is set at the photo loop's own floor, and it is the first number to revisit (to 18 s, not back to 20 s) if strong students are expiring. Post-launch, the sweep's "expiry among strong candidates" invariant check (`ARCHITECTURE.md` §10) is the ongoing guard that the timer, not ability, has become the binding constraint for the best candidates. Accepted residual risk: a genuinely brilliant but very deliberate thinker can be under-measured by strict timing; this is the price of the anti-LLM constraint and is mitigated, not eliminated, by the margins above and by the human interview.
 
 ### 2.3 Navigation rules
 - One item visible at a time. The **next item is only served after the current one is finalized** (answered, skipped, or expired).
@@ -53,11 +80,28 @@ The limits are tight but honest: pilot targets in `TEST_STRATEGY.md` §9 require
 - Between blocks: intro screen with the block's rules and time-per-item. Untimed for the candidate's benefit but auto-advances after 45 s so the wall clock can't be gamed.
 
 ### 2.4 Anti-externalization rendering rules (apply to all items)
-- Grids, sequences of shapes, state diagrams are rendered as **inline SVG**, never text; SVG text uses `<text>` elements with `pointer-events: none` and `user-select: none`.
-- Tables/logs/artifacts render with `user-select: none` and a `copy` handler that cancels the copy and logs an event. This is friction, not security; it costs an honest candidate nothing.
+
+All of these defeat the **copy-paste** loop. None of them defeat a camera (§2.2) — they are kept because they are free and they cost an honest candidate nothing, not because they are load-bearing.
+
+- Grids, sequences of shapes, state diagrams are rendered as **inline SVG**, never text; SVG text uses `<text>` elements with `pointer-events: none` and `user-select: none`. *(Stops selection and clean transcription. A photo reads them fine — do not count this as protection.)*
+- Tables/logs/artifacts render with `user-select: none` and a `copy` handler that cancels the copy and logs an event.
 - Right-click context menu disabled inside the item pane (logged if attempted).
-- Option order is shuffled per session; option labels are א/ב/ג/ד so an LLM answer like "B" doesn't map trivially.
+- Option order is shuffled per session, so a leaked "the answer is the third one" is worthless. *(Option labels are א/ב/ג/ד, which was once justified as stopping an LLM's "B" from mapping trivially; the labels are in the photo, so that argument no longer holds and the shuffle is the part that still earns its place.)*
 - Every numeric/name/timestamp in an item is a generated parameter, so a leaked question is worthless.
+
+### 2.5 Telling the candidate (the declaration)
+
+The tight limits are stated openly, on the briefing screen and again on every block intro, in `AI_DECLARATION_HE` (`src/lib/assessment-block-copy.ts`):
+
+> מהיר בכוונה. עובדים עם הראש, לא עם אפליקציה — זה בדיוק מה שאנחנו רוצים לראות.
+
+Why say it at all, rather than quietly relying on the clock:
+
+1. **It is the intervention with the best cost/benefit.** A candidate weighing whether to reach for their phone is making a time calculation. Telling them plainly that the round trip costs more than it saves settles that calculation before they waste 20 seconds discovering it on item 3 — which is a real risk to an *honest* candidate's score under v2's limits.
+2. **It makes the timing legible rather than cruel.** 15 seconds with no explanation reads as an arbitrarily hostile test. 15 seconds with "fast on purpose, we want to see how *you* think" reads as a design choice, which is what it is.
+3. **It is the only honest version of a claim we were already making.** v1's briefing told candidates that AI tools "simply don't help in the time given" (`השאלות בנויות כך שהם פשוט לא עוזרים בזמן הנתון`). At 60–180 s that was false. The declaration replaces a false claim with a true one.
+
+It is deliberately **not** a threat and **not** a monitoring notice: it never accuses, never mentions what is recorded, and is kept separate from the `assessment_monitoring_v1` disclosure (`ANTI_CHEATING.md` §2), which is about what we store. One is about intent; the other is about data.
 
 ## 3. The four pillars — measurement design and worked examples
 
@@ -69,26 +113,24 @@ All examples below are **real generated instances** of templates in the bank, sh
 
 **What it measures.** Fast, accurate reading of small technical artifacts and micro-decisions. It rewards *accurate* speed: the speed score is computed only from correct answers, and accuracy below 60 % caps the speed score (see `SCORING.md`). Wrong answers cost more than skips.
 
-**Item families (14 templates, 20 s each):**
+**Item families (12 templates, 15 s each):**
 
 | template_id | Task | Parameter space (variants) |
 |---|---|---|
 | `speed.json_diff` | Two 5-key JSON objects; which key's value differs? | keys × values × position ≈ 20k |
-| `speed.ip_valid` | Which of 4 is a valid address *per the rule shown in the item* ("ארבעה מספרים 0–255 מופרדים בנקודות")? | ≈ 10k |
-| `speed.regex_match` | Which string matches the pattern? The item shows a 3-line legend for the only operators used (`\d` digit, `+` one or more, `{n}` exactly n, `^`/`$` start/end) | ≈ 6k |
 | `speed.table_lookup` | 6-row table; value of column Y where id = X | ≈ 50k |
 | `speed.count_matches` | 8-line log; how many lines are `ERROR`/`WARN`/specific service? | ≈ 30k |
 | `speed.path_resolve` | Resolve `/a/b/../c/./d`; the item states the two rules (`..` = up one folder, `.` = same folder) | ≈ 5k |
 | `speed.bool_logic` | Value of `(A && !B) || C` given A,B,C and a one-line legend (`&&` and, `\|\|` or, `!` not) | 8 × 6 shapes = 48 (used at most once/session) |
 | `speed.sorted_which` | Which of 4 lists is sorted ascending? | ≈ 10k |
-| `speed.odd_one_out` | 4 items, one from a different category — categories are everyday/technical-generic (units, file extensions shown with their type, colors, weekdays), never protocol trivia | 40 categories ≈ 3k |
 | `speed.timezone_shift` | 09:00 UTC is what time in Israel (offset given in item)? | ≈ 300 |
 | `speed.percent_change` | From 240 to 300 = +?% | ≈ 2k |
 | `speed.units_math` | 3 servers × 250 ms each in parallel/serial → total? (item defines parallel/serial) | ≈ 3k |
-| `speed.bracket_balance` | Is this bracket/quote sequence balanced? If not, which position breaks it? (replaces a binary-conversion item that rewarded a specific course) | ≈ 8k |
-| `speed.date_diff` | Days between two dates in the same month | ≈ 800 |
+| `speed.bracket_balance` | Is this bracket/quote sequence balanced? If not, which position breaks it? (replaces a binary-conversion item that rewarded a specific course); capped at 5 pairs for the 15 s limit | ≈ 4k |
+| `speed.smell_the_number` | Four one-line dashboard metrics, exactly one internally impossible (more successes than attempts, an average above its own maximum, rows in a 0-byte file) — which? | ≈ 20k |
+| `speed.log_gap` | 6-line timestamped log with one conspicuous pause; between which two lines did the most time pass? | ≈ 30k |
 
-Each session draws 10 distinct families out of 14, so two candidates share the same *family set* with probability ≈ 1/1001 and the same *content* with probability ≈ 0. Families that lean on CS-course fluency even with the convention stated (`regex_match`, `path_resolve`, `ip_valid`) are tagged `fluency: true` in the bank; the bank-analytics page separates their contribution to Speed variance so a future review can see whether they, rather than processing speed, are driving the pillar.
+Each session draws 10 distinct families out of 12, so two candidates share the same *family set* with probability ≈ 1/66 and the same *content* with probability ≈ 0. Round 3 narrowed this pool deliberately: `speed.ip_valid` and `speed.regex_match` (both tagged `fluency: true`) plus `speed.odd_one_out` and `speed.date_diff` were retired as off-target — they measured CS-course fluency or category vocabulary rather than processing speed — and `speed.smell_the_number` and `speed.log_gap` were added in their place. Family-set variety is now thin, and **restoring the pool to ~14 with more short, photo-resistant families is the highest-value follow-up in this block**; content collision (the property that actually matters) is unaffected. `path_resolve` remains tagged `fluency: true`, and the bank-analytics page still separates its contribution to Speed variance.
 
 **Worked example 1 — `speed.count_matches`**
 
@@ -118,7 +160,7 @@ Each session draws 10 distinct families out of 14, so two candidates share the s
 
 **What it measures.** Inducing rules from examples, deduction under constraints, tracking state, combining information from a small table. Language-free where possible (SVG grids), otherwise minimal Hebrew. We do not claim an IQ measure; the admin UI calls it "חשיבה והסקה".
 
-**Item families (12 templates, 75 s each, difficulty 1–3 with per-session mix 2/3/1):**
+**Item families (11 templates, 30 s each, difficulty 1–3 with per-session mix 2/4/2):**
 
 | template_id | Task | Kind | Variants |
 |---|---|---|---|
@@ -132,7 +174,6 @@ Each session draws 10 distinct families out of 14, so two candidates share the s
 | `reasoning.cipher_rule` | Two encoded examples reveal a transformation; encode a third | short_text | ≈ 8k |
 | `reasoning.pseudocode_trace` | 6-line language-neutral loop; what is printed? | numeric / short_text | ≈ 25k |
 | `reasoning.set_counts` | "Of 40 tickets, 22 are bugs, 18 urgent, 9 both…" how many neither? | numeric | ≈ 5k |
-| `reasoning.analogy_structural` | Relation A:B, pick C:? (relations are structural, not vocabulary) | single choice | ≈ 3k |
 | `reasoning.min_moves` | Small optimization: minimal steps/cost under 2 rules | numeric | ≈ 4k |
 
 **Worked example 3 — `reasoning.rule_induction` (difficulty 2)**
@@ -257,7 +298,7 @@ In the difficulty-3 variant of the same scenario, the "Last rotated" line is abs
 
 **What it measures.** Instinct about how systems behave and what a sensible operator does — not recall. Each item presents a small concrete situation (a log, an API response, a permissions table, a config diff, a spreadsheet) and asks for the most likely explanation or the best next move. Options are written so that the wrong ones are things people actually do wrong.
 
-**Item families (14 templates, 60 s each, mix 2/4/1 by difficulty):**
+**Item families (12 templates, 30 s each, mix 2/4/2 by difficulty):**
 
 | template_id | Situation → question | Variants |
 |---|---|---|
@@ -269,11 +310,9 @@ In the difficulty-3 variant of the same scenario, the "Last rotated" line is abs
 | `tech.webhook_vs_polling` | Integration need → best mechanism (webhook, polling interval, batch export) and why | ≈ 1k |
 | `tech.site_down_first_check` | Symptom set (DNS/TLS/5xx/timeout) → the first cheap check | ≈ 2k |
 | `tech.automation_pick` | Repetitive manual task described → most appropriate automation shape (scheduled script / no-code flow / native feature / not worth automating) | ≈ 1.5k |
-| `tech.data_normalize` | Column of messy phones/dates/names → correct normalization rule | ≈ 4k |
 | `tech.cloud_waste` | Resource list with usage → which change saves most without risk | ≈ 3k |
 | `tech.security_smell` | 4 practices, one dangerous (key in frontend, shared admin account, open bucket, no MFA on root) | ≈ 800 |
 | `tech.api_pagination_math` | Doc excerpt (page size, rate limit) + record count → number of calls / minimum time | ≈ 5k |
-| `tech.git_what_happened` | Two-branch story → why a change "disappeared" | ≈ 600 |
 | `tech.field_mapping_error` | Two systems' field lists + proposed mapping → the wrong mapping | ≈ 4k |
 
 **Worked example 7 — `tech.env_diff_bug`**
@@ -353,7 +392,7 @@ items are numbered 1..N in block order
 Investigation block: choose 4 distinct scenarios out of 12 with cohort balancing (§3.3.1); choose a cause variant and difficulty per scenario (mix 1/2/1); draw the next-action distractor set with the session-level constraints of §3.3; the generator builds the "world" then renders artifacts.
 
 ### 4.3 Bank size and uniqueness
-- 14 speed + 12 reasoning + 14 tech + 12 investigation = **52 template families**, each with the variant counts above (most ≥ 1,000; total > 500k distinct concrete items).
+- 12 speed + 11 reasoning + 12 tech + 12 investigation = **47 template families**, each with the variant counts above (most ≥ 1,000; total > 500k distinct concrete items).
 - Probability two candidates receive the same full assessment is effectively zero; the probability two candidates share even one identical *item* in a 500-candidate round is < 1 % for every family except the intentionally small one (`speed.bool_logic`), which is limited to at most one item per session and carries the least weight.
 - These numbers support the **content-collision** claim only. Resistance to preparation/word-of-mouth is a different property, addressed (and its limits stated) in §3.3.1.
 

@@ -44,19 +44,40 @@ export default async function BriefingPage({
           "הכללים" stays its own flat card. */}
       <Card variant="flat" className="mt-8">
         <h2 className="text-[20px] font-semibold leading-7 text-ink-900">מה זה</h2>
+        {/* ASSESSMENT_DESIGN.md §2 / 0013_blueprint_v2_fast_items.sql: 30
+            items in blueprint v2, and the block order here is the order the
+            runner actually serves (BLOCK_ORDER / blockKeyForPosition) — the
+            previous copy listed חקירה third while the runner ran it last. */}
         <p className="mt-2 text-[16px] leading-[26px] text-text">
-          מבחן קצר ואינטנסיבי, כ-20 דקות, 27 שאלות ב-4 חלקים: חימום מהיר, חשיבה, חקירה, אינסטינקט
-          טכנולוגי. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק
-          החקירה יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך.
+          מבחן קצר ואינטנסיבי, כ-25 דקות, 30 שאלות ב-4 חלקים: חימום מהיר, חשיבה, אינסטינקט טכנולוגי,
+          חקירה. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק החקירה
+          יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך.
         </p>
 
         <h2 className="mt-5 border-t border-line pt-5 text-[20px] font-semibold leading-7 text-ink-900">
           מה לצפות
         </h2>
         <p className="mt-2 text-[16px] leading-[26px] text-text">
-          הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. לא צריך הכנה, חיפוש
-          באינטרנט או כלי <Term>AI</Term> — השאלות בנויות כך שהם פשוט לא עוזרים בזמן הנתון. אין כל
-          דבר שצריך לדעת בעל פה: כל מה שנדרש נמצא בשאלה עצמה.
+          הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. אין כל דבר שצריך לדעת
+          בעל פה: כל מה שנדרש נמצא בשאלה עצמה.
+        </p>
+
+        {/* ASSESSMENT_DESIGN.md §2.2 — the anti-externalization declaration.
+            It replaces the previous claim that AI tools "simply don't help",
+            which over-claimed: at the old 60-180 s limits they demonstrably
+            did. This says the true thing instead (the round trip costs more
+            time than it saves) and states the expectation openly, which is
+            the part that actually changes an honest candidate's behavior.
+            Emphasised as its own block because it is a house rule, not a
+            detail. */}
+        <p
+          className="mt-4 border-t border-line pt-4 text-[16px] leading-[26px] text-text"
+          data-testid="ai-declaration"
+        >
+          השאלות מהירות בכוונה — לרוב כמה עשרות שניות לכל אחת. הן בנויות כך שלפנות לאפליקציית{" "}
+          <Term>AI</Term> ייקח יותר זמן ממה שזה יחסוך, ובינתיים השעון רץ. מה שמעניין אותנו זה איך{" "}
+          <strong className="font-semibold text-ink-900">אתם</strong> חושבים — לעבוד עם הראש שלכם, זה
+          כל העניין.
         </p>
       </Card>
 

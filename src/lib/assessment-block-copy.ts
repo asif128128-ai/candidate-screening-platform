@@ -19,48 +19,67 @@ export interface BlockCopy {
 
 export const BLOCK_ORDER = ["speed", "reasoning", "tech", "investigate"] as const;
 
+/**
+ * ASSESSMENT_DESIGN.md §2.2 — shown on every block intro, under the rule
+ * line. The tight limits are a deliberate design choice, so we say so out
+ * loud rather than letting a candidate discover it as a nasty surprise: told
+ * plainly that reaching for an AI app costs more time than it saves, an
+ * honest candidate stops weighing it and just plays, and the timing stops
+ * reading as arbitrary cruelty. Deliberately not a threat — nothing here
+ * accuses anyone or mentions monitoring (that disclosure lives separately,
+ * ANTI_CHEATING.md §2, and stays separate: one is about intent, the other
+ * about what we record).
+ */
+export const AI_DECLARATION_HE =
+  "מהיר בכוונה. עובדים עם הראש, לא עם אפליקציה — זה בדיוק מה שאנחנו רוצים לראות.";
+
 export const BLOCK_COPY: Record<string, BlockCopy> = {
   speed: {
     key: "speed",
     nameHe: "חימום מהיר",
     itemCount: 10,
-    timeLimitS: 20,
-    ruleHe: "10 שאלות קצרות, 20 שניות לכל אחת. קריאה ותשובה מהירה ומדויקת.",
+    timeLimitS: 15,
+    ruleHe: "10 שאלות קצרות, 15 שניות לכל אחת. קריאה ותשובה מהירה ומדויקת.",
     howItWorksHe:
       "כל שאלה מציגה עובדה קטנה (קטע קוד, טבלה, לוג) ושואלת עליה שאלה אחת ברורה. אין צורך בידע מוקדם — כל מה שנדרש כתוב בשאלה עצמה.",
   },
   reasoning: {
     key: "reasoning",
     nameHe: "חשיבה",
-    itemCount: 6,
-    timeLimitS: 75,
-    ruleHe: "6 שאלות היסק וחשיבה, 75 שניות לכל אחת.",
-    howItWorksHe: "חלק מהשאלות הן חזותיות (צורות, דיאגרמות) וחלקן מספריות. אין תשובה \"נכונה מהזיכרון\" — הכול נובע מהנתונים שמוצגים.",
+    itemCount: 8,
+    timeLimitS: 30,
+    ruleHe: "8 שאלות היסק וחשיבה, 30 שניות לכל אחת.",
+    howItWorksHe:
+      "חלק מהשאלות מספריות, חלקן מילוליות, ואחת מציגה סדרת צורות. אין תשובה \"נכונה מהזיכרון\" — הכול נובע מהנתונים שמוצגים.",
   },
   tech: {
     key: "tech",
     nameHe: "אינסטינקט טכנולוגי",
-    itemCount: 7,
-    timeLimitS: 60,
-    ruleHe: "7 שאלות על מצבים טכניים, 60 שניות לכל אחת.",
+    itemCount: 8,
+    timeLimitS: 30,
+    ruleHe: "8 שאלות על מצבים טכניים, 30 שניות לכל אחת.",
     howItWorksHe: "כל שאלה מתארת מצב קצר (לוג, תשובת שרת, טבלת הרשאות) ושואלת מה הפעולה או ההסבר הכי סביר. כל מוסכמה שצריך יודגש בתוך השאלה.",
   },
   investigate: {
     key: "investigate",
     nameHe: "חקירה",
     itemCount: 4,
-    timeLimitS: 180,
-    ruleHe: "4 תרחישי חקירה, 180 שניות לכל אחד. כמה כרטיסיות מידע לכל תרחיש.",
+    timeLimitS: 150,
+    ruleHe: "4 תרחישי חקירה, 150 שניות לכל אחד. כמה כרטיסיות מידע לכל תרחיש.",
     howItWorksHe:
       "כל תרחיש מציג כרטיס תמיכה וכמה כרטיסיות מידע (לוגים, הגדרות, שיחות). התפקיד: למצוא את שורש הבעיה, לבחור את הפעולה הנכונה הראשונה, ולחלץ עובדה קונקרטית. לא כל כרטיסייה רלוונטית.",
   },
 };
 
-/** Seed blueprint's fixed position ranges per block (ASSESSMENT_DESIGN.md §2 table). */
+/**
+ * Seed blueprint's fixed position ranges per block (ASSESSMENT_DESIGN.md §2
+ * table). Blueprint v2 (0013_blueprint_v2_fast_items.sql): 10 + 8 + 8 + 4 =
+ * 30 items.
+ */
 export function blockKeyForPosition(position: number): string {
   if (position <= 10) return "speed";
-  if (position <= 16) return "reasoning";
-  if (position <= 23) return "tech";
+  if (position <= 18) return "reasoning";
+  if (position <= 26) return "tech";
   return "investigate";
 }
 

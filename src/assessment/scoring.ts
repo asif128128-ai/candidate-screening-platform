@@ -656,7 +656,15 @@ export function scoreSession(input: ScoreSessionInput): ScoreSessionResult {
   });
 
   const allResponseMs = responses.filter((r) => r.responseMs !== null).map((r) => r.responseMs as number);
-  const medianResponseMs = allResponseMs.length > 0 ? median(allResponseMs) : null;
+  // Rounded because `assessment_results.median_response_ms` is an integer
+  // column: with an even number of responses the median is the mean of the two
+  // middle values and can land on a half-millisecond, which Postgres rejects
+  // outright ("invalid input syntax for type integer: 226.5") — failing the
+  // whole completion write, not just this field. Latent while the blueprint
+  // had 27 items (odd, so the median was always an actual observation);
+  // blueprint v2's 30 items made it reachable. Sub-millisecond precision on a
+  // median response time is meaningless anyway.
+  const medianResponseMs = allResponseMs.length > 0 ? Math.round(median(allResponseMs)) : null;
 
   return {
     scoreReasoning: R,

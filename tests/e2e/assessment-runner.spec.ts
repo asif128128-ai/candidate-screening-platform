@@ -54,11 +54,17 @@ test.describe(hasDb ? "assessment runner (real Postgres)" : "assessment runner (
 
     await sql`delete from rate_limits where key = 'signup:unknown'`;
 
+    // The shipped blueprint (0013_blueprint_v2_fast_items.sql), so this suite
+    // exercises the timings and item count candidates actually get. Falls back
+    // to v1 only if v2 has not been migrated in yet.
     const configRows = await sql<{ id: string }[]>`
-      select id from assessment_configs where key = 'default_tech_student_v1' limit 1
+      select id from assessment_configs
+      where key in ('default_tech_student_v2', 'default_tech_student_v1')
+      order by key desc
+      limit 1
     `;
     const configId = configRows[0]?.id;
-    if (!configId) throw new Error("seed assessment_configs row missing — run 0002_seed.sql first");
+    if (!configId) throw new Error("seed assessment_configs row missing — run the migrations first");
 
     jobSlug = `e2e-assess-${randomUUID().slice(0, 8)}`;
     await sql`
@@ -226,7 +232,7 @@ test.describe(hasDb ? "assessment runner (real Postgres)" : "assessment runner (
     }
   }
 
-  test("full 27-item run completes and reaches the done page", async ({ page }, testInfo) => {
+  test("full 30-item run completes and reaches the done page", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "chromium", "real-signup e2e — chromium only, see file header");
     test.skip(!hasDb, "requires DATABASE_URL");
     test.setTimeout(120_000);
@@ -234,7 +240,8 @@ test.describe(hasDb ? "assessment runner (real Postgres)" : "assessment runner (
     await reachAssessmentStart(page, jobSlug);
     await page.getByTestId("block-intro-continue").click();
 
-    for (let i = 0; i < 40; i++) {
+    // 30 items (blueprint v2) + 4 block intros + the practice scene.
+    for (let i = 0; i < 50; i++) {
       await dismissAnyIntro(page);
       if (page.url().includes("/done")) break;
       await expect(page.getByTestId("assessment-runner")).toBeVisible({ timeout: 10000 });

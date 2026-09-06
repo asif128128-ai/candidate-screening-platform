@@ -377,6 +377,28 @@ describe("scoreSession — SCORING.md §10 worked example", () => {
     expect(result.breakdown.accuracyOverall).toBeCloseTo(22.25 / 27, 2);
   });
 
+  // Regression: `assessment_results.median_response_ms` is an integer column,
+  // and an even number of responses makes the median the mean of the two
+  // middle values — which Postgres rejects ("invalid input syntax for type
+  // integer: 226.5"), failing the entire completion write. Latent under the
+  // 27-item v1 blueprint; blueprint v2's 30 items made it reachable.
+  it("returns an integer medianResponseMs even with an even number of responses", () => {
+    const even = scoreSession({
+      items: items.slice(0, 4),
+      responses: [
+        { position: 1, status: "answered", answer: null, responseMs: 101, firstInteractionMs: null, answerChanges: 0 },
+        { position: 2, status: "answered", answer: null, responseMs: 202, firstInteractionMs: null, answerChanges: 0 },
+        { position: 3, status: "answered", answer: null, responseMs: 251, firstInteractionMs: null, answerChanges: 0 },
+        { position: 4, status: "answered", answer: null, responseMs: 400, firstInteractionMs: null, answerChanges: 0 },
+      ],
+      events: [],
+      blueprint: { weights: { reasoning: 0.3, independence: 0.3, tech: 0.25, speed: 0.15 } },
+    });
+    // (202 + 251) / 2 = 226.5 -> must be stored as an integer.
+    expect(even.medianResponseMs).toBe(227);
+    expect(Number.isInteger(even.medianResponseMs)).toBe(true);
+  });
+
   it("counts exactly one guessed item, and it is the fast-wrong speed item, not scene B", () => {
     expect(result.breakdown.guessedItems).toBe(1);
   });

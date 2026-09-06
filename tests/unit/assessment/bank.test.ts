@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { ALL_CHOICE_TEMPLATES, INVESTIGATION_SCENARIOS, REASONING_TEMPLATES, SPEED_TEMPLATES, TECH_TEMPLATES } from "@/assessment/bank";
-import { RELATIONS } from "@/assessment/bank/reasoning/analogy_structural";
 import { createRng, deriveItemSeed } from "@/assessment/rng";
 import { scoreItem, type CandidateAnswer } from "@/assessment/scoring";
 import type { AnswerKey, Difficulty, InvestigationAnswerKey, ItemTemplate } from "@/assessment/types";
@@ -23,11 +22,11 @@ function correctAnswerFor(kind: string, key: AnswerKey): CandidateAnswer {
 }
 
 describe("bank registry sizes match ASSESSMENT_DESIGN.md §4.3", () => {
-  it("14 speed + 12 reasoning + 14 tech = 40 choice templates; 12 investigation scenarios", () => {
-    expect(SPEED_TEMPLATES).toHaveLength(14);
-    expect(REASONING_TEMPLATES).toHaveLength(12);
-    expect(TECH_TEMPLATES).toHaveLength(14);
-    expect(ALL_CHOICE_TEMPLATES).toHaveLength(40);
+  it("12 speed + 11 reasoning + 12 tech = 35 choice templates; 12 investigation scenarios", () => {
+    expect(SPEED_TEMPLATES).toHaveLength(12);
+    expect(REASONING_TEMPLATES).toHaveLength(11);
+    expect(TECH_TEMPLATES).toHaveLength(12);
+    expect(ALL_CHOICE_TEMPLATES).toHaveLength(35);
     expect(INVESTIGATION_SCENARIOS).toHaveLength(12);
   });
 
@@ -227,29 +226,11 @@ describe("fixed templates: content genuinely scales with declared difficulty (re
     }
   });
 
-  it("tech.git_what_happened: d3 stories are strictly more complex mechanisms than the d2 story", () => {
-    for (const s of SEEDS) {
-      expect(genAt("tech.git_what_happened", 2, s).prompt).toContain("מחקה בטעות את branch");
-      const hardPrompt = genAt("tech.git_what_happened", 3, s).prompt;
-      expect(hardPrompt.includes("force-push") || hardPrompt.includes("rebase -i")).toBe(true);
-      expect(hardPrompt).not.toContain("מחקה בטעות את branch");
-    }
-  });
-
   it("tech.automation_pick: d1/d2 task pools are disjoint, and d2 tasks require resisting a tempting-but-wrong instinct", () => {
     const d1Tasks = new Set(SEEDS.map((s) => genAt("tech.automation_pick", 1, s).prompt));
     const d2Tasks = new Set(SEEDS.map((s) => genAt("tech.automation_pick", 2, s).prompt));
     for (const t of d1Tasks) expect(d2Tasks.has(t)).toBe(false);
     expect(d2Tasks.size).toBeGreaterThan(0);
-  });
-
-  it("tech.data_normalize: d1 is a single-rule case (phone/email); d2 requires juggling more than one rule at once (dates/names)", () => {
-    for (const s of SEEDS) {
-      const d1Title = genAt("tech.data_normalize", 1, s).prompt;
-      const d2Title = genAt("tech.data_normalize", 2, s).prompt;
-      expect(d1Title.includes("טור מספרי טלפון") || d1Title.includes("טור כתובות אימייל")).toBe(true);
-      expect(d2Title.includes("טור תאריכים") || d2Title.includes('טור שמות')).toBe(true);
-    }
   });
 
   it("tech.field_mapping_error: d2 rows use near-duplicate (confusable) targets instead of semantically distant ones", () => {
@@ -302,39 +283,6 @@ describe("fixed templates: content genuinely scales with declared difficulty (re
     for (const p of d2Prompts) expect(d1Prompts.has(p)).toBe(false);
   });
 
-  it("reasoning.analogy_structural: distractors increasingly share the target's relation family as difficulty rises", () => {
-    function sameFamilyFraction(difficulty: Difficulty): number {
-      let sameFamilyCount = 0;
-      let totalDistractors = 0;
-      for (const s of SEEDS) {
-        const t = tpl("reasoning.analogy_structural");
-        const seed = deriveItemSeed(BigInt(s) * 97n + 13n, t.id, s);
-        const rng = createRng(seed);
-        const { content, answerKey } = t.generate(rng, difficulty) as {
-          content: { options: string[] };
-          answerKey: Extract<AnswerKey, { kind: "single_choice" }>;
-        };
-        const correctText = content.options[answerKey.correctIndex];
-        const relation = RELATIONS.find((r) => r.pairs.some((p) => p[1] === correctText));
-        const familyBs = new Set(relation?.pairs.map((p) => p[1]) ?? []);
-        content.options.forEach((opt, i) => {
-          if (i === answerKey.correctIndex) return;
-          totalDistractors++;
-          if (familyBs.has(opt)) sameFamilyCount++;
-        });
-      }
-      return totalDistractors > 0 ? sameFamilyCount / totalDistractors : 0;
-    }
-
-    const d1Fraction = sameFamilyFraction(1);
-    const d2Fraction = sameFamilyFraction(2);
-    const d3Fraction = sameFamilyFraction(3);
-    expect(d1Fraction).toBe(0); // d1: never a same-family distractor
-    expect(d2Fraction).toBeGreaterThan(d1Fraction);
-    expect(d2Fraction).toBeLessThan(1);
-    expect(d3Fraction).toBe(1); // d3: every distractor is same-family
-  });
-
   it("reasoning.grid_pattern: more distractor options as difficulty rises (2 fewer rules at d1, an extra double-violation decoy at d3)", () => {
     for (const s of SEEDS) {
       expect(genAt("reasoning.grid_pattern", 1, s).options).toHaveLength(4);
@@ -363,12 +311,27 @@ describe("fixed templates: content genuinely scales with declared difficulty (re
     }
   });
 
-  it("reasoning.table_must_be_true: more rows to scan as difficulty rises (5 -> 6 -> 9)", () => {
+  // Round 3 (ASSESSMENT_DESIGN.md §2.2): d3's old 9-row table did not fit the
+  // 35 s reasoning limit, and scanning three more rows was clerical work
+  // rather than harder reasoning. d3 now scales through compound (two-field)
+  // predicates on the same 6-row table, so that is what this asserts.
+  it("reasoning.table_must_be_true: 5 -> 6 rows, and d3 scales by compound predicates rather than table size", () => {
     for (const s of SEEDS) {
       expect(markdownDataRowCount(genAt("reasoning.table_must_be_true", 1, s).prompt)).toBe(5);
       expect(markdownDataRowCount(genAt("reasoning.table_must_be_true", 2, s).prompt)).toBe(6);
-      expect(markdownDataRowCount(genAt("reasoning.table_must_be_true", 3, s).prompt)).toBe(9);
+      expect(markdownDataRowCount(genAt("reasoning.table_must_be_true", 3, s).prompt)).toBe(6);
+
+      // Compound predicates exist only in the d3 pool, so they must never
+      // appear below it.
+      expect(genAt("reasoning.table_must_be_true", 2, s).options.join(" ")).not.toContain(" וגם ");
     }
+    // d3 samples 4 statements from a pool that mixes simple and compound
+    // predicates, so a given instance may draw none — assert on the sample
+    // rather than per-seed.
+    const d3WithCompound = SEEDS.filter((s) =>
+      genAt("reasoning.table_must_be_true", 3, s).options.join(" ").includes(" וגם "),
+    ).length;
+    expect(d3WithCompound).toBeGreaterThan(SEEDS.length / 2);
   });
 });
 

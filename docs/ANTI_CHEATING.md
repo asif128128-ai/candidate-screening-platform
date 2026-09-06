@@ -55,10 +55,10 @@ Deliberately not collected: keystroke content, mouse trajectories, screen record
 
 | Threat | Primary defense | Detection |
 |---|---|---|
-| Paste item into ChatGPT in another tab | Per-item limits (20/75/60/180 s); SVG rendering; copy cancelled | `visibility_hidden` / `window_blur` spans during the item, especially hidden spans > 8 s followed by a correct answer near the deadline |
+| Paste item into ChatGPT in another tab | Per-item limits (15/35/30/150 s); SVG rendering; copy cancelled | `visibility_hidden` / `window_blur` spans during the item, especially hidden spans > 8 s followed by a correct answer near the deadline |
 | **Script the two JSON endpoints directly with the session cookie** (no browser, LLM solves items, human-plausible delays) | Per-serve `item_token` (must GET the item to answer it); the answer body must reference materialized option ids | This produces **no client telemetry at all** — which a real runner never does. Telemetry-empty items are the primary signal and carry hard floors (§5.3): ≥ 40 % empty items → at least סיכון גבוה. The interview is the final backstop for a candidate who scripts *and* fakes telemetry |
 | Second monitor/window side by side | Same limits; investigation items require *navigating* artifacts — the assistant can't see the tabs | `resize` to a narrow viewport at start; `window_blur` without `visibility_hidden`; consistently long `first_interaction` on text-heavy items combined with high accuracy |
-| Phone with camera pointed at the screen | Limits; grids/tables are dense; investigation needs interaction | Timing pattern: long idle before first interaction then fast completion; not individually strong — combined signal only |
+| **Phone camera + a multimodal model** (the primary threat — see `ASSESSMENT_DESIGN.md` §2.2) | Per-item limits set against the *photo* round trip (≈ 11–12 s at its fastest), not the retyping one: speed items at 15 s fail the loop outright. Above that band the clock cannot win, so: transfer cost (typed answers, 5-dropdown orderings), evidence spread across tabs the candidate has not opened yet, more items so each externalized one is worth less, and the open declaration (§2.5) | Timing pattern: long idle before first interaction then fast completion; on investigation scenes, the decisive tab opened once with near-zero dwell before a correct answer. Not individually strong — combined signal only. **Note the honest gap: a candidate who photographs one reasoning item, keeps the phone below the desk and never leaves the window produces no `visibility_hidden` and no `blur` — this threat is detected weakly at best, which is why item design and the interview carry it** |
 | Friend takes the test / candidate takes it twice | One application per email+job; OTP re-entry; interview for finalists | `duplicate_phone_of` badge; `ip_change` + `ua_change` mid-session; admin sees multiple applications from the same IP prefix (list filter) |
 | Automation (script answering) | Answers must reference materialized options; unknown option ids rejected | Impossible timing: `first_interaction` < 300 ms on multiple items; `response_ms` < 1.5 s on difficulty-3 correct answers |
 | Refresh to reset timer | Server-authoritative `served_at` written once (DB trigger prevents change) | n/a — impossible |
@@ -108,7 +108,7 @@ Why `TELEMETRY_GAP` is treated as strong evidence: the runner emits at least `fi
 - Any `instance_conflict` (true concurrency) → at least **סיכון בינוני**.
 - A blur-only pattern with no other signal can never exceed **סיכון נמוך** (the corroboration rule in §5.1).
 
-A fully scripted run (zero client telemetry) therefore lands at סיכון גבוה regardless of how plausible its timing is, with the reason "ב-27 מתוך 27 שאלות לא התקבלו אירועי דפדפן כלל — התשובות כנראה לא נשלחו דרך ממשק המבחן".
+A fully scripted run (zero client telemetry) therefore lands at סיכון גבוה regardless of how plausible its timing is, with the reason "ב-30 מתוך 30 שאלות לא התקבלו אירועי דפדפן כלל — התשובות כנראה לא נשלחו דרך ממשק המבחן".
 
 Reasons are emitted for every signal with normalized value > 0, sorted by contribution, each with a Hebrew sentence and concrete evidence, e.g.:
 
