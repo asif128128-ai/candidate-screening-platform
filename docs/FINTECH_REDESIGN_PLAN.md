@@ -451,3 +451,210 @@ Estimated total: ~5 engineering days. P0 is a half day and ships alone first.
 - A generated `reasoning.grid_pattern` item shows a real 3×3 figure and six SVG option tiles; no candidate-facing text contains a literal backtick or `<svg`.
 - Every table whose header is Hebrew reads right-to-left; every free-text answer field accepts Hebrew with a correct caret.
 - Lighthouse accessibility ≥ 95 on landing, step 1, briefing, runner (choice item), done; keyboard-only completion of the full flow works.
+
+---
+
+## Round 2 — client feedback: "not professional enough" + tech-ops line
+
+Status: **Decided.** Author: Fable. Basis: the live build (working tree as of this round, including the other engineer's "20 דקות" and root-redirect changes) run locally against real Postgres and screenshotted with Playwright at 1366×768 and 390×844 — every candidate route, every runner block type (speed, reasoning incl. the SVG grid and ordering, tech incl. table and code, investigation), every block intro, the practice scene, all runner button states (amber timer, skip-confirm, hover, disabled), the done page, resume (code + OTP + error), privacy, the inactive-job page, the bare 404, `/apply/*` without a cookie, and the "already past this step" variants. The critique below is from those renders, not from the component code.
+
+Already handled elsewhere, not repeated here: the bare `/` route now redirects to the job page; "20 דקות" is in all candidate copy. One knock-on from the latter is flagged in §R2.2 landing.
+
+Round-1 decisions stand unless a subsection explicitly overrides one and says why. Overrides in this round: the canvas/line/shadow values (§R2.3.1), the disabled-button treatment (§R2.3.4), the CTA width rule (§R2.3.4), the header composition (§R2.3.2), the investigation grid ratio (§R2.2 runner), and the cards-everywhere rhythm (§R2.3.3).
+
+### R2.0 Why it still does not read as "a professional website" — the diagnosis in one paragraph
+
+The tokens landed; the art direction did not. Every page is the same composition: a 24 px heading, then a vertical stack of identical white cards with the same 24 px padding and the same barely-visible shadow on a barely-different grey, then a blue button whose width and alignment differ from page to page. Nothing on any page is visually primary. The header is an empty 56 px strip with a placeholder wordmark ("Careers") on one edge and, on flow pages, a 13 px stepper flung to the opposite edge of a 1366 px viewport, leaving 900 px of nothing between them — that single element is what makes the site read as "a template" before the candidate reads a word. Type is small and flat (the H1 is literally *smaller* on desktop than on mobile because of an inverted breakpoint), the canvas (#F6F7FB) against white cards has too little contrast for the card edge to register, and several unfinished states leak through: an English Next.js 404, English Zod error strings, a job description rendered as one 11-line wall of text, a skip button stuck in its confirmation state for the rest of the assessment, and an unstyled "already past this step" screen. Palette-wise, ink-navy + electric-blue + mint is fine and stays; the problem is hierarchy, rhythm, and finish, not hue.
+
+### R2.1 The tech-ops line — new copy and placement
+
+**Diagnosis.** Two things make it read as a warning. (a) The words: "כולל חלק של תמיכה טכנית פנימית — אנחנו אומרים את זה מראש" is the grammar of a disclaimer ("we're telling you now so you can't complain later"). (b) The placement: it is a bare paragraph floating between the ink terms card and the white process card, with no heading and no container — visually the same position and weight as fine print. The seed's own job description already has the right framing ("זו לא משרת Help Desk: המטרה הרחבה היא להפוך את הארגון למקום טכנולוגי, אוטומטי ויעיל הרבה יותר, ואת/ה תהיו חלק מרכזי בזה") — the landing line just never inherited it.
+
+**Constraint preserved.** The founding brief: be transparent that IT/support work exists; do not position the job as Help Desk. The new copy names internal technical support explicitly and in the first sentence. It is not softened into invisibility; its *valence* changes.
+
+**Placement.** The line moves inside a new `Card` titled **"מה התפקיד באמת"** on the landing page (round 1 §1.7 already specified this card; it was never built — the line shipped as a loose `<p>`). The card has a two-column split at ≥ 480 px and the line under it as body text. It is *not* a `Callout` (a tinted box with an icon is a warning affordance).
+
+```
+Card  "מה התפקיד באמת"                                   (H2 20/28 600 --ink-900)
+
+  grid 2 cols (1 col < 480px), gap 24                  each column:
+  ┌──────────────────────────┬──────────────────────────┐
+  │ eyebrow  פיתוח · כ-50%   │ eyebrow  תפעול טכנולוגי · כ-50% │   13/20 600 --brand-700
+  │ כלים פנימיים, אוטומציות,  │ תשתיות ו-Cloud, הרשאות     │   15/24 --text-2
+  │ אינטגרציות ועבודה מול APIs│ ומערכות SaaS, נתונים, לוגים │
+  │                          │ ותקלות                    │
+  └──────────────────────────┴──────────────────────────┘
+
+  p  data-testid="tech-ops-line"                         16/26 --text, mt 20
+```
+
+**Exact new Hebrew copy** (`jobs/[slug]/page.tsx`, keep `data-testid="tech-ops-line"`):
+
+> חלק מהתפעול הוא תמיכה טכנית פנימית לעובדים — זה חלק אמיתי מהתפקיד, אבל זו לא משרת Help Desk. מי שרואה את התקלות מקרוב הוא מי שיודע מה כדאי לאוטמט ולייעל, וזו בדיוק ההזדמנות: להפוך את הארגון למקום טכנולוגי, אוטומטי ויעיל הרבה יותר — **ואתם תהיו חלק מרכזי בזה.**
+
+Render the last clause (from "ואתם") as `<strong class="font-semibold text-ink-900">`. `Help Desk` and `APIs`/`Cloud`/`SaaS` go through `<Term>`.
+
+Column copy (verbatim): right column eyebrow `פיתוח · כ-50%`, body `כלים פנימיים, אוטומציות, אינטגרציות ועבודה מול APIs.`; left column eyebrow `תפעול טכנולוגי · כ-50%`, body `תשתיות ו-Cloud, הרשאות ומערכות SaaS, נתונים, לוגים ותקלות.`
+
+**Same framing in step 2.** The seeded job description (`supabase/migrations/0002_seed.sql`, and the live `jobs.description_he` row) still contains "חלק מזה הוא תמיכה טכנית פנימית לעובדים — זה קיים, ואנחנו אומרים את זה מראש." Replace that sentence in the seed with: `חלק מזה הוא תמיכה טכנית פנימית לעובדים — זה חלק אמיתי מהתפקיד.` (the following sentence "זו לא משרת Help Desk: …" already carries the mission). On the **live** database this is a one-line edit in Admin → Jobs → edit description (re-saving also fixes the paragraph-rendering bug in §R2.2 step 2); do not write a data migration for a text edit an admin screen exists for. Also update `docs/CANDIDATE_FLOW.md` §1.1 and §3.1 to the new sentences. The step-2 confirmation checkbox #1 ("הבנתי שהתפקיד משלב … תמיכה טכנית פנימית") is unchanged — it is the explicit acknowledgement the brief asks for.
+
+### R2.2 Screen-by-screen critique and fixes
+
+Each item: **what I saw → fix.** Tailwind/CSS values are exact; component names refer to `src/components/ui/*`.
+
+#### Landing `/jobs/{slug}` (1366 and 390)
+
+1. **H1 is 24 px on desktop, 28 px on mobile** — `text-[28px] … min-[480px]:text-[24px]` is inverted (round 1 said 28 desktop / 24 mobile). Same bug on step 1, step 2, briefing, resume, privacy. → New shared class in `globals.css`: `.h1 { font-size: 26px; line-height: 34px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink-900) } @media (min-width: 640px) { .h1 { font-size: 32px; line-height: 40px } }`. Replace every H1 class string with `h1`. (Type scale change recorded in §R2.3.5.)
+2. **Summary line under the H1 is meta, not a hook.** 18 px `--text-2` with no separation from the H1. → Add an eyebrow row *above* the H1: `BRAND_NAME · ראשון לציון · משרה חלקית` 13/20 600 `--brand-700` (`tnum`); H1; summary 18/28 `--text-2` with `mt-3`; then `mt-8` before the terms card. (Verify the production `summary_he` is real copy — the local test row contains e2e junk "תקציר מעודכן 1788…", which is a reminder that this line is admin-editable and must be checked on prod after every admin test run.)
+3. **The terms card has a ragged 2-column grid** ("התחלה" alone on the last row, keys 13 px grey on ink) and the hero rate is under-scaled for a 720 px card. → `TermsCard`: rate 40/48 700 `--mint-300` (`tnum`), "לשעה" 15/24 `--ink-200` on the same baseline; a 1 px `--ink-800` rule under the rate row (`mt-5 border-t border-ink-800 pt-5`); the `dl` becomes **three** columns at ≥ 640 px (`grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-3`, `gap-x-8 gap-y-5`), keys 12/16 600 `--ink-200`, values 15/24 600 white. Five cells fill 2×3 with no orphan by giving "מיקום" `sm:col-span-2` — DOM order: מיקום (span 2) · התחלה / היקף שבועי · אורך יום · סוג התקשרות. Keep exactly four `<Term>`s in the card (the e2e suite counts them).
+4. **Tech-ops line floats as fine print.** → §R2.1.
+5. **Process list: duration chips sit inline after the text and wrap under it on mobile ("כ-20 דקות" dropped to its own line).** Also the "20 דקות" chip is now visually lighter than the row that was designed around "30". → Rebuild each row as `grid grid-cols-[28px_1fr_auto] items-center gap-3` (number badge · text · chip); chips get `justify-self-end` so all three durations align in one column; the badge grows to 28 px (`h-7 w-7`), bg `--brand-50`, text `--brand-700`, 13/20 600; row height 44 px with a 1 px `--line` divider between rows (`divide-y divide-line`, padding `py-3`). Row 3 text stays bold. The line under the list ("כדאי לעבור את כל התהליך ברצף…") → 14/22 `--text-2`, `mt-4`, with "כ-25 דקות" in `<Term>`.
+6. **CTA is auto-width, right-aligned, 48 px, and the only auto-width CTA in the funnel; its hover state (brand-600 → brand-700) is invisible in a screenshot; the privacy link is duplicated (under the CTA and again in the footer).** → CTA per §R2.3.4 (`size="lg"`, 52 px, `min-w-[240px]`, start-aligned, plus a helper line at its side: "כ-25 דקות · במחשב" 13/20 `--text-3`). Delete the under-CTA privacy link; the footer has it.
+7. **Inactive job (`/jobs/does-not-exist`) is a lone H1 on an empty canvas.** → Render a `Card` (max-w 480, centered): icon-less, H1 "המשרה אינה פתוחה כרגע" 24/32, body "ייתכן שהקישור ישן או שהמשרה כבר אוישה. אם הגעתם לכאן מהודעה שקיבלתם מאיתנו, כתבו לנו — הכתובת בעמוד מדיניות הפרטיות." 16/26 `--text-2`, `secondary` button "למדיניות הפרטיות". Same treatment for step 1's and step 2's `!job` branches.
+8. **Bare 404 is Next's default: English, LTR, no shell.** → Add `src/app/(candidate)/[locale]/not-found.tsx` rendering `CandidateShell` + the same `Card` pattern: H1 "העמוד לא נמצא", body "הקישור שגוי או שפג תוקפו.", primary "למשרה הפתוחה" → `/jobs/student-tech-2026` (via `BRAND`/`DEFAULT_JOB_SLUG` constant in `src/lib/brand.ts`, not a string literal in the page), ghost "חזרה לתהליך עם קוד" → `/resume`. Also `error.tsx` at the same level with "משהו השתבש" + a reload button, so a thrown server error never shows the default Next error page.
+
+#### Step 1 `/jobs/{slug}/apply`
+
+1. **English validation strings leak: "Expected number, received nan" (study year) and "Required" (Rishon radio).** → `src/lib/validation.ts`: `studyYear: z.coerce.number({ invalid_type_error: "יש לבחור שנת לימוד" }).int().min(1, …).max(7, …)` — and because `z.coerce.number("")` yields `NaN` which hits `invalid_type_error` only in some Zod versions, guard with `.pipe()` after `z.string().min(1, "יש לבחור שנת לימוד")`; `canWorkRishon: z.enum(["yes","no"], { errorMap: () => ({ message: "יש לבחור תשובה" }) })`. Add a unit test that submits an empty form and asserts every error string matches `/[֐-׿]/` and none matches `/Expected|Required|received/`.
+2. **Eyebrow under the H1 wraps to two lines because it carries the full job title** ("כ-3 דקות · נשמר אוטומטית בדפדפן — סטודנט/ית למשרה…"). → Eyebrow is `כ-3 דקות · נשמר אוטומטית בדפדפן` only. The job title goes *above* the H1 as the page eyebrow (13/20 600 `--brand-700`, truncated with `truncate` at one line).
+3. **One 560 px column of 48 px inputs with 20 px gaps and 13 px grey group labels reads as an unstyled HTML form.** → Two-up rows at ≥ 480 px: `grid grid-cols-1 gap-5 min-[480px]:grid-cols-2` for (שם פרטי, שם משפחה), (תאריך לידה, טלפון נייד), (מוסד לימודים, תואר / מסלול), (שנת לימוד, ממוצע); email, LinkedIn, GitHub stay full width. Group labels become real section headings: 15/24 600 `--ink-900` with a 13/20 `--text-3` description beside/under them ("מי את/ה" → "פרטי קשר"; "לימודים" → "לימודים"; "זמינות" → "זמינות"; "אופציונלי" → "לא חובה — אבל עוזר לנו"), section spacing `pt-6 mt-6 border-t border-line`. Field label 14/22 500 `--text-2` stays.
+4. **The date input shows the browser's LTR `dd/mm/yyyy` with a calendar icon on the far left of an RTL form.** Acceptable functionally; make it look intended: `dir="ltr" text-start` (already) plus `min-[480px]:max-w-[220px]` so it does not stretch as an empty 48 px bar.
+5. **Segmented כן/לא control is 96 px per side and hugs the right edge under a long legend.** → `min-w-[120px]` per side, and the legend shortens to `זמינות להגיע לאזור ראשון לציון (היברידי)` with helper `נדרש חלק מהשבוע; לא מרחוק בלבד` 13/20 `--text-3`.
+6. **CV dropzone is a 130 px tall dashed box for an optional field — the largest element on the page.** → Compact: `py-4`, icon and text on one `rtl-row` (icon 20 px · "גררו קובץ או לחצו לבחירה" 15/24 · chip), height ~64 px.
+7. **Success panel: the stepper renders twice (header and inside the card), three different step counters are visible on mobile ("שלב 1 מתוך 4" ×2 and "שלב 1 מתוך 3 הושלם"), the page H1 "פרטים אישיים" + "כ-3 דקות" eyebrow stay above the panel, "/resume" appears as a raw path in prose, and the CTA is auto-width while the form's was full width.** → (a) Remove `<Stepper>` from inside the card; the header stepper gets `currentAlsoDone`. (b) Eyebrow → `הפרטים נשמרו` (no numbers; the landing counts 3 steps, the stepper 4 — do not put both totals in front of the candidate). (c) Move the H1 and eyebrow into `PersonalDetailsForm` so the `created` branch renders its own heading: H1 "הפרטים נשמרו" (class `h1`), sub 18/28 `--text-2` "השלב הבא: התפקיד והמבחן — המועמדות נבחנת רק אחרי המבחן המקוון (כ-20 דקות, במחשב)." (d) A 48 px mint check disc (bg `--mint-600`, white 24 px check) at the start of the card, `rtl-row gap-4` with the heading. (e) Helper under the resume code: `אם תצטרכו לעצור באמצע, האימייל והקוד מחזירים אתכם לאותה נקודה ב` + `<Link href="/resume">עמוד החזרה לתהליך</Link>` + `. שלחנו אותו גם למייל.` (f) CTA per §R2.3.4, start-aligned, `size="lg"`.
+
+#### Step 2 `/apply/{id}/job`
+
+1. **The job description is one unbroken 11-line paragraph — the single most unprofessional element in the funnel.** Cause: `renderJobDescriptionHtml` (`src/db/queries/jobs.ts:204`) splits paragraphs on `\n{2,}` and the stored `description_he` uses single newlines, so every paragraph — including the `**פיתוח תוכנה (~50%)**` lead-ins — is joined with spaces into one `<p>`. → `const blocks = markdown.trim().split(/\n+/)` (a single newline is a paragraph break; there is no use of soft line breaks in job descriptions), and lines that are *only* a `**…**` run become `<h3>` instead of `<p><strong>`. Re-save the live job in Admin → Jobs (the description is re-rendered on save) — that is also where the §R2.1 sentence edit happens. Add a unit test on `renderJobDescriptionHtml` with the seed text asserting ≥ 5 `<p>`/`<h3>` blocks.
+2. **Prose card styling is flat once paragraphs exist.** → In the `prose` class map add `[&_h3]:mt-6 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3]:text-ink-900 [&_p]:mt-3 [&_p]:text-text-2 [&_p:first-child]:mt-0 [&_p:first-child]:text-text [&_p:first-child]:text-[17px] [&_p:first-child]:leading-7` so the opening paragraph is the lede.
+3. **Three stacked surfaces (description card, ink card, confirmations card) with equal weight.** → Description card becomes **flat** (`variant="flat"`, §R2.3.3); the ink card stays; the confirmations card keeps the shadow — it is the action surface. Title the confirmations card: H2 "לפני שממשיכים, שלושה אישורים" 17/24 600, `mb-4`. Checkbox rows get `py-2` and a 1 px `--line` divider (`divide-y divide-line`).
+4. **Already-past variant** ("כבר אישרת את השלב הזה") is a bare H1 + paragraph + button. → Same `Card` pattern as the landing's inactive-job card; body "אפשר להמשיך מהנקודה שבה עצרתם.", primary "המשך" → `stepPath`. Reuse for the briefing's already-past branch.
+
+#### Briefing `/apply/{id}/briefing`
+
+1. **Four identical cards + a floating status row + a full-width washed-out disabled button.** The disabled primary at 45 % opacity reads as a rendering glitch, and the mint "✓ מסך רחב ✓ מסך מלא זמין" row floats on the canvas with nothing anchoring it. → Merge "מה זה" and "מה לצפות" into **one** flat card with two H2 sections separated by `border-t border-line pt-5 mt-5`; "הכללים" stays its own flat card; the disclosure becomes a flat card whose *content* is the callout text styled as plain body (drop the nested `Callout` — a callout inside a card is a box inside a box): eyebrow "שקיפות" 13/20 600 `--brand-700`, body 15/24 `--text-2`, then the consent checkbox with `mt-4 pt-4 border-t border-line`. The device check moves into the same card as a two-row status list under the checkbox (`rtl-row gap-2 text-[14px]`: 16 px check disc `--mint-600`/`--amber-500` + label); the viewport warning `Callout warning` stays where it is (it is a real warning). CTA per §R2.3.4 (`size="lg"`, start-aligned, `min-w-[240px]`) with the disabled treatment from §R2.3.4 — not opacity.
+2. **Rule list check icons are 16 px `--brand-600` ticks with no container — fine, keep; but bump list gap to `space-y-3`.**
+
+#### Block intro (all four) and practice scene
+
+1. **A 560 px column whose heading, chips and rule are right-aligned while the auto-advance line is centered; no sense of which part of four this is; CTA is a 560 px white bar.** → Add eyebrow `חלק {n} מתוך 4` (`tnum`) in place of "החלק הבא"; above the column, a 4-segment progress rail (`grid grid-cols-4 gap-1.5`, each segment `h-1 rounded-full`, done `--brand-400`, current white, upcoming `--ink-800`). Auto-advance line → `text-start`, not centered. CTA → `onInk` `size="lg"` auto-width `min-w-[240px]` start-aligned; put the auto-advance line beside it on the same row at ≥ 640 px (`rtl-row items-center gap-4`).
+2. **Display type on ink is fine (36/44 700).** Keep. Rule text → 17/28 `--ink-200` for readability on ink.
+3. **Practice scene: band, page heading and CTA use three different widths (1180 / 1040 card / 1180 button).** → The practice CTA uses the runner's action-bar layout (`mt-8 flex justify-between`) with the primary at the end side, exactly like an item, so the candidate rehearses the real button position.
+
+#### Assessment runner
+
+1. **BUG — the skip button stays in its "לדלג בלי לענות?" confirm state on every item after the first skip click, with no 4 s revert and no reset on item change.** Screenshots of items 3, 11, 13–17, 19, 24 all show the confirm label; on those items a single click skips with no confirmation. → In `runner.tsx`: reset `skipConfirm` to `false` in the item-load effect (the `useEffect` keyed on `phase.item.itemId`) and add `useEffect(() => { if (!skipConfirm) return; const t = setTimeout(() => setSkipConfirm(false), 4000); return () => clearTimeout(t); }, [skipConfirm])`. Add an e2e assertion: after `skip-button` is clicked once and the next item loads, its text is "דילוג על השאלה".
+2. **Option rows are 924 px wide for two-word answers (items 1, 3, 14, 19); the eye travels the full width to find the badge.** → Runner content column 1040 → **880 px** (`max-w-[880px]`) and the item card padding stays 32; the options column gets `max-w-[640px]` for `single_choice`/`multi_choice` when every option is < 40 characters (compute in `SingleChoiceView`: `const short = content.options.every(o => o.length < 40)`), otherwise full card width. Investigation and table items are unaffected.
+3. **Numeric input renders full width** (`w-40` loses to `w-full` in `FIELD_BASE`). → Wrap in `<div className="w-40">` and drop `w-40` from the input; unit label stays beside it.
+4. **Grid-pattern figure is pinned to the far left of an RTL card while the prompt and option tiles are on the right — the composition is split in two.** → Figure wrapper `flex justify-center my-6` (the SVG itself keeps `dir="ltr"`); option tiles become `justify-content: flex-start` in RTL (i.e. start-aligned under the prompt) with `gap-3` and 104 px tiles; selected tile gets the same inset ring plus `bg-brand-50`.
+5. **Table item (16) and mapping item (17): tables fill 924 px with 5 columns of 3-character content.** → Tables get `w-auto min-w-[420px]` instead of `min-w-full`, header cells `whitespace-nowrap`, and the wrapper `inline-block max-w-full`.
+6. **Timer band: fine. The progress label has no block-of-four context.** → Start side becomes `חלק 2 מתוך 4 · חשיבה` (13/20 600 `--ink-200`, `tnum`) above `שאלה 11 מתוך 27` (16/24 600 white); band height 64 stays.
+7. **Disabled "שליחת תשובה" at 45 % opacity looks broken next to the sharp skip button.** → §R2.3.4 disabled treatment.
+8. **Investigation: answers column (5/12) is cramped — every option wraps to three lines — while the artifact pane (7/12) is 70 % empty, and the tab list wraps to a second row ("טקסט שגיאת הדפדפן").** Override round 1's 5/7: → **7/5** (answers `lg:col-span-7`, artifacts `lg:col-span-5`); the artifact pane is `lg:sticky lg:top-24 self-start` so it stays visible while scrolling q1→q3; tab list `flex-nowrap overflow-x-auto` with `whitespace-nowrap` tabs and a hidden scrollbar (`[scrollbar-width:none]`); artifact `<pre>` gets `dir="auto"` (Hebrew bodies like "תוקף: פג אתמול ב-03:00" currently render inside an LTR block). Sub-question chips "1/2/3" → 24 px `--brand-50`/`--brand-700` badges to match the landing's process badges (one numbering style across the product).
+9. **Ordering item: five 180 px selects with "בחר/י אירוע" (gendered — round 1 B12 said "בחרו אירוע") right-aligned under a wide empty card.** → Selects `w-full max-w-[420px]`; copy fix.
+10. **Round-1 P2 B-level copy not landed** — item 16 still says "(must be true)" (B3), item 14 uses the old analogy format (B2), the ordering placeholder (B12). These are in round 1's §5 P2 list; they are not visual and are not re-specified here, but the engineer should confirm the P2 bank-copy checklist actually shipped before closing round 2.
+
+#### Done `/apply/{id}/done`
+
+The strongest screen in the funnel; keep the composition. Two changes: → the outline check becomes a filled 64 px disc (bg `--mint-600`, white 28 px check) so it reads as a state, not a line icon; the date sentence gets `text-[18px] leading-7` with the date in `<Term>` 700 `--ink-900` (already 600 — bump). Mobile is fine.
+
+#### Resume `/resume`
+
+1. **The label "קוד החזרה (K7M4-Q2XP)" puts a sample code in the label where it reads as a real value.** → Label `קוד החזרה`; the input gets `placeholder="K7M4-Q2XP"` and `font-mono tracking-wider` (`className="font-mono tracking-[0.08em]"`), `autoCapitalize="characters"`, `maxLength={9}`.
+2. **OTP mode shows two "אימייל" fields on one screen (one per form).** → One email field; the "שליחת קוד למייל" form owns it; after `sent === true` the verify form appears *below* with the email carried in a hidden input (`<input type="hidden" name="email" value={email}>`) and a line "שלחנו קוד ל-{email}" 14/22 `--text-2` with a ghost "לשנות אימייל". Until sent, the verify form is not rendered.
+3. Error callout, "אין לכם את הקוד?" ghost link: fine. Page sub-line: fine.
+
+#### Privacy `/privacy`
+
+Fine as a reading page; two changes: → the request card becomes flat (it is secondary to the notice); the H2 "בקשה לגבי הפרטים שלי" gets `mt-12`. The notice text itself is consent-hashed (`consent-text.ts`) and is **not** edited; the "**מה אנחנו אוספים ולמה.**" lead-ins cannot be bolded without changing the hash — accepted.
+
+#### `/apply/{id}/assessment` already-past branch
+
+Unstyled: raw `text-neutral-600`, a black `bg-neutral-900` button, no shell, no header. → Wrap in `CandidateShell` with the same `Card` pattern as step 2's already-past variant. Grep `src/app/(candidate)` for `neutral-` and remove every hit.
+
+### R2.3 Cross-cutting design-system changes
+
+#### R2.3.1 Canvas, line, shadow (overrides round 1 §1.2 values; everything else in §1.2 stands)
+
+The card edge does not register at #F6F7FB/#FFFFFF with a 6 % shadow. New values, `globals.css` only (Tailwind reads the variables):
+
+```css
+--canvas: #EEF1F7;        /* was #F6F7FB */
+--line:   #DCE2EC;        /* was #E3E7F0 */
+--line-strong: #C3CBDA;   /* was #C9D0DE */
+```
+`tailwind.config.ts` `boxShadow.card` → `0 1px 2px rgba(11,21,48,.06), 0 10px 30px rgba(11,21,48,.08)`. Contrast re-check: `--text-3` (#6B7690) on the new canvas is 4.2:1 — **below AA** — so `--text-3` becomes `#606B86` (4.6:1 on #EEF1F7, 5.1:1 on white). Propagates automatically to every `text-text-3` use; no per-file work.
+
+#### R2.3.2 Header and footer (`candidate-shell.tsx`, `brand-mark.tsx`, `stepper.tsx`)
+
+- Header height 56 → **64 px**; layout `grid grid-cols-[1fr_auto_1fr] items-center` so the stepper is **centered** and the brand mark sits at the start; the end cell holds nothing on candidate pages (reserved). Under 640 px: two columns (brand · "שלב N מתוך 4").
+- `BrandMark` without a client logo: a 28 px rounded-8 `--ink-900` square containing the first letter of `BRAND_NAME` in white 15/700, then the wordmark 17/24 700 `--ink-900`, `gap-2.5`. Ask the client — again — for `logo.svg` and a hex; the monogram is the fallback, not the brand.
+- `Stepper`: dots 8 → **10 px**, labels 13 → **14/20**, connectors 16 → **28 px** (`w-7`), gap 10; done dot `--mint-600` keeps a 12 px white check inside (so "done" is not only a color).
+- Footer: `© {year} {BRAND_NAME} · מדיניות פרטיות · {PRIVACY_CONTACT_EMAIL}` (email as `mailto:` in `<Term>`), 13/20 `--text-3`, `py-8`.
+
+#### R2.3.3 Card weight — one primary surface per page
+
+`Card` gets `variant?: "raised" | "flat"` (default `raised` = current). `flat` = `bg-surface border border-line rounded-16` with **no shadow**. Rule: the surface the candidate acts on (the form, the confirmations, the item pane, the done card) is `raised`; reading content (job description, briefing text, privacy request) is `flat`. Never two raised cards stacked directly.
+
+Vertical rhythm on reading pages: H1 block → `mt-8` to the first surface (was 24); between surfaces `mt-5` (was 24 — the stack breathed in the wrong place: too much air between cards, too little after the heading).
+
+#### R2.3.4 Buttons — size, alignment, disabled (overrides round 1 §1.5 on the last two)
+
+- Add `size="lg"`: **52 px** height, `px-7`, 17/24 600, `rounded-12`. Used for every page-level primary (landing CTA, step-1 success CTA, briefing "מתחילים", block-intro "להתחיל", practice continue, done page has none).
+- Width rule: **form submits are full width inside their card** (step 1, step 2 confirmations, resume, privacy); **page-level CTAs are auto width, `min-w-[240px]`, aligned to the start side** of the content column. On < 640 px all primaries are full width. This is the one rule; the current mix (landing auto/right, step-1 success auto/left-ish, briefing full) is what makes the pages feel un-art-directed.
+- Hover: keep `--brand-700` but add `shadow-[0_6px_16px_rgba(43,77,255,.28)]` and `-translate-y-px` so the state is visible; active resets both.
+- **Disabled (override):** round 1 chose 45 % opacity to "keep the color legible"; in practice it reads as broken. New: `disabled:bg-line-strong disabled:text-white disabled:shadow-none disabled:cursor-not-allowed` for `primary`; `secondary`/`ghost` disabled keep opacity .5. The label stays legible (white on #C3CBDA is 2.2:1 — acceptable for a disabled control per WCAG's exemption; the enabled state carries the real contrast).
+
+#### R2.3.5 Type scale (amends round 1 §1.3)
+
+- H1: 32/40 (≥ 640) / 26/34 (mobile), 700, −0.01em — via the `.h1` class; fixes the inverted breakpoint everywhere in one place.
+- Page eyebrow (above H1): 13/20 600 `--brand-700`.
+- Section heading inside forms: 15/24 600 `--ink-900` (replaces 13 px grey group labels).
+- Everything else unchanged.
+
+#### R2.3.6 Focus ring
+
+The ring exists but at 3 px `--brand-100` it is nearly invisible on white. → `box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand-600)` (a white gap then a solid brand ring — visible on white, canvas and ink). Keep the same declaration in `.focus-ring:focus-visible`, `FIELD_BASE` focus, and the checkbox/radio peer rules.
+
+### R2.4 Prioritized implementation checklist
+
+Estimated ~3 engineering days. P0 is copy + bugs and ships first, the same day.
+
+#### P0 — client-visible copy and outright bugs (half a day)
+- [ ] §R2.1 tech-ops line: new copy + "מה התפקיד באמת" card with the 50/50 columns in `jobs/[slug]/page.tsx`; keep `data-testid="tech-ops-line"`; update `CANDIDATE_FLOW.md` §1.1/§3.1 and the seed sentence; edit the live job description in Admin (also fixes the next item on prod).
+- [ ] Step 2 paragraph collapse: `renderJobDescriptionHtml` split on `\n+`, bold-only lines → `<h3>`; unit test; re-save the live job.
+- [ ] Runner skip-confirm never resets: reset on item change + 4 s revert in `runner.tsx`; e2e assertion.
+- [ ] English Zod strings on step 1 (`validation.ts` studyYear / canWorkRishon); Hebrew-only error test.
+- [ ] H1 inverted breakpoint: `.h1` class, applied on landing, step 1, step 2, briefing, resume, privacy.
+- [ ] `not-found.tsx` + `error.tsx` under `(candidate)/[locale]`; inactive-job and already-past screens on the shared `Card` pattern; assessment already-past branch wrapped in `CandidateShell`; grep-and-remove `neutral-` from candidate pages.
+- [ ] Numeric input width; ordering placeholder "בחרו אירוע".
+- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` (chromium).
+
+#### P1 — design system (one day)
+- [ ] §R2.3.1 tokens (`--canvas`, `--line`, `--line-strong`, `--text-3`, `boxShadow.card`).
+- [ ] §R2.3.2 header grid + centered stepper + monogram `BrandMark` + footer; stepper sizes and done-check.
+- [ ] §R2.3.3 `Card variant="flat"`; apply the one-raised-surface rule per page; rhythm `mt-8` after H1, `mt-5` between surfaces.
+- [ ] §R2.3.4 `Button size="lg"`, width/alignment rule, hover shadow, disabled treatment; wire every page-level CTA.
+- [ ] §R2.3.5 page eyebrow + form section headings; §R2.3.6 focus ring.
+- [ ] Re-run the Playwright RTL screenshot suite; update baselines deliberately.
+
+#### P1 — screens (one day, funnel order)
+- [ ] Landing: eyebrow row, terms-card 3-column grid + 40 px rate + rule, process rows as `grid-cols-[28px_1fr_auto]` with aligned chips, CTA row with helper, remove duplicate privacy link.
+- [ ] Step 1: two-up field rows, section headings, compact dropzone, date field width, segmented control width + legend/helper; success panel — no inner stepper, own H1 "הפרטים נשמרו", mint disc, eyebrow without numbers, real `/resume` link, `lg` CTA.
+- [ ] Step 2: flat description card with lede/`h3` styles, confirmations card title + dividers.
+- [ ] Briefing: merged flat cards, disclosure without nested callout, device status inside the consent card, `lg` CTA.
+- [ ] Resume: code placeholder/mono input; single-email OTP flow.
+- [ ] Privacy: flat request card. Done: filled mint disc, date 700.
+
+#### P2 — runner polish (half a day)
+- [ ] Runner column 880, short-option `max-w-[640px]`, centered grid figure + start-aligned tiles, `w-auto` tables, band "חלק N מתוך 4" line.
+- [ ] Investigation 7/5, sticky artifact pane, no-wrap scrollable tabs, `dir="auto"` artifact body, badge style unified with landing.
+- [ ] Block intro: "חלק N מתוך 4" eyebrow, 4-segment rail, start-aligned auto-advance line beside an auto-width `onInk` `lg` CTA; practice scene action bar = item action bar.
+- [ ] Confirm round-1 P2 B-level bank copy (B2, B3, B12 at minimum) actually landed.
+
+#### Definition of done for round 2
+- No English string is reachable on any candidate route, including 404, thrown errors, and empty-form validation (`grep -rn "Expected\|Required\|could not be found" src/app/\(candidate\)` is empty and the Hebrew-only validation test passes).
+- The skip button reads "דילוג על השאלה" at the start of every item.
+- Step 2's description renders as ≥ 5 blocks.
+- At 1366 px: exactly one raised card per page, the stepper centered in the header, every page-level CTA start-aligned and 52 px, every form CTA full width; at 390 px every primary is full width.
+- The tech-ops line contains the words "תמיכה טכנית פנימית" and "Help Desk" (transparency preserved) and does not contain "אומרים את זה מראש".
