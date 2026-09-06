@@ -60,13 +60,18 @@ function renderTable(lines: string[], key: string) {
   // FINTECH_REDESIGN_PLAN.md §1.6: 14/22, header row bg --canvas 600, cell
   // padding 8 12, borders --line, radius 10 on the wrapper with
   // overflow: hidden, tabular numerals.
+  // §R2.2 runner item 5: a table with a handful of short cells (a few Hebrew
+  // headers, 3-character values) used to force `min-w-full`, stretching it
+  // to the full 880px card. `inline-block max-w-full` lets the wrapper
+  // shrink to the table's actual content while still scrolling instead of
+  // overflowing on mobile.
   return (
-    <div key={key} dir={rtl ? "rtl" : "ltr"} className="tnum my-3 overflow-x-auto rounded-10 border border-line">
-      <table className="min-w-full border-collapse text-start text-[14px] leading-[22px]">
+    <div key={key} dir={rtl ? "rtl" : "ltr"} className="tnum my-3 inline-block max-w-full overflow-x-auto rounded-10 border border-line">
+      <table className="w-auto min-w-[420px] border-collapse text-start text-[14px] leading-[22px]">
         <thead>
           <tr>
             {header.map((h, i) => (
-              <th key={i} className="border-b border-line bg-canvas px-3 py-2 font-semibold text-text">
+              <th key={i} className="whitespace-nowrap border-b border-line bg-canvas px-3 py-2 font-semibold text-text">
                 <span className="cell">
                   <InlineText text={h} keyPrefix={`${key}-h${i}`} />
                 </span>

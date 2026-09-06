@@ -18,7 +18,7 @@ import {
   nextRetryDelayMs,
   type RunnerItemKind,
 } from "@/lib/assessment-runner-logic";
-import { BLOCK_COPY, blockKeyForPosition } from "@/lib/assessment-block-copy";
+import { BLOCK_COPY, BLOCK_ORDER, blockKeyForPosition } from "@/lib/assessment-block-copy";
 import { TimerBand } from "./timer-band";
 import { BlockIntro } from "./block-intro";
 import { PracticeScene } from "./practice-scene";
@@ -386,7 +386,12 @@ export function AssessmentRunner({ applicationId }: { applicationId: string }) {
 
   const item = phase.item;
   const kind = item.kind as RunnerItemKind;
-  const blockName = BLOCK_COPY[blockKeyForPosition(item.position)]?.nameHe ?? item.blockKey;
+  const blockKey = blockKeyForPosition(item.position);
+  const blockName = BLOCK_COPY[blockKey]?.nameHe ?? item.blockKey;
+  // FINTECH_REDESIGN_PLAN.md §R2.2 runner item 6: "חלק N מתוך 4" — N derived
+  // from the same fixed block order the intro screens already use, not a
+  // duplicated mapping.
+  const blockPosition = BLOCK_ORDER.findIndex((k) => k === blockKey) + 1;
 
   return (
     <main
@@ -397,9 +402,19 @@ export function AssessmentRunner({ applicationId }: { applicationId: string }) {
         if (e.key === "Enter" && isAnswerPresent(kind, answer) && !submitting) handleSubmitClick();
       }}
     >
-      <TimerBand blockName={blockName} position={item.position} totalItems={item.totalItems} remainingMs={remainingMs} totalMs={totalMs} />
+      <TimerBand
+        blockName={blockName}
+        blockPosition={blockPosition}
+        position={item.position}
+        totalItems={item.totalItems}
+        remainingMs={remainingMs}
+        totalMs={totalMs}
+      />
 
-      <div className="mx-auto max-w-[1040px] px-4 py-6 sm:px-6">
+      {/* FINTECH_REDESIGN_PLAN.md §R2.2 runner item 2: 1040 -> 880px — two-word
+          answer options no longer force the eye to travel the full card width
+          to find the badge. */}
+      <div className="mx-auto max-w-[880px] px-4 py-6 sm:px-6">
         {outageNotice ? (
           <Callout variant="info" className="mb-4" data-testid="outage-notice">
             הייתה תקלה זמנית בצד שלנו — הזמן לשאלה הוארך בהתאם.

@@ -30,7 +30,9 @@ interface Predicate {
 }
 
 function renderTable(rows: Row[]): string {
-  const header = "| id | צוות | סטטוס | עדיפות | שעות פתיחה |";
+  // B3 (FINTECH_REDESIGN_PLAN.md §4): "שעות פתיחה" read as "opening hours"
+  // rather than "hours since the ticket opened".
+  const header = "| id | צוות | סטטוס | עדיפות | שעות מאז הפתיחה |";
   const sep = "|---|---|---|---|---|";
   const body = rows.map((r) => `| ${r.id} | ${r.team} | ${r.status} | ${r.priority} | ${r.hours} |`).join("\n");
   return `${header}\n${sep}\n${body}`;
@@ -68,7 +70,10 @@ function buildPredicates(rng: Rng, difficulty: Difficulty): Predicate[] {
 
 export const template: ItemTemplate = {
   id: "reasoning.table_must_be_true",
-  version: 1,
+  // v2: FINTECH_REDESIGN_PLAN.md round-2 §R2.2 confirms round-1's B3 fix
+  // (drop the English "(must be true)" gloss, reword the header/statement
+  // text) never actually landed — done now.
+  version: 2,
   pillar: "reasoning",
   kind: "single_choice",
   difficulties: [1, 2, 3],
@@ -106,11 +111,11 @@ export const template: ItemTemplate = {
           }
         }
       }
-      return { text: `יש בדיוק ${stated} כרטיסים שעונים על: ${p.desc}.`, correct: i === correctIdxInPredicates };
+      return { text: `בדיוק ${stated} כרטיסים מקיימים: ${p.desc}`, correct: i === correctIdxInPredicates };
     });
 
     const table = renderTable(rows);
-    const prompt = `${table}\n\nאיזה מהמשפטים הבאים חייב להיות נכון (must be true) לפי הטבלה בפועל?`;
+    const prompt = `${table}\n\nאיזה מהמשפטים הבאים נכון לפי הטבלה?`;
 
     const tagged = rng.shuffle(statements);
     const correctIndex = tagged.findIndex((o) => o.correct);

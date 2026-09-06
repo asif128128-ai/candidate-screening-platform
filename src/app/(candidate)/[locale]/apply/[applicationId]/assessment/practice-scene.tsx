@@ -69,8 +69,14 @@ export function PracticeScene({ onProceed }: { onProceed: () => void }) {
           </Card>
         </div>
 
-        <div className="mt-8">
-          <Button type="button" onClick={onProceed} data-testid="practice-scene-continue">
+        {/* FINTECH_REDESIGN_PLAN.md block-intro/practice-scene subsection
+            item 3: the practice CTA uses the runner's own action-bar layout
+            (mt-8 flex justify-between, primary at the end side) so the
+            candidate rehearses the real button position — an empty spacer
+            fills the skip button's slot since practice has no skip. */}
+        <div className="mt-8 flex items-center justify-between gap-4">
+          <span aria-hidden="true" />
+          <Button type="button" fullWidth={false} className="min-w-[160px]" onClick={onProceed} data-testid="practice-scene-continue">
             המשך לחלק החקירה
           </Button>
         </div>

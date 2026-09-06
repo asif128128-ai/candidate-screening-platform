@@ -16,12 +16,15 @@ import { Term } from "@/components/term";
 // already 700 in both states here, per §1.6 "digits stay 700").
 export function TimerBand({
   blockName,
+  blockPosition,
   position,
   totalItems,
   remainingMs,
   totalMs,
 }: {
   blockName: string;
+  /** Which of the 4 fixed blocks this item belongs to (1-4). */
+  blockPosition: number;
   position: number;
   totalItems: number;
   remainingMs: number;
@@ -34,11 +37,13 @@ export function TimerBand({
 
   return (
     <div className="sticky top-0 z-20 bg-ink-900">
-      <div className="rtl-row mx-auto h-16 max-w-[1040px] items-center justify-between px-4 sm:px-6">
-        <span data-testid="progress-label" className="rtl-row items-baseline gap-2">
-          <span className="text-[14px] font-semibold leading-5 text-ink-200">{blockName}</span>
-          <span aria-hidden="true" className="text-ink-200">
-            ·
+      <div className="rtl-row mx-auto h-16 max-w-[880px] items-center justify-between px-4 sm:px-6">
+        {/* FINTECH_REDESIGN_PLAN.md §R2.2 runner item 6: block-of-4 context
+            above the absolute item count, so "שאלה 11 מתוך 27" reads inside
+            "which of the 4 blocks am I in" instead of standing alone. */}
+        <span data-testid="progress-label" className="flex flex-col gap-0.5">
+          <span className="tnum text-[13px] font-semibold leading-5 text-ink-200">
+            חלק {blockPosition} מתוך 4 · {blockName}
           </span>
           <span className="tnum text-base font-semibold leading-6 text-white">
             שאלה {position} מתוך {totalItems}

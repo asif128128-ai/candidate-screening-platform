@@ -61,7 +61,7 @@ export const RELATIONS: Relation[] = [
       ["זרע", "פרי"],
       ["ביצה", "אפרוח"],
       ["טיוטה", "מסמך סופי"],
-      ["תרשים", "מוצר מוגמר"],
+      ["שרטוט", "בניין"],
       ["גולם", "פרפר"],
     ],
   },
@@ -69,7 +69,10 @@ export const RELATIONS: Relation[] = [
 
 export const template: ItemTemplate = {
   id: "reasoning.analogy_structural",
-  version: 1,
+  // v2: FINTECH_REDESIGN_PLAN.md round-2 §R2.2 confirms round-1's B2 fix
+  // ("standard Israeli psychometric format" + the C1 weak-pair swap) never
+  // actually landed — done now.
+  version: 2,
   pillar: "reasoning",
   kind: "single_choice",
   difficulties: [1, 2, 3],
@@ -119,7 +122,9 @@ export const template: ItemTemplate = {
       while (distractorBs.size < 3) addFromSameFamily();
     }
 
-    const prompt = `${exA} שייך ל-${exB} באותו יחס ש-${tgA} שייך ל-?`;
+    // B2 (FINTECH_REDESIGN_PLAN.md §4): the standard Israeli psychometric
+    // analogy format, not the stilted "X שייך ל-Y באותו יחס ש..." phrasing.
+    const prompt = `${exA} : ${exB}\n${tgA} : ?\n\nאיזו מילה משלימה את הזוג השני כך שהיחס בין המילים זהה ליחס בזוג הראשון?`;
     const { options, correctIndex } = shuffleOptions(rng, tgB, [...distractorBs]);
     return {
       content: { prompt, options },
