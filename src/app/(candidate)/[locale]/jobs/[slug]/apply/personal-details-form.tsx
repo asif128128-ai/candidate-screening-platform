@@ -4,14 +4,13 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Link } from "@/i18n/navigation";
 import { Term } from "@/components/term";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button, buttonClasses, PAGE_CTA_WIDTH_CLASS } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Chip } from "@/components/ui/chip";
 import { Field, FieldLabel, Input, Select } from "@/components/ui/field";
 import { ResumeCodeRow } from "@/components/ui/resume-code-row";
-import { Stepper } from "@/components/ui/stepper";
 import { DEGREE_PROGRAMS, INSTITUTIONS, STUDY_YEARS } from "@/lib/reference-data";
 import { submitPersonalDetailsAction, type PersonalDetailsActionState } from "./actions";
 
@@ -29,9 +28,11 @@ const initialPersonalDetailsState: PersonalDetailsActionState = {
 // (see the "created" outcome branch) rather than redirecting, since the
 // plaintext resume code only ever exists in this one response.
 //
-// FINTECH_REDESIGN_PLAN.md §1.7 step 1: fields grouped into "מי את/ה",
-// "לימודים", "זמינות", "אופציונלי" inside one Card, using the shared
-// Field/Checkbox/Button/Card primitives.
+// FINTECH_REDESIGN_PLAN.md §R2.2 step 1 item 3 / §R2.3.5: fields are grouped
+// into four sections inside one Card — "פרטי קשר", "לימודים", "זמינות",
+// "לא חובה — אבל עוזר לנו" — using real section headings (15/24 600
+// --ink-900, the shared `.section-heading` class) instead of round 1's 13px
+// grey group labels, with two-up field rows at >=480px.
 
 const SESSION_STORAGE_KEY = "apply-step1-draft";
 
@@ -94,13 +95,19 @@ function SubmitButton() {
   );
 }
 
-function GroupLabel({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[13px] font-semibold leading-5 text-text-3">{children}</h3>;
+// FINTECH_REDESIGN_PLAN.md §R2.3.5: the reusable form-section-heading
+// pattern (15/24 600 --ink-900, `.section-heading` in globals.css),
+// replacing round 1's 13px grey `GroupLabel`. Every section but the first
+// gets the `pt-6 mt-6 border-t border-line` spacing the plan specifies.
+function SectionHeading({ children, first = false }: { children: React.ReactNode; first?: boolean }) {
+  return (
+    <h3 className={`section-heading ${first ? "" : "mt-6 border-t border-line pt-6"}`}>{children}</h3>
+  );
 }
 
 function UploadIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6 text-text-3" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-text-3" fill="none" aria-hidden="true">
       <path
         d="M12 15V4m0 0L8 8m4-4l4 4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"
         stroke="currentColor"
@@ -112,6 +119,9 @@ function UploadIcon() {
   );
 }
 
+// FINTECH_REDESIGN_PLAN.md §R2.2 step 1 item 6: a 130px dashed box was the
+// largest element on the page for an optional field. Compact: icon, text
+// and chip on one row, ~64px tall.
 function CvDropzone({
   status,
   error,
@@ -138,12 +148,12 @@ function CvDropzone({
           const file = e.dataTransfer.files?.[0];
           if (file) onFileSelected(file);
         }}
-        className={`flex cursor-pointer flex-col items-center gap-3 rounded-12 border-[1.5px] border-dashed px-6 py-6 text-center transition-colors duration-150 ${
+        className={`rtl-row cursor-pointer items-center gap-3 rounded-12 border-[1.5px] border-dashed px-4 py-4 text-start transition-colors duration-150 ${
           dragOver ? "border-brand-600 bg-brand-50" : "border-line-strong bg-surface hover:bg-canvas"
         }`}
       >
         <UploadIcon />
-        <p className="text-[15px] leading-6 text-text">גררו קובץ או לחצו לבחירה</p>
+        <span className="min-w-0 flex-1 text-[15px] leading-6 text-text">גררו קובץ או לחצו לבחירה</span>
         <Chip>PDF או DOCX · עד 5MB</Chip>
         <input
           id="cv"
@@ -176,7 +186,30 @@ function CvDropzone({
   );
 }
 
-export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string; prefillEmail?: string }) {
+// FINTECH_REDESIGN_PLAN.md §R2.2 done/step-1 item 7(d): a 48px mint disc
+// with a white check, not just a color change.
+function CheckDisc() {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-mint-600"
+    >
+      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
+        <path d="M5 12.5l4.5 4.5L19 7" stroke="white" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+export function PersonalDetailsForm({
+  jobSlug,
+  prefillEmail,
+  onOutcomeChange,
+}: {
+  jobSlug: string;
+  prefillEmail?: string;
+  onOutcomeChange?: (succeeded: boolean) => void;
+}) {
   const boundAction = submitPersonalDetailsAction.bind(null, jobSlug);
   const [state, formAction] = useActionState<PersonalDetailsActionState, FormData>(
     boundAction,
@@ -193,6 +226,12 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
     if (prefillEmail) loaded.email = prefillEmail;
     setDraft(loaded);
   }, [prefillEmail]);
+
+  // §R2.2 step-1 item 7(a): the header stepper (not an inner one) reflects
+  // the "created" outcome via `currentAlsoDone` — see step1-shell.tsx.
+  useEffect(() => {
+    onOutcomeChange?.(state.outcome?.kind === "created");
+  }, [state.outcome, onOutcomeChange]);
 
   function updateField<K extends keyof DraftValues>(key: K, value: string) {
     setDraft((prev) => {
@@ -253,7 +292,7 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
         </p>
         <Link
           href={{ pathname: "/resume", query: { email: state.outcome.email } }}
-          className={`mt-4 ${buttonClasses()}`}
+          className={buttonClasses({ className: "mt-4" })}
         >
           למעבר לעמוד החזרה
         </Link>
@@ -265,19 +304,23 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
     const o = state.outcome;
     return (
       <Card>
-        <Stepper current={1} currentAlsoDone />
-        <p className="mt-4 text-[13px] leading-5 text-text-3">שלב 1 מתוך 3 הושלם</p>
-        <h2 className="mt-1 text-[20px] font-semibold leading-7 text-ink-900">
-          הפרטים נשמרו. השלב הבא: התפקיד והמבחן.
-        </h2>
-        <p className="mt-2 text-[14px] leading-[22px] text-text-2">
-          המועמדות נבחנת רק אחרי השלמת המבחן המקוון (כ-20 דקות, במחשב). מומלץ להמשיך עכשיו ברצף — זה
-          החלק שבאמת חשוב לנו.
+        {/* §R2.2 step-1 item 7: no inner stepper (the header stepper carries
+            that now); a page eyebrow without step-count numbers (the
+            landing counts 3 steps, the stepper 4 — showing both totals to
+            the candidate is confusing, not reassuring); its own H1 with a
+            mint check disc, per the same treatment as the done page. */}
+        <p className="eyebrow">השלב הראשון הושלם</p>
+        <div className="rtl-row mt-2 items-center gap-4">
+          <CheckDisc />
+          <h1 className="h1">הפרטים נשמרו</h1>
+        </div>
+        <p className="mt-3 text-[18px] leading-7 text-text-2">
+          השלב הבא: התפקיד והמבחן — המועמדות נבחנת רק אחרי המבחן המקוון (כ-20 דקות, במחשב).
         </p>
 
         <Link
           href={`/apply/${o.applicationId}/job`}
-          className={`mt-4 ${buttonClasses()}`}
+          className={buttonClasses({ size: "lg", fullWidth: false, className: `mt-6 ${PAGE_CTA_WIDTH_CLASS}` })}
           data-testid="continue-to-step2"
         >
           ממשיכים לתיאור התפקיד
@@ -285,7 +328,15 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
 
         <ResumeCodeRow
           code={o.resumeCodeDisplay}
-          helper="אם תצטרכו לעצור באמצע, האימייל והקוד הזה מחזירים אתכם לאותה נקודה ב-/resume. שלחנו אותו גם למייל."
+          helper={
+            <>
+              אם תצטרכו לעצור באמצע, האימייל והקוד מחזירים אתכם לאותה נקודה ב
+              <Link href="/resume" className="text-brand-600 underline hover:text-brand-700">
+                עמוד החזרה לתהליך
+              </Link>
+              . שלחנו אותו גם למייל.
+            </>
+          }
         />
 
         {!o.cvAttached && o.cvError ? (
@@ -299,62 +350,66 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
 
   return (
     <Card>
-      <form ref={formRef} action={formAction} className="space-y-6" noValidate>
-        {state.formError ? <Callout variant="error">{state.formError}</Callout> : null}
+      <form ref={formRef} action={formAction} noValidate>
+        {state.formError ? <Callout variant="error" className="mb-6">{state.formError}</Callout> : null}
 
         <div className="space-y-5">
-          <GroupLabel>מי את/ה</GroupLabel>
+          <SectionHeading first>פרטי קשר</SectionHeading>
 
-          <Field label="שם פרטי" htmlFor="firstName" error={state.errors.firstName}>
-            <Input
-              id="firstName"
-              name="firstName"
-              value={draft.firstName}
-              onChange={(e) => updateField("firstName", e.target.value)}
-              error={!!state.errors.firstName}
-              required
-            />
-          </Field>
+          <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2">
+            <Field label="שם פרטי" htmlFor="firstName" error={state.errors.firstName}>
+              <Input
+                id="firstName"
+                name="firstName"
+                value={draft.firstName}
+                onChange={(e) => updateField("firstName", e.target.value)}
+                error={!!state.errors.firstName}
+                required
+              />
+            </Field>
 
-          <Field label="שם משפחה" htmlFor="lastName" error={state.errors.lastName}>
-            <Input
-              id="lastName"
-              name="lastName"
-              value={draft.lastName}
-              onChange={(e) => updateField("lastName", e.target.value)}
-              error={!!state.errors.lastName}
-              required
-            />
-          </Field>
+            <Field label="שם משפחה" htmlFor="lastName" error={state.errors.lastName}>
+              <Input
+                id="lastName"
+                name="lastName"
+                value={draft.lastName}
+                onChange={(e) => updateField("lastName", e.target.value)}
+                error={!!state.errors.lastName}
+                required
+              />
+            </Field>
+          </div>
 
-          <Field label="תאריך לידה" htmlFor="dateOfBirth" error={state.errors.dateOfBirth}>
-            <Input
-              id="dateOfBirth"
-              name="dateOfBirth"
-              type="date"
-              dir="ltr"
-              className="text-start"
-              value={draft.dateOfBirth}
-              onChange={(e) => updateField("dateOfBirth", e.target.value)}
-              error={!!state.errors.dateOfBirth}
-              required
-            />
-          </Field>
+          <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2">
+            <Field label="תאריך לידה" htmlFor="dateOfBirth" error={state.errors.dateOfBirth}>
+              <Input
+                id="dateOfBirth"
+                name="dateOfBirth"
+                type="date"
+                dir="ltr"
+                className="text-start min-[480px]:max-w-[220px]"
+                value={draft.dateOfBirth}
+                onChange={(e) => updateField("dateOfBirth", e.target.value)}
+                error={!!state.errors.dateOfBirth}
+                required
+              />
+            </Field>
 
-          <Field label="טלפון נייד" htmlFor="phone" error={state.errors.phone}>
-            <Input
-              id="phone"
-              name="phone"
-              type="tel"
-              dir="ltr"
-              className="text-start"
-              placeholder="050-1234567"
-              value={draft.phone}
-              onChange={(e) => updateField("phone", e.target.value)}
-              error={!!state.errors.phone}
-              required
-            />
-          </Field>
+            <Field label="טלפון נייד" htmlFor="phone" error={state.errors.phone}>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                dir="ltr"
+                className="text-start"
+                placeholder="050-1234567"
+                value={draft.phone}
+                onChange={(e) => updateField("phone", e.target.value)}
+                error={!!state.errors.phone}
+                required
+              />
+            </Field>
+          </div>
 
           <Field label="אימייל" htmlFor="email" error={state.errors.email}>
             <Input
@@ -372,91 +427,96 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
           </Field>
         </div>
 
-        <div className="space-y-5 border-t border-line pt-5">
-          <GroupLabel>לימודים</GroupLabel>
+        <div className="space-y-5">
+          <SectionHeading>לימודים</SectionHeading>
 
-          <Field label="מוסד לימודים" htmlFor="institution" error={state.errors.institution}>
-            <Input
-              id="institution"
-              name="institution"
-              list="institutions-list"
-              value={draft.institution}
-              onChange={(e) => updateField("institution", e.target.value)}
-              error={!!state.errors.institution}
-              required
-            />
-            <datalist id="institutions-list">
-              {INSTITUTIONS.map((i) => (
-                <option key={i} value={i} />
-              ))}
-            </datalist>
-          </Field>
+          <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2">
+            <Field label="מוסד לימודים" htmlFor="institution" error={state.errors.institution}>
+              <Input
+                id="institution"
+                name="institution"
+                list="institutions-list"
+                value={draft.institution}
+                onChange={(e) => updateField("institution", e.target.value)}
+                error={!!state.errors.institution}
+                required
+              />
+              <datalist id="institutions-list">
+                {INSTITUTIONS.map((i) => (
+                  <option key={i} value={i} />
+                ))}
+              </datalist>
+            </Field>
 
-          <Field label="תואר / מסלול" htmlFor="degreeProgram" error={state.errors.degreeProgram}>
-            <Input
-              id="degreeProgram"
-              name="degreeProgram"
-              list="degree-programs-list"
-              value={draft.degreeProgram}
-              onChange={(e) => updateField("degreeProgram", e.target.value)}
-              error={!!state.errors.degreeProgram}
-              required
-            />
-            <datalist id="degree-programs-list">
-              {DEGREE_PROGRAMS.map((d) => (
-                <option key={d} value={d} />
-              ))}
-            </datalist>
-          </Field>
+            <Field label="תואר / מסלול" htmlFor="degreeProgram" error={state.errors.degreeProgram}>
+              <Input
+                id="degreeProgram"
+                name="degreeProgram"
+                list="degree-programs-list"
+                value={draft.degreeProgram}
+                onChange={(e) => updateField("degreeProgram", e.target.value)}
+                error={!!state.errors.degreeProgram}
+                required
+              />
+              <datalist id="degree-programs-list">
+                {DEGREE_PROGRAMS.map((d) => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
+            </Field>
+          </div>
 
-          <Field label="שנת לימוד נוכחית" htmlFor="studyYear" error={state.errors.studyYear}>
-            <Select
-              id="studyYear"
-              name="studyYear"
-              value={draft.studyYear}
-              onChange={(e) => updateField("studyYear", e.target.value)}
-              required
-            >
-              <option value="" disabled>
-                בחרו שנת לימוד
-              </option>
-              {STUDY_YEARS.map((y) => (
-                <option key={y.value} value={y.value}>
-                  {y.label}
+          <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2">
+            <Field label="שנת לימוד נוכחית" htmlFor="studyYear" error={state.errors.studyYear}>
+              <Select
+                id="studyYear"
+                name="studyYear"
+                value={draft.studyYear}
+                onChange={(e) => updateField("studyYear", e.target.value)}
+                required
+              >
+                <option value="" disabled>
+                  בחרו שנת לימוד
                 </option>
-              ))}
-            </Select>
-          </Field>
+                {STUDY_YEARS.map((y) => (
+                  <option key={y.value} value={y.value}>
+                    {y.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
-          <Field
-            label="ממוצע ציונים נוכחי"
-            htmlFor="academicAverage"
-            error={state.errors.academicAverage}
-            helper={state.errors.academicAverage ? undefined : "הממוצע נשמר כנתון עזר בלבד ואינו פוסל מועמדות"}
-          >
-            <Input
-              id="academicAverage"
-              name="academicAverage"
-              type="number"
-              dir="ltr"
-              className="text-start"
-              min={0}
-              max={100}
-              step={0.1}
-              value={draft.academicAverage}
-              onChange={(e) => updateField("academicAverage", e.target.value)}
-              error={!!state.errors.academicAverage}
-              required
-            />
-          </Field>
+            <Field
+              label="ממוצע ציונים נוכחי"
+              htmlFor="academicAverage"
+              error={state.errors.academicAverage}
+              helper={state.errors.academicAverage ? undefined : "הממוצע נשמר כנתון עזר בלבד ואינו פוסל מועמדות"}
+            >
+              <Input
+                id="academicAverage"
+                name="academicAverage"
+                type="number"
+                dir="ltr"
+                className="text-start"
+                min={0}
+                max={100}
+                step={0.1}
+                value={draft.academicAverage}
+                onChange={(e) => updateField("academicAverage", e.target.value)}
+                error={!!state.errors.academicAverage}
+                required
+              />
+            </Field>
+          </div>
         </div>
 
-        <div className="space-y-3 border-t border-line pt-5">
-          <GroupLabel>זמינות</GroupLabel>
+        <div className="space-y-3">
+          <SectionHeading>זמינות</SectionHeading>
           <fieldset>
             <legend className="text-[14px] font-medium leading-[22px] text-text-2">
-              זמינות להגיע פיזית לאזור ראשון לציון (במודל היברידי)
+              זמינות להגיע לאזור ראשון לציון (היברידי)
             </legend>
+            <p className="mt-1 text-[13px] leading-5 text-text-3">נדרש חלק מהשבוע; לא מרחוק בלבד</p>
             <div className="rtl-row-inline mt-2 overflow-hidden rounded-10 border border-line-strong">
               {(["yes", "no"] as const).map((val, i) => (
                 <div key={val} className="relative">
@@ -472,7 +532,7 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
                   />
                   <label
                     htmlFor={`canWorkRishon-${val}`}
-                    className={`flex h-12 min-w-[96px] cursor-pointer items-center justify-center px-5 text-base font-semibold text-ink-900 transition-colors duration-150 peer-checked:bg-ink-900 peer-checked:text-white peer-focus-visible:shadow-[0_0_0_3px_var(--brand-100)] ${
+                    className={`flex h-12 min-w-[120px] cursor-pointer items-center justify-center px-5 text-base font-semibold text-ink-900 transition-colors duration-150 peer-checked:bg-ink-900 peer-checked:text-white peer-focus-visible:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--brand-600)] ${
                       i > 0 ? "border-s border-line-strong" : ""
                     }`}
                   >
@@ -492,8 +552,8 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
           </fieldset>
         </div>
 
-        <div className="space-y-5 border-t border-line pt-5">
-          <GroupLabel>אופציונלי</GroupLabel>
+        <div className="space-y-5">
+          <SectionHeading>לא חובה — אבל עוזר לנו</SectionHeading>
 
           <Field label={<Term>LinkedIn</Term>} htmlFor="linkedinUrl" error={state.errors.linkedinUrl}>
             <Input
@@ -534,7 +594,7 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
           </div>
         </div>
 
-        <div className="border-t border-line pt-5">
+        <div className="mt-6 border-t border-line pt-6">
           <Checkbox
             name="privacyConsent"
             required
@@ -552,7 +612,9 @@ export function PersonalDetailsForm({ jobSlug, prefillEmail }: { jobSlug: string
           ) : null}
         </div>
 
-        <SubmitButton />
+        <div className="mt-6">
+          <SubmitButton />
+        </div>
       </form>
     </Card>
   );

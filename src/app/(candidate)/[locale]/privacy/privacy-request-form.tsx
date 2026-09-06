@@ -63,7 +63,7 @@ export function PrivacyRequestForm() {
           id="note"
           name="note"
           rows={4}
-          className="w-full rounded-10 border border-line-strong bg-white px-[14px] py-3 text-base leading-6 text-text transition-[border-color,box-shadow] duration-150 focus:border-brand-600 focus:shadow-[0_0_0_3px_var(--brand-100)] focus:outline-none"
+          className="w-full rounded-10 border border-line-strong bg-white px-[14px] py-3 text-base leading-6 text-text transition-[border-color,box-shadow] duration-150 focus:border-brand-600 focus:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--brand-600)] focus:outline-none"
         />
       </Field>
 

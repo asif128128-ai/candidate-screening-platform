@@ -14,7 +14,7 @@ export default async function ResumePage({
     <CandidateShell width="form">
       <h1 className="h1">חזרה לתהליך</h1>
       <p className="mt-2 text-[16px] leading-[26px] text-text-2">הזינו אימייל וקוד חזרה כדי להמשיך מאותה נקודה.</p>
-      <Card className="mt-6">
+      <Card className="mt-8">
         <ResumeForm prefillEmail={email} />
       </Card>
     </CandidateShell>

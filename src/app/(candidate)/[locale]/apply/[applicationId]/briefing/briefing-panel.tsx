@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Term } from "@/components/term";
-import { Button } from "@/components/ui/button";
+import { Button, PAGE_CTA_WIDTH_CLASS } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,10 +29,13 @@ import { confirmMonitoringConsentAction } from "./actions";
 // The 404/501 branch below is now unreachable in production but stays as
 // defense-in-depth against a route that somehow isn't deployed.
 //
-// FINTECH_REDESIGN_PLAN.md §1.7 briefing: the monitoring disclosure as a
-// Card with a Callout "info" framing ("שקיפות") and the consent checkbox;
-// device check as a compact status row using --mint-800/--amber-800;
-// primary CTA "מתחילים".
+// FINTECH_REDESIGN_PLAN.md §R2.2 briefing item 1 / §R2.3.3: round 1's
+// disclosure card nested a `Callout` inside a `Card` (a box inside a box)
+// and left the device-status row floating on the canvas with nothing
+// anchoring it. Now: one flat card holding the disclosure as plain styled
+// text (eyebrow "שקיפות" + body), the consent checkbox, and the device
+// status as a two-row list — nothing else on the page competes with the
+// primary CTA below it for "raised" weight.
 
 const MIN_VIEWPORT_WIDTH = 900;
 
@@ -43,19 +46,25 @@ interface DeviceCheck {
   clockSkewMs: number | null;
 }
 
-function StatusIcon({ ok }: { ok: boolean }) {
-  if (ok) {
-    return (
-      <svg viewBox="0 0 16 16" className="h-4 w-4 text-mint-800" fill="none" aria-hidden="true">
-        <path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
+// A 16px status disc — filled, not just an outline tick — so "ok" isn't
+// carried by color alone (mint = ok, amber = attention, both get a glyph).
+function StatusDisc({ ok }: { ok: boolean }) {
   return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 text-amber-800" fill="none" aria-hidden="true">
-      <path d="M8 4.5v4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-      <circle cx="8" cy="11" r="1" fill="currentColor" />
-    </svg>
+    <span
+      aria-hidden="true"
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${ok ? "bg-mint-600" : "bg-amber-500"}`}
+    >
+      {ok ? (
+        <svg viewBox="0 0 16 16" className="h-2.5 w-2.5" fill="none">
+          <path d="M3 8.5l3 3 7-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 16 16" className="h-2 w-2" fill="none">
+          <path d="M8 5v3.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
+          <circle cx="8" cy="11" r="0.9" fill="white" />
+        </svg>
+      )}
+    </span>
   );
 }
 
@@ -128,19 +137,18 @@ export function BriefingPanel({ applicationId }: { applicationId: string }) {
   }
 
   return (
-    <div className="mt-6 space-y-4">
-      <Card data-testid="monitoring-disclosure">
-        <Callout variant="info">
-          <p className="text-[13px] font-semibold leading-5 text-brand-700">שקיפות</p>
-          <p className="mt-1 text-[14px] leading-[22px] text-text">
-            כדי להעריך את אמינות התוצאות, במהלך המבחן נשמרים: זמני תגובה לכל שאלה, אירועי דפדפן כמו
-            יציאה מהחלון או מהמסך המלא, ניסיונות העתקה/הדבקה, שינויי גודל חלון, וכתובת ה-IP.{" "}
-            <strong>אין</strong> שימוש במצלמה או במיקרופון, ואין הקלטה של המסך או של ההקלדה. הנתונים
-            האלה משמשים רק כדי לסמן לצוות הגיוס האם התוצאה נראית אמינה — ואף פעם לא כדי לקבוע
-            אוטומטית שמישהו &quot;רימה&quot;.
-          </p>
-        </Callout>
-        <div className="mt-4">
+    <div className="mt-5 space-y-4">
+      <Card variant="flat" data-testid="monitoring-disclosure">
+        <p className="eyebrow">שקיפות</p>
+        <p className="mt-1 text-[15px] leading-[24px] text-text-2">
+          כדי להעריך את אמינות התוצאות, במהלך המבחן נשמרים: זמני תגובה לכל שאלה, אירועי דפדפן כמו
+          יציאה מהחלון או מהמסך המלא, ניסיונות העתקה/הדבקה, שינויי גודל חלון, וכתובת ה-IP.{" "}
+          <strong className="text-text">אין</strong> שימוש במצלמה או במיקרופון, ואין הקלטה של המסך או
+          של ההקלדה. הנתונים האלה משמשים רק כדי לסמן לצוות הגיוס האם התוצאה נראית אמינה — ואף פעם לא
+          כדי לקבוע אוטומטית שמישהו &quot;רימה&quot;.
+        </p>
+
+        <div className="mt-4 border-t border-line pt-4">
           <Checkbox
             checked={consentChecked}
             onChange={(e) => setConsentChecked(e.target.checked)}
@@ -148,20 +156,20 @@ export function BriefingPanel({ applicationId }: { applicationId: string }) {
             label="קראתי ואני מסכים/ה"
           />
         </div>
-      </Card>
 
-      {device ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[14px] leading-[22px]">
-          <span className={`rtl-row items-center gap-1.5 ${device.viewportOk ? "text-mint-800" : "text-amber-800"}`}>
-            <StatusIcon ok={device.viewportOk} />
-            מסך רחב
-          </span>
-          <span className={`rtl-row items-center gap-1.5 ${device.fullscreenAvailable ? "text-mint-800" : "text-amber-800"}`}>
-            <StatusIcon ok={device.fullscreenAvailable} />
-            מסך מלא זמין
-          </span>
-        </div>
-      ) : null}
+        {device ? (
+          <div className="mt-4 space-y-2 border-t border-line pt-4">
+            <div className="rtl-row items-center gap-2 text-[14px] leading-[22px] text-text">
+              <StatusDisc ok={device.viewportOk} />
+              מסך רחב
+            </div>
+            <div className="rtl-row items-center gap-2 text-[14px] leading-[22px] text-text">
+              <StatusDisc ok={device.fullscreenAvailable} />
+              מסך מלא זמין
+            </div>
+          </div>
+        ) : null}
+      </Card>
 
       {device && !device.viewportOk ? (
         <Callout variant="warning" data-testid="viewport-warning">
@@ -176,6 +184,9 @@ export function BriefingPanel({ applicationId }: { applicationId: string }) {
 
       <Button
         type="button"
+        size="lg"
+        fullWidth={false}
+        className={PAGE_CTA_WIDTH_CLASS}
         onClick={handleStart}
         pending={starting}
         disabled={!consentChecked || (device !== null && !device.viewportOk)}

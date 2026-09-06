@@ -57,19 +57,23 @@ export default async function ApplyStep2Page({
     <CandidateShell width="reading" stepper={{ current: 2 }}>
       <h1 className="h1">{job.title_he}</h1>
 
-      {/* description_html is rendered server-side at job-save time (no runtime markdown lib, ARCHITECTURE.md §7). */}
-      <Card className="mt-6">
+      {/* description_html is rendered server-side at job-save time (no
+          runtime markdown lib, ARCHITECTURE.md §7). §R2.2 step 2 item 2/
+          §R2.3.3: flat (reading content, not the action surface — that's
+          the confirmations card below); the opening paragraph is styled as
+          a lede, `<h3>` bold-only lines get real heading treatment. */}
+      <Card variant="flat" className="mt-8">
         <div
-          className="max-w-none text-[16px] leading-[26px] text-text [&_h2]:mt-6 [&_h2]:text-[20px] [&_h2]:font-semibold [&_h2]:leading-7 [&_h2]:text-ink-900 [&_h3]:mt-4 [&_h3]:text-[16px] [&_h3]:font-semibold [&_li]:mt-2 [&_ol]:mt-2 [&_ol]:list-inside [&_ol]:list-decimal [&_p]:mt-3 [&_ul]:mt-2 [&_ul]:list-inside [&_ul]:list-disc"
+          className="max-w-none text-[16px] leading-[26px] text-text [&_h2]:mt-6 [&_h2]:text-[20px] [&_h2]:font-semibold [&_h2]:leading-7 [&_h2]:text-ink-900 [&_h3]:mt-6 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3]:text-ink-900 [&_li]:mt-2 [&_ol]:mt-2 [&_ol]:list-inside [&_ol]:list-decimal [&_p]:mt-3 [&_p]:text-text-2 [&_p:first-child]:mt-0 [&_p:first-child]:text-[17px] [&_p:first-child]:leading-7 [&_p:first-child]:text-text [&_ul]:mt-2 [&_ul]:list-inside [&_ul]:list-disc"
           dangerouslySetInnerHTML={{ __html: job.description_html }}
         />
       </Card>
 
-      <div className="mt-6">
+      <div className="mt-5">
         <TermsCard job={job} />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-5">
         <ConfirmationsForm applicationId={applicationId} showRishonNote={!guard.state.canWorkRishon} />
       </div>
     </CandidateShell>

@@ -68,13 +68,16 @@ const config: Config = {
         ],
       },
       borderRadius: {
+        8: "8px",
         10: "10px",
         12: "12px",
         16: "16px",
       },
       boxShadow: {
-        // FINTECH_REDESIGN_PLAN.md §1.5 Card spec.
-        card: "0 1px 2px rgba(11,21,48,.04), 0 8px 24px rgba(11,21,48,.06)",
+        // FINTECH_REDESIGN_PLAN.md §R2.3.1: the round-1 shadow (.04/.06 at 8px
+        // 24px) was too faint against the new, darker canvas for the card
+        // edge to register. Two-layer shadow, exact value from the plan.
+        card: "0 1px 2px rgba(11,21,48,.06), 0 10px 30px rgba(11,21,48,.08)",
       },
     },
   },

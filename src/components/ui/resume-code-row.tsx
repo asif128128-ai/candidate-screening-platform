@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Term } from "@/components/term";
 import { Button } from "./button";
 
@@ -10,7 +10,11 @@ import { Button } from "./button";
 // swaps to "הועתק ✓" for 2s. Keeps data-testid="resume-code" on the code
 // element and data-testid="resume-code-card" on the surrounding panel (the
 // e2e suite depends on both — candidate-flow.spec.ts).
-export function ResumeCodeRow({ code, helper }: { code: string; helper: string }) {
+//
+// `helper` is a ReactNode (not just a string) so §R2.2 step-1 item 7(e)'s
+// helper line can carry a real inline <Link href="/resume"> instead of the
+// raw "/resume" path appearing as literal text in prose.
+export function ResumeCodeRow({ code, helper }: { code: string; helper: ReactNode }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {

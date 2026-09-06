@@ -39,8 +39,11 @@ export function HelperText({
   );
 }
 
+// FINTECH_REDESIGN_PLAN.md §R2.3.6: same two-layer focus ring as
+// `.focus-ring:focus-visible` in globals.css (white gap, then a solid brand
+// ring) — round 1's 3px --brand-100 ring barely registered on white.
 const FIELD_BASE =
-  "h-12 w-full rounded-10 border bg-white px-[14px] text-base leading-6 text-text placeholder:text-text-3 transition-[border-color,box-shadow] duration-150 ease-out focus:border-brand-600 focus:shadow-[0_0_0_3px_var(--brand-100)] focus:outline-none disabled:bg-canvas disabled:text-text-3";
+  "h-12 w-full rounded-10 border bg-white px-[14px] text-base leading-6 text-text placeholder:text-text-3 transition-[border-color,box-shadow] duration-150 ease-out focus:border-brand-600 focus:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--brand-600)] focus:outline-none disabled:bg-canvas disabled:text-text-3";
 
 export function Input({
   error = false,

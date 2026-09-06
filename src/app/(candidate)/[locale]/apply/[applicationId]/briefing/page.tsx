@@ -38,48 +38,50 @@ export default async function BriefingPage({
     <CandidateShell width="reading" stepper={{ current: 3 }}>
       <h1 className="h1">לפני המבחן</h1>
 
-      <div className="mt-6 grid gap-4">
-        <Card>
-          <h2 className="text-[20px] font-semibold leading-7 text-ink-900">מה זה</h2>
-          <p className="mt-2 text-[16px] leading-[26px] text-text">
-            מבחן קצר ואינטנסיבי, כ-20 דקות, 27 שאלות ב-4 חלקים: חימום מהיר, חשיבה, חקירה, אינסטינקט
-            טכנולוגי. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק
-            החקירה יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך.
-          </p>
-        </Card>
+      {/* FINTECH_REDESIGN_PLAN.md §R2.2 briefing item 1 / §R2.3.3: four
+          identical raised cards read as "a template" — "מה זה" and "מה
+          לצפות" merge into one flat card (two sections divided by a rule);
+          "הכללים" stays its own flat card. */}
+      <Card variant="flat" className="mt-8">
+        <h2 className="text-[20px] font-semibold leading-7 text-ink-900">מה זה</h2>
+        <p className="mt-2 text-[16px] leading-[26px] text-text">
+          מבחן קצר ואינטנסיבי, כ-20 דקות, 27 שאלות ב-4 חלקים: חימום מהיר, חשיבה, חקירה, אינסטינקט
+          טכנולוגי. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק
+          החקירה יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך.
+        </p>
 
-        <Card>
-          <h2 className="text-[20px] font-semibold leading-7 text-ink-900">הכללים</h2>
-          <ul className="mt-3 space-y-2">
-            {[
-              "לכל שאלה זמן קצוב משלה",
-              "אין חזרה אחורה",
-              "אפשר לדלג על שאלה, אבל מומלץ תמיד לנסות לענות — כל מה שנדרש נמצא בשאלה עצמה",
-              "רענון של הדף לא מאפס את השעון",
-            ].map((rule) => (
-              <li key={rule} className="rtl-row items-start gap-2 text-[16px] leading-[26px] text-text">
-                <RuleIcon />
-                <span>{rule}</span>
-              </li>
-            ))}
-            <li className="rtl-row items-start gap-2 text-[16px] leading-[26px] text-text">
+        <h2 className="mt-5 border-t border-line pt-5 text-[20px] font-semibold leading-7 text-ink-900">
+          מה לצפות
+        </h2>
+        <p className="mt-2 text-[16px] leading-[26px] text-text">
+          הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. לא צריך הכנה, חיפוש
+          באינטרנט או כלי <Term>AI</Term> — השאלות בנויות כך שהם פשוט לא עוזרים בזמן הנתון. אין כל
+          דבר שצריך לדעת בעל פה: כל מה שנדרש נמצא בשאלה עצמה.
+        </p>
+      </Card>
+
+      <Card variant="flat" className="mt-5">
+        <h2 className="text-[20px] font-semibold leading-7 text-ink-900">הכללים</h2>
+        <ul className="mt-3 space-y-3">
+          {[
+            "לכל שאלה זמן קצוב משלה",
+            "אין חזרה אחורה",
+            "אפשר לדלג על שאלה, אבל מומלץ תמיד לנסות לענות — כל מה שנדרש נמצא בשאלה עצמה",
+            "רענון של הדף לא מאפס את השעון",
+          ].map((rule) => (
+            <li key={rule} className="rtl-row items-start gap-2 text-[16px] leading-[26px] text-text">
               <RuleIcon />
-              <span>
-                אחרי שמתחילים — מסיימים באותו רצף (מגבלה כוללת של <Term>75</Term> דקות)
-              </span>
+              <span>{rule}</span>
             </li>
-          </ul>
-        </Card>
-
-        <Card>
-          <h2 className="text-[20px] font-semibold leading-7 text-ink-900">מה לצפות</h2>
-          <p className="mt-2 text-[16px] leading-[26px] text-text">
-            הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. לא צריך הכנה, חיפוש
-            באינטרנט או כלי <Term>AI</Term> — השאלות בנויות כך שהם פשוט לא עוזרים בזמן הנתון. אין כל
-            דבר שצריך לדעת בעל פה: כל מה שנדרש נמצא בשאלה עצמה.
-          </p>
-        </Card>
-      </div>
+          ))}
+          <li className="rtl-row items-start gap-2 text-[16px] leading-[26px] text-text">
+            <RuleIcon />
+            <span>
+              אחרי שמתחילים — מסיימים באותו רצף (מגבלה כוללת של <Term>75</Term> דקות)
+            </span>
+          </li>
+        </ul>
+      </Card>
 
       <BriefingPanel applicationId={applicationId} />
     </CandidateShell>

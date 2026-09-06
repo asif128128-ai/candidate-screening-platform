@@ -3,7 +3,7 @@ import { CandidateShell } from "@/components/candidate-shell";
 import { Card } from "@/components/ui/card";
 import { buttonClasses } from "@/components/ui/button";
 import { getJobBySlug } from "@/db/queries/jobs";
-import { PersonalDetailsForm } from "./personal-details-form";
+import { ApplyStep1Shell } from "./step1-shell";
 
 // CANDIDATE_FLOW.md §2: step 1 — פרטים אישיים.
 export default async function ApplyStep1Page({
@@ -34,15 +34,5 @@ export default async function ApplyStep1Page({
     );
   }
 
-  return (
-    <CandidateShell width="form" stepper={{ current: 1 }}>
-      <h1 className="h1">פרטים אישיים</h1>
-      <p className="mt-1 text-[13px] font-semibold leading-5 text-text-3">
-        כ-3 דקות · נשמר אוטומטית בדפדפן — {job.title_he}
-      </p>
-      <div className="mt-6">
-        <PersonalDetailsForm jobSlug={slug} prefillEmail={email} />
-      </div>
-    </CandidateShell>
-  );
+  return <ApplyStep1Shell jobSlug={slug} jobTitle={job.title_he} prefillEmail={email} />;
 }

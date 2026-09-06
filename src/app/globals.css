@@ -33,13 +33,20 @@
   --red-50: #fef0f0;
 
   /* Neutrals */
-  --canvas: #f6f7fb; /* page background (body) */
+  /* FINTECH_REDESIGN_PLAN.md §R2.3.1: round-1's canvas/line/shadow values
+     didn't give the card edge enough contrast to register (#F6F7FB body
+     against #FFFFFF cards with a 6% shadow). These four values override
+     round 1 §1.2; everything else in §1.2 stands. --text-3 also moved
+     (#6B7690 -> #606B86) because the old value fell to 4.2:1 on the new,
+     darker canvas — below AA — while the new value clears AA on both the
+     canvas (4.6:1) and white (5.1:1). */
+  --canvas: #eef1f7; /* page background (body) — was #f6f7fb */
   --surface: #ffffff; /* cards */
-  --line: #e3e7f0; /* default borders */
-  --line-strong: #c9d0de; /* input borders, secondary button border */
+  --line: #dce2ec; /* default borders — was #e3e7f0 */
+  --line-strong: #c3cbda; /* input borders, secondary button border — was #c9d0de */
   --text: #0f172a; /* primary text */
   --text-2: #4b5675; /* secondary text (7.3:1 on white) */
-  --text-3: #6b7690; /* meta/helper text (4.6:1 on white — AA; never below 13 px) */
+  --text-3: #606b86; /* meta/helper text (4.6:1 on canvas, 5.1:1 on white — was #6b7690) */
 }
 
 body {
@@ -71,6 +78,24 @@ body {
     font-size: 32px;
     line-height: 40px;
   }
+}
+
+/* FINTECH_REDESIGN_PLAN.md §R2.3.5: two reusable text patterns introduced
+   this round, styled as shared classes the same way `.h1` is — a page
+   eyebrow that sits above the H1 (job title on step 1, "BRAND · location ·
+   type" on landing) and a form section heading that replaces the old 13px
+   grey group labels ("מי את/ה" etc.) inside multi-section forms. */
+.eyebrow {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--brand-700);
+}
+.section-heading {
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--ink-900);
 }
 
 /* CANDIDATE_FLOW.md §9 / ARCHITECTURE.md §9: technical tokens (numbers,
@@ -108,9 +133,14 @@ body {
   transition: box-shadow 150ms ease-out, background-color 150ms ease-out,
     border-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out;
 }
+/* FINTECH_REDESIGN_PLAN.md §R2.3.6: the round-1 ring (3px --brand-100, no
+   gap) was nearly invisible on white. A white gap then a solid brand ring
+   registers on white, canvas and ink alike. Same declaration wherever a
+   focus ring is hand-rolled: FIELD_BASE in ui/field.tsx and the
+   checkbox/radio peer rules. */
 .focus-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--brand-100), 0 0 0 1px var(--brand-600);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--brand-600);
 }
 
 /* Chromium (verified empirically, not just per a changelog note) reorders

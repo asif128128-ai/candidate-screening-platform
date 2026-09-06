@@ -56,7 +56,7 @@ export default async function DonePage({
         <p className="mt-4 text-[18px] leading-7 text-text">
           נחזור אליך עד{" "}
           <Term>
-            <span className="font-semibold">{responseByDateHe}</span>
+            <span className="font-bold text-ink-900">{responseByDateHe}</span>
           </Term>{" "}
           במייל או בטלפון, בכל מקרה — גם אם לא נמשיך יחד הפעם.
         </p>
@@ -72,22 +72,24 @@ export default async function DonePage({
   );
 }
 
+// FINTECH_REDESIGN_PLAN.md §R2.2 done: an outline check reads as a line
+// icon; a filled disc reads as a state. 64px --mint-600 disc, white 28px
+// check.
 function CheckCircleIcon() {
   return (
-    <svg
-      viewBox="0 0 56 56"
-      className="mx-auto h-14 w-14 text-mint-600"
-      fill="none"
+    <span
       aria-hidden="true"
+      className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-mint-600"
     >
-      <circle cx="28" cy="28" r="26" stroke="currentColor" strokeWidth="2.5" />
-      <path
-        d="M18 28.5l7 7 13-14"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      <svg viewBox="0 0 28 28" className="h-7 w-7" fill="none">
+        <path
+          d="M6 14.5l5.5 5.5L22 8"
+          stroke="white"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
   );
 }

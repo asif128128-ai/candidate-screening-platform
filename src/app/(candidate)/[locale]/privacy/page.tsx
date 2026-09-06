@@ -17,8 +17,10 @@ export default function PrivacyPage() {
         ))}
       </div>
 
-      <h2 className="mt-10 text-[20px] font-semibold leading-7 text-ink-900">בקשה לגבי הפרטים שלי</h2>
-      <Card className="mt-4">
+      <h2 className="mt-12 text-[20px] font-semibold leading-7 text-ink-900">בקשה לגבי הפרטים שלי</h2>
+      {/* FINTECH_REDESIGN_PLAN.md §R2.2 privacy: this card is secondary to
+          the notice above it, so it goes flat (§R2.3.3). */}
+      <Card variant="flat" className="mt-4">
         <PrivacyRequestForm />
       </Card>
     </CandidateShell>

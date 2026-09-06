@@ -25,15 +25,30 @@ function hasLogo(): boolean {
   }
 }
 
+// FINTECH_REDESIGN_PLAN.md §R2.3.2: without a client logo, the fallback is
+// a monogram (28px rounded-8 --ink-900 square, the brand name's first
+// letter in white 15/700) followed by the wordmark (17/24 700 --ink-900),
+// gap-2.5 — not just a bare text wordmark. Ask the client — again — for
+// `logo.svg` and a hex; the monogram is the fallback, not the brand.
 export function BrandMark() {
   if (hasLogo()) {
     // A self-hosted SVG logo of unknown intrinsic size; next/image's
     // optimizer adds no value for a vector logo and forces width/height
     // we don't have yet.
-    return <img src="/brand/logo.svg" alt={BRAND_NAME} height={24} className="h-6 w-auto" />;
+    return <img src="/brand/logo.svg" alt={BRAND_NAME} height={28} className="h-7 w-auto" />;
   }
 
+  const initial = BRAND_NAME.trim().charAt(0).toUpperCase() || "?";
+
   return (
-    <span className="text-[18px] font-bold leading-none text-ink-900">{BRAND_NAME}</span>
+    <span className="rtl-row items-center gap-2.5">
+      <span
+        aria-hidden="true"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-8 bg-ink-900 text-[15px] font-bold leading-none text-white"
+      >
+        {initial}
+      </span>
+      <span className="text-[17px] font-bold leading-6 text-ink-900">{BRAND_NAME}</span>
+    </span>
   );
 }

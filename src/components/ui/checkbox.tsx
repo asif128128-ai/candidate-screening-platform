@@ -17,7 +17,7 @@ export function Checkbox({
         <input type="checkbox" className="peer absolute inset-0 h-5 w-5 cursor-pointer opacity-0" {...props} />
         <span
           aria-hidden="true"
-          className="pointer-events-none flex h-5 w-5 items-center justify-center rounded-md border-[1.5px] border-line-strong bg-white transition-colors duration-150 peer-checked:border-brand-600 peer-checked:bg-brand-600 peer-focus-visible:shadow-[0_0_0_3px_var(--brand-100),0_0_0_1px_var(--brand-600)]"
+          className="pointer-events-none flex h-5 w-5 items-center justify-center rounded-md border-[1.5px] border-line-strong bg-white transition-colors duration-150 peer-checked:border-brand-600 peer-checked:bg-brand-600 peer-focus-visible:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--brand-600)]"
         >
           {/* Stroke is white on purpose: invisible against the unchecked
               white box, and revealed once the box turns --brand-600 — no
