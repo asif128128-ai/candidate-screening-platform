@@ -136,8 +136,22 @@ export function AssessmentRunner({ applicationId }: { applicationId: string }) {
       setAnswer(defaultAnswerFor(phase.item.kind as RunnerItemKind));
       renderedAtRef.current = Date.now();
       setOutageNotice(phase.item.outageCreditMs > 0);
+      // FINTECH_REDESIGN_PLAN.md §R2.2 runner item 1 — real bug: without
+      // this reset, a skip click's "לדלג בלי לענות?" confirm state survived
+      // onto whichever item loaded next (reached via skip OR a normal
+      // answer submit), so a single click on that later item silently
+      // skipped it with no confirmation at all.
+      setSkipConfirm(false);
     }
   }, [phase.kind === "item" ? phase.item.itemId : null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Same bug fix, other half: the confirm state must also revert on its
+  // own after 4s if the candidate never clicks again (§R2.2 runner item 1).
+  useEffect(() => {
+    if (!skipConfirm) return;
+    const t = setTimeout(() => setSkipConfirm(false), 4000);
+    return () => clearTimeout(t);
+  }, [skipConfirm]);
 
   // ---- fetch current item, applying the block-intro gate ----
   const loadCurrent = useCallback(async () => {

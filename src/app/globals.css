@@ -54,6 +54,25 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* FINTECH_REDESIGN_PLAN.md §R2.2 landing item 1 / §R2.3.5: round 1 shipped
+   the H1 breakpoint inverted (`text-[28px] … min-[480px]:text-[24px]` —
+   literally *smaller* on desktop than mobile) on every reading/form page.
+   One shared class fixes it everywhere at once: 26/34 mobile, 32/40 at
+   >=640px, 700 weight, -0.01em letter-spacing, --ink-900. */
+.h1 {
+  font-size: 26px;
+  line-height: 34px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink-900);
+}
+@media (min-width: 640px) {
+  .h1 {
+    font-size: 32px;
+    line-height: 40px;
+  }
+}
+
 /* CANDIDATE_FLOW.md §9 / ARCHITECTURE.md §9: technical tokens (numbers,
    emails, phone numbers, code) stay LTR inside RTL sentences. The shared
    <Term> component (src/components/term.tsx) wraps these in <bdi>; this

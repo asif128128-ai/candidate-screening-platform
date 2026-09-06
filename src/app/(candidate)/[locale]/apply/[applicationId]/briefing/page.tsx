@@ -18,20 +18,25 @@ export default async function BriefingPage({
   if (guard.kind === "already_past") {
     return (
       <CandidateShell width="reading" stepper={{ current: 3 }}>
-        <h1 className="text-[28px] font-bold leading-9 text-ink-900">לפני המבחן</h1>
-        <p className="mt-2 text-[16px] leading-[26px] text-text-2">כבר עברת את השלב הזה.</p>
-        <Link href={stepPath(applicationId, guard.state.currentStep)} className={`mt-4 ${buttonClasses({ fullWidth: false })}`}>
-          המשך
-        </Link>
+        <Card className="mx-auto max-w-[480px] text-center">
+          <h1 className="h1">לפני המבחן</h1>
+          <p className="mt-2 text-[16px] leading-[26px] text-text-2">
+            כבר עברת את השלב הזה. אפשר להמשיך מהנקודה שבה עצרתם.
+          </p>
+          <Link
+            href={stepPath(applicationId, guard.state.currentStep)}
+            className={`mt-4 ${buttonClasses({ fullWidth: false })}`}
+          >
+            המשך
+          </Link>
+        </Card>
       </CandidateShell>
     );
   }
 
   return (
     <CandidateShell width="reading" stepper={{ current: 3 }}>
-      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
-        לפני המבחן
-      </h1>
+      <h1 className="h1">לפני המבחן</h1>
 
       <div className="mt-6 grid gap-4">
         <Card>

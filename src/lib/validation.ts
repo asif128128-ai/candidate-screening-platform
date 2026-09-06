@@ -48,11 +48,32 @@ export const personalDetailsSchema = z.object({
   email: z.string().trim().min(1, "יש להזין כתובת אימייל"),
   institution: z.string().trim().min(1, "יש לבחור מוסד לימודים").max(120),
   degreeProgram: z.string().trim().min(1, "יש לבחור תואר / מסלול").max(120),
-  studyYear: z.coerce.number().int().min(1, "יש לבחור שנת לימוד").max(7, "יש לבחור שנת לימוד"),
+  // FINTECH_REDESIGN_PLAN.md §R2.2 step 1 item 1: an empty/missing studyYear
+  // used to leak zod's own English "Expected number, received nan" (or, on
+  // some zod versions, "Required") straight to the candidate. Verified
+  // empirically: the <select>'s first option is the disabled placeholder,
+  // and per the HTML spec a select's currently-selected-but-disabled option
+  // contributes NO entry at all to the submitted form data — so an
+  // untouched field arrives as a genuinely *missing* key, not "". The
+  // `required_error` on the base z.string() covers that; `.pipe()` then
+  // validates the raw string is non-empty *before* z.coerce.number() ever
+  // runs (the same pattern as dateOfBirth above), and invalid_type_error
+  // covers any input that still fails to coerce to a number afterward.
+  studyYear: z
+    .string({ required_error: "יש לבחור שנת לימוד" })
+    .min(1, "יש לבחור שנת לימוד")
+    .pipe(
+      z.coerce
+        .number({ invalid_type_error: "יש לבחור שנת לימוד" })
+        .int()
+        .min(1, "יש לבחור שנת לימוד")
+        .max(7, "יש לבחור שנת לימוד"),
+    ),
   academicAverage: z.coerce.number().min(0, "הממוצע חייב להיות בין 0 ל-100").max(100, "הממוצע חייב להיות בין 0 ל-100"),
-  canWorkRishon: z
-    .string()
-    .refine((v) => v === "yes" || v === "no", { message: "יש לבחור תשובה" }),
+  // Same section: a missing canWorkRishon radio hit z.string()'s own
+  // "Required" before .refine() ever ran. z.enum's errorMap covers both the
+  // missing-value and wrong-value cases with the Hebrew message directly.
+  canWorkRishon: z.enum(["yes", "no"], { errorMap: () => ({ message: "יש לבחור תשובה" }) }),
   linkedinUrl: z.string().trim().optional().default(""),
   githubUrl: z.string().trim().optional().default(""),
   pendingCvId: z.string().trim().optional().default(""),

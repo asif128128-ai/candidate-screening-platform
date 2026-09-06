@@ -20,7 +20,16 @@ export default async function ApplyStep2Page({
   if (!job) {
     return (
       <CandidateShell width="reading">
-        <h1 className="text-center text-[20px] font-semibold leading-7 text-ink-900">המשרה אינה זמינה</h1>
+        <Card className="mx-auto max-w-[480px] text-center">
+          <h1 className="h1">המשרה אינה פתוחה כרגע</h1>
+          <p className="mt-2 text-[16px] leading-[26px] text-text-2">
+            ייתכן שהקישור ישן או שהמשרה כבר אוישה. אם הגעתם לכאן מהודעה שקיבלתם מאיתנו, כתבו לנו —
+            הכתובת בעמוד מדיניות הפרטיות.
+          </p>
+          <Link href="/privacy" className={`mt-4 ${buttonClasses({ variant: "secondary", fullWidth: false })}`}>
+            למדיניות הפרטיות
+          </Link>
+        </Card>
       </CandidateShell>
     );
   }
@@ -28,20 +37,25 @@ export default async function ApplyStep2Page({
   if (guard.kind === "already_past") {
     return (
       <CandidateShell width="reading" stepper={{ current: 2 }}>
-        <h1 className="text-[28px] font-bold leading-9 text-ink-900">על התפקיד</h1>
-        <p className="mt-2 text-[16px] leading-[26px] text-text-2">כבר אישרת את השלב הזה.</p>
-        <Link href={stepPath(applicationId, guard.state.currentStep)} className={`mt-4 ${buttonClasses({ fullWidth: false })}`}>
-          המשך
-        </Link>
+        <Card className="mx-auto max-w-[480px] text-center">
+          <h1 className="h1">על התפקיד</h1>
+          <p className="mt-2 text-[16px] leading-[26px] text-text-2">
+            כבר אישרת את השלב הזה. אפשר להמשיך מהנקודה שבה עצרתם.
+          </p>
+          <Link
+            href={stepPath(applicationId, guard.state.currentStep)}
+            className={`mt-4 ${buttonClasses({ fullWidth: false })}`}
+          >
+            המשך
+          </Link>
+        </Card>
       </CandidateShell>
     );
   }
 
   return (
     <CandidateShell width="reading" stepper={{ current: 2 }}>
-      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
-        {job.title_he}
-      </h1>
+      <h1 className="h1">{job.title_he}</h1>
 
       {/* description_html is rendered server-side at job-save time (no runtime markdown lib, ARCHITECTURE.md §7). */}
       <Card className="mt-6">

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { TermsCard } from "@/components/ui/terms-card";
 import { buttonClasses } from "@/components/ui/button";
+import { Term } from "@/components/term";
 import { getJobBySlug } from "@/db/queries/jobs";
 
 // CANDIDATE_FLOW.md §1.1 / DECISIONS_LOG.md #1: the terms card, the
@@ -21,26 +22,52 @@ export default async function JobLandingPage({
   if (!job) {
     return (
       <CandidateShell width="reading">
-        <h1 className="text-center text-[28px] font-bold leading-9 text-ink-900">המשרה אינה פתוחה כרגע</h1>
+        <Card className="mx-auto max-w-[480px] text-center">
+          <h1 className="h1">המשרה אינה פתוחה כרגע</h1>
+          <p className="mt-2 text-[16px] leading-[26px] text-text-2">
+            ייתכן שהקישור ישן או שהמשרה כבר אוישה. אם הגעתם לכאן מהודעה שקיבלתם מאיתנו, כתבו לנו —
+            הכתובת בעמוד מדיניות הפרטיות.
+          </p>
+          <Link href="/privacy" className={`mt-4 ${buttonClasses({ variant: "secondary", fullWidth: false })}`}>
+            למדיניות הפרטיות
+          </Link>
+        </Card>
       </CandidateShell>
     );
   }
 
   return (
     <CandidateShell width="reading">
-      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
-        {job.title_he}
-      </h1>
+      <h1 className="h1">{job.title_he}</h1>
       <p className="mt-2 text-[18px] leading-7 text-text-2">{job.summary_he}</p>
 
       <div className="mt-6">
         <TermsCard job={job} />
       </div>
 
-      <p className="mt-6 text-[16px] leading-[26px] text-text" data-testid="tech-ops-line">
-        התפקיד הוא כ-50% פיתוח וכ-50% תפעול טכנולוגי, כולל חלק של תמיכה טכנית פנימית — אנחנו אומרים
-        את זה מראש.
-      </p>
+      <Card className="mt-6">
+        <h2 className="text-[20px] font-semibold leading-7 text-ink-900">מה התפקיד באמת</h2>
+        <div className="mt-4 grid grid-cols-1 gap-6 min-[480px]:grid-cols-2">
+          <div>
+            <p className="text-[13px] font-semibold leading-5 text-brand-700">פיתוח · כ-50%</p>
+            <p className="mt-1 text-[15px] leading-[24px] text-text-2">
+              כלים פנימיים, אוטומציות, אינטגרציות ועבודה מול <Term>APIs</Term>.
+            </p>
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold leading-5 text-brand-700">תפעול טכנולוגי · כ-50%</p>
+            <p className="mt-1 text-[15px] leading-[24px] text-text-2">
+              תשתיות ו-<Term>Cloud</Term>, הרשאות ומערכות <Term>SaaS</Term>, נתונים, לוגים ותקלות.
+            </p>
+          </div>
+        </div>
+        <p className="mt-5 text-[16px] leading-[26px] text-text" data-testid="tech-ops-line">
+          חלק מהתפעול הוא תמיכה טכנית פנימית לעובדים — זה חלק אמיתי מהתפקיד, אבל זו לא משרת{" "}
+          <Term>Help Desk</Term>. מי שרואה את התקלות מקרוב הוא מי שיודע מה כדאי לאוטמט ולייעל, וזו
+          בדיוק ההזדמנות: להפוך את הארגון למקום טכנולוגי, אוטומטי ויעיל הרבה יותר —{" "}
+          <strong className="font-semibold text-ink-900">ואתם תהיו חלק מרכזי בזה.</strong>
+        </p>
+      </Card>
 
       <Card className="mt-6" data-testid="process-outline">
         <h2 className="text-[20px] font-semibold leading-7 text-ink-900">איך התהליך עובד</h2>

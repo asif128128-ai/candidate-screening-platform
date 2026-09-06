@@ -246,6 +246,38 @@ test.describe(hasDb ? "assessment runner (real Postgres)" : "assessment runner (
     await expect(page.locator("body")).toContainText("המועמדות שלך התקבלה");
   });
 
+  test("skip-confirm never sticks onto a later item (FINTECH_REDESIGN_PLAN.md §R2.2 runner item 1)", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium", "real-signup e2e — chromium only, see file header");
+    test.skip(!hasDb, "requires DATABASE_URL");
+
+    await reachAssessmentStart(page, jobSlug);
+    await page.getByTestId("block-intro-continue").click();
+    await expect(page.getByTestId("item-pane")).toBeVisible();
+
+    const skipButton = page.getByTestId("skip-button");
+    await expect(skipButton).toHaveText("דילוג על השאלה");
+    await skipButton.click();
+    await expect(skipButton).toHaveText("לדלג בלי לענות?");
+
+    // The bug: instead of confirming the skip, answer the item normally and
+    // advance to the next item. Without the fix (reset on item-load +
+    // 4s revert), the confirm label survived onto this next item, so a
+    // single click there silently skipped it with no confirmation at all.
+    await answerCurrentItem(page);
+    await page.waitForTimeout(150);
+    await expect(page.getByTestId("item-pane")).toBeVisible();
+    await expect(page.getByTestId("skip-button")).toHaveText("דילוג על השאלה");
+
+    // Repeat on this later item too, matching the production symptom
+    // (items 3, 11, 13-17, 19, 24 all showed the stuck confirm label).
+    await skipButton.click();
+    await expect(skipButton).toHaveText("לדלג בלי לענות?");
+    await answerCurrentItem(page);
+    await page.waitForTimeout(150);
+    await expect(page.getByTestId("item-pane")).toBeVisible();
+    await expect(page.getByTestId("skip-button")).toHaveText("דילוג על השאלה");
+  });
+
   test("a timer expiring auto-advances to the next item without any candidate action", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "chromium", "real-signup e2e — chromium only, see file header");
     test.skip(!hasDb, "requires DATABASE_URL");

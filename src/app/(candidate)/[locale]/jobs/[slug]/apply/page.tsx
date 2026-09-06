@@ -1,4 +1,7 @@
+import { Link } from "@/i18n/navigation";
 import { CandidateShell } from "@/components/candidate-shell";
+import { Card } from "@/components/ui/card";
+import { buttonClasses } from "@/components/ui/button";
 import { getJobBySlug } from "@/db/queries/jobs";
 import { PersonalDetailsForm } from "./personal-details-form";
 
@@ -17,16 +20,23 @@ export default async function ApplyStep1Page({
   if (!job) {
     return (
       <CandidateShell width="form">
-        <h1 className="text-center text-[20px] font-semibold leading-7 text-ink-900">המשרה אינה פתוחה כרגע</h1>
+        <Card className="mx-auto max-w-[480px] text-center">
+          <h1 className="h1">המשרה אינה פתוחה כרגע</h1>
+          <p className="mt-2 text-[16px] leading-[26px] text-text-2">
+            ייתכן שהקישור ישן או שהמשרה כבר אוישה. אם הגעתם לכאן מהודעה שקיבלתם מאיתנו, כתבו לנו —
+            הכתובת בעמוד מדיניות הפרטיות.
+          </p>
+          <Link href="/privacy" className={`mt-4 ${buttonClasses({ variant: "secondary", fullWidth: false })}`}>
+            למדיניות הפרטיות
+          </Link>
+        </Card>
       </CandidateShell>
     );
   }
 
   return (
     <CandidateShell width="form" stepper={{ current: 1 }}>
-      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
-        פרטים אישיים
-      </h1>
+      <h1 className="h1">פרטים אישיים</h1>
       <p className="mt-1 text-[13px] font-semibold leading-5 text-text-3">
         כ-3 דקות · נשמר אוטומטית בדפדפן — {job.title_he}
       </p>

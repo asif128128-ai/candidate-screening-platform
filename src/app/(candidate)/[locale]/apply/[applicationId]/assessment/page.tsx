@@ -1,4 +1,7 @@
 import { Link } from "@/i18n/navigation";
+import { CandidateShell } from "@/components/candidate-shell";
+import { Card } from "@/components/ui/card";
+import { buttonClasses } from "@/components/ui/button";
 import { guardApplicationStep, stepPath } from "@/lib/application-guard";
 import { AssessmentRunner } from "./runner";
 
@@ -17,16 +20,20 @@ export default async function AssessmentRunnerPage({
 
   if (guard.kind === "already_past") {
     return (
-      <main className="mx-auto max-w-2xl p-8">
-        <h1 className="text-xl font-semibold">המבחן</h1>
-        <p className="mt-2 text-neutral-600">כבר עברת את השלב הזה.</p>
-        <Link
-          href={stepPath(applicationId, guard.state.currentStep)}
-          className="mt-4 inline-block rounded-md bg-neutral-900 px-4 py-2 text-white"
-        >
-          המשך
-        </Link>
-      </main>
+      <CandidateShell width="reading" stepper={{ current: 4 }}>
+        <Card className="mx-auto max-w-[480px] text-center">
+          <h1 className="h1">המבחן</h1>
+          <p className="mt-2 text-[16px] leading-[26px] text-text-2">
+            כבר עברת את השלב הזה. אפשר להמשיך מהנקודה שבה עצרתם.
+          </p>
+          <Link
+            href={stepPath(applicationId, guard.state.currentStep)}
+            className={`mt-4 ${buttonClasses({ fullWidth: false })}`}
+          >
+            המשך
+          </Link>
+        </Card>
+      </CandidateShell>
     );
   }
 

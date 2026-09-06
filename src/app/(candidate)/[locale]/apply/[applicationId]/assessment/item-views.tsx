@@ -217,16 +217,23 @@ export function NumericView({
         </div>
       ) : null}
       <div className="mt-6 flex items-center gap-3">
-        <Input
-          type="text"
-          inputMode="decimal"
-          dir="ltr"
-          value={answer?.value === null || answer?.value === undefined ? "" : String(answer.value)}
-          onChange={(e) => onChange({ value: e.target.value })}
-          className="w-40"
-          data-testid="numeric-input"
-          placeholder="0"
-        />
+        {/* FINTECH_REDESIGN_PLAN.md §R2.2 runner item 3: `w-40` lost to
+            FIELD_BASE's `w-full` (both are plain utility classes with equal
+            specificity — which one wins depends on generated-CSS order, not
+            className string order), so the numeric input rendered full
+            width. Fixed by sizing a wrapper instead of fighting Input's own
+            width class. */}
+        <div className="w-40">
+          <Input
+            type="text"
+            inputMode="decimal"
+            dir="ltr"
+            value={answer?.value === null || answer?.value === undefined ? "" : String(answer.value)}
+            onChange={(e) => onChange({ value: e.target.value })}
+            data-testid="numeric-input"
+            placeholder="0"
+          />
+        </div>
         {content.unit ? <span className="text-text-3">{content.unit}</span> : null}
       </div>
     </div>
@@ -305,7 +312,7 @@ export function OrderingView({
               data-testid={`ordering-slot-${slot}`}
             >
               <option value={-1} disabled>
-                בחר/י אירוע
+                בחרו אירוע
               </option>
               {content.items.map((item, i) => (
                 <option key={i} value={i}>

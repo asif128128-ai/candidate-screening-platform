@@ -10,9 +10,7 @@ export default function PrivacyPage() {
 
   return (
     <CandidateShell width="reading">
-      <h1 className="text-[28px] font-bold leading-9 text-ink-900 min-[480px]:text-[24px] min-[480px]:leading-8">
-        מדיניות פרטיות
-      </h1>
+      <h1 className="h1">מדיניות פרטיות</h1>
       <div className="mt-4 space-y-3 text-[16px] leading-[26px] text-text">
         {paragraphs.map((p, i) => (
           <p key={i}>{p}</p>

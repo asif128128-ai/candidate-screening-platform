@@ -204,19 +204,39 @@ export async function listAssessmentConfigs(tx: TransactionSql): Promise<Assessm
 export function renderJobDescriptionHtml(markdown: string): string {
   const escape = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const blocks = markdown.trim().split(/\n{2,}/);
-  const html = blocks
-    .map((block) => {
-      const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
-      const isList = lines.length > 0 && lines.every((l) => l.startsWith("- "));
-      const inline = (s: string) => escape(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-      if (isList) {
-        return `<ul>${lines.map((l) => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>`;
+  const inline = (s: string) => escape(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // FINTECH_REDESIGN_PLAN.md §R2.2 step 2 item 1: this used to split on
+  // /\n{2,}/ (a blank line), but stored descriptions use single newlines
+  // between paragraphs, so the whole description — every paragraph, every
+  // "**heading**" lead-in — collapsed into one giant <p>. A single newline
+  // is a paragraph break; job descriptions never use soft line breaks.
+  const lines = markdown
+    .trim()
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  // A line that is *only* a "**bold**" run reads as a heading, not a bolded
+  // sentence — render it as <h3> instead of <p><strong>.
+  const boldOnly = /^\*\*(.+)\*\*$/;
+
+  const blocks: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    if (line.startsWith("- ")) {
+      const items: string[] = [];
+      while (i < lines.length && lines[i]!.startsWith("- ")) {
+        items.push(lines[i]!.slice(2));
+        i++;
       }
-      return `<p>${inline(lines.join(" "))}</p>`;
-    })
-    .join("\n");
-  return html;
+      blocks.push(`<ul>${items.map((it) => `<li>${inline(it)}</li>`).join("")}</ul>`);
+      continue;
+    }
+    const boldMatch = boldOnly.exec(line);
+    blocks.push(boldMatch ? `<h3>${inline(boldMatch[1]!)}</h3>` : `<p>${inline(line)}</p>`);
+    i++;
+  }
+  return blocks.join("\n");
 }
 
 export interface JobInput {
