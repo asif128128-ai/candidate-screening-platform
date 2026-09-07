@@ -17,7 +17,7 @@ export interface BlockCopy {
   howItWorksHe: string;
 }
 
-export const BLOCK_ORDER = ["speed", "reasoning", "tech", "investigate"] as const;
+export const BLOCK_ORDER = ["speed", "knowledge", "reasoning", "tech", "investigate"] as const;
 
 /**
  * ASSESSMENT_DESIGN.md §2.2 — shown on every block intro, under the rule
@@ -43,12 +43,21 @@ export const BLOCK_COPY: Record<string, BlockCopy> = {
     howItWorksHe:
       "כל שאלה מציגה עובדה קטנה (קטע קוד, טבלה, לוג) ושואלת עליה שאלה אחת ברורה. אין צורך בידע מוקדם — כל מה שנדרש כתוב בשאלה עצמה.",
   },
+  knowledge: {
+    key: "knowledge",
+    nameHe: "ידע טכנולוגי",
+    itemCount: 10,
+    timeLimitS: 15,
+    ruleHe: "10 שאלות ידע קצרות, 15 שניות לכל אחת. יודעים או לא יודעים — אין מה לחשב.",
+    howItWorksHe:
+      "שאלות על מושגים, כלים ופורמטים מהעולם הטכנולוגי — מה זה DNS, איזו כתובת IP תקינה, מה מכיל קובץ מסוים. אם אתם מכירים את המושג, התשובה לוקחת שניות ספורות.",
+  },
   reasoning: {
     key: "reasoning",
     nameHe: "חשיבה",
-    itemCount: 8,
+    itemCount: 6,
     timeLimitS: 30,
-    ruleHe: "8 שאלות היסק וחשיבה, 30 שניות לכל אחת.",
+    ruleHe: "6 שאלות היסק וחשיבה, 30 שניות לכל אחת.",
     howItWorksHe:
       "חלק מהשאלות מספריות, חלקן מילוליות, ואחת מציגה סדרת צורות. אין תשובה \"נכונה מהזיכרון\" — הכול נובע מהנתונים שמוצגים.",
   },
@@ -63,9 +72,9 @@ export const BLOCK_COPY: Record<string, BlockCopy> = {
   investigate: {
     key: "investigate",
     nameHe: "חקירה",
-    itemCount: 4,
+    itemCount: 3,
     timeLimitS: 150,
-    ruleHe: "4 תרחישי חקירה, 150 שניות לכל אחד. כמה כרטיסיות מידע לכל תרחיש.",
+    ruleHe: "3 תרחישי חקירה, 150 שניות לכל אחד. כמה כרטיסיות מידע לכל תרחיש.",
     howItWorksHe:
       "כל תרחיש מציג כרטיס תמיכה וכמה כרטיסיות מידע (לוגים, הגדרות, שיחות). התפקיד: למצוא את שורש הבעיה, לבחור את הפעולה הנכונה הראשונה, ולחלץ עובדה קונקרטית. לא כל כרטיסייה רלוונטית.",
   },
@@ -73,13 +82,14 @@ export const BLOCK_COPY: Record<string, BlockCopy> = {
 
 /**
  * Seed blueprint's fixed position ranges per block (ASSESSMENT_DESIGN.md §2
- * table). Blueprint v2 (0013_blueprint_v2_fast_items.sql): 10 + 8 + 8 + 4 =
- * 30 items.
+ * table). Blueprint v3 (0014_blueprint_v3_knowledge_block.sql):
+ * 10 + 10 + 6 + 8 + 3 = 37 items.
  */
 export function blockKeyForPosition(position: number): string {
   if (position <= 10) return "speed";
-  if (position <= 18) return "reasoning";
-  if (position <= 26) return "tech";
+  if (position <= 20) return "knowledge";
+  if (position <= 26) return "reasoning";
+  if (position <= 34) return "tech";
   return "investigate";
 }
 

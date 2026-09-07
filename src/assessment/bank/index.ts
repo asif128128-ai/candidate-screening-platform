@@ -1,6 +1,7 @@
 // The template bank registry (ASSESSMENT_DESIGN.md §4.1, §4.3). Aggregates
-// all 35 template families (12 speed + 11 reasoning + 12 tech) plus the 12
-// investigation scenarios, keyed by id, for generator.ts and bank-audit.ts.
+// all 47 template families (12 speed + 11 reasoning + 12 tech + 12 knowledge)
+// plus the 12 investigation scenarios, keyed by id, for generator.ts and
+// bank-audit.ts.
 //
 // Round 3 (ASSESSMENT_DESIGN.md §2.2): seven families were retired because
 // they measured prior coursework or vocabulary rather than the target
@@ -50,6 +51,19 @@ import { template as techCloudWaste } from "./tech/cloud_waste";
 import { template as techSecuritySmell } from "./tech/security_smell";
 import { template as techApiPaginationMath } from "./tech/api_pagination_math";
 import { template as techFieldMappingError } from "./tech/field_mapping_error";
+
+import { template as knowledgeWhatIs } from "./knowledge/what_is";
+import { template as knowledgeHttpStatus } from "./knowledge/http_status";
+import { template as knowledgeFileType } from "./knowledge/file_type";
+import { template as knowledgeToolPurpose } from "./knowledge/tool_purpose";
+import { template as knowledgeCommandPurpose } from "./knowledge/command_purpose";
+import { template as knowledgeUrlParts } from "./knowledge/url_parts";
+import { template as knowledgeIpValid } from "./knowledge/ip_valid";
+import { template as knowledgeFormatValid } from "./knowledge/format_valid";
+import { template as knowledgeJsonValid } from "./knowledge/json_valid";
+import { template as knowledgeUnitsBigger } from "./knowledge/units_bigger";
+import { template as knowledgeOddOneOut } from "./knowledge/odd_one_out";
+import { template as knowledgeSpotSyntaxError } from "./knowledge/spot_syntax_error";
 
 import { scenario as invWebhookMissing } from "./investigate/webhook_missing";
 import { scenario as invSsoLoginSubset } from "./investigate/sso_login_subset";
@@ -108,6 +122,27 @@ export const TECH_TEMPLATES: readonly ItemTemplate[] = [
   techFieldMappingError,
 ];
 
+/**
+ * The knowledge block (blueprint v3). These score into the `tech` pillar — the
+ * hiring manager gets one technology number rather than two — but they are a
+ * separate pool so the tech block never serves them and vice versa
+ * (generator.ts `poolForBlock`).
+ */
+export const KNOWLEDGE_TEMPLATES: readonly ItemTemplate[] = [
+  knowledgeWhatIs,
+  knowledgeHttpStatus,
+  knowledgeFileType,
+  knowledgeToolPurpose,
+  knowledgeCommandPurpose,
+  knowledgeUrlParts,
+  knowledgeIpValid,
+  knowledgeFormatValid,
+  knowledgeJsonValid,
+  knowledgeUnitsBigger,
+  knowledgeOddOneOut,
+  knowledgeSpotSyntaxError,
+];
+
 export const INVESTIGATION_SCENARIOS: readonly InvestigationScenario[] = [
   invWebhookMissing,
   invSsoLoginSubset,
@@ -127,6 +162,7 @@ export const ALL_CHOICE_TEMPLATES: readonly ItemTemplate[] = [
   ...SPEED_TEMPLATES,
   ...REASONING_TEMPLATES,
   ...TECH_TEMPLATES,
+  ...KNOWLEDGE_TEMPLATES,
 ];
 
 /** Which cause variants of a scenario require escalation-with-proposal as the correct q2 answer. */

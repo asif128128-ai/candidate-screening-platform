@@ -44,22 +44,25 @@ export default async function BriefingPage({
           "הכללים" stays its own flat card. */}
       <Card variant="flat" className="mt-8">
         <h2 className="text-[20px] font-semibold leading-7 text-ink-900">מה זה</h2>
-        {/* ASSESSMENT_DESIGN.md §2 / 0013_blueprint_v2_fast_items.sql: 30
-            items in blueprint v2, and the block order here is the order the
-            runner actually serves (BLOCK_ORDER / blockKeyForPosition) — the
-            previous copy listed חקירה third while the runner ran it last. */}
+        {/* ASSESSMENT_DESIGN.md §2 / 0014_blueprint_v3_knowledge_block.sql: 37
+            items in 5 blocks, listed in the order the runner actually serves
+            them (BLOCK_ORDER / blockKeyForPosition). "לא מה שיננתם" was
+            dropped: with the knowledge block it is no longer true, and telling
+            candidates memory does not matter right before asking what DNS is
+            would be a straightforward lie. */}
         <p className="mt-2 text-[16px] leading-[26px] text-text">
-          מבחן קצר ואינטנסיבי, כ-25 דקות, 30 שאלות ב-4 חלקים: חימום מהיר, חשיבה, אינסטינקט טכנולוגי,
-          חקירה. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק החקירה
-          יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך.
+          מבחן קצר ואינטנסיבי, כ-25 דקות, 37 שאלות ב-5 חלקים: חימום מהיר, ידע טכנולוגי, חשיבה,
+          אינסטינקט טכנולוגי, וחקירה. רוב השאלות קצרות מאוד. לפני חלק החקירה יש תרגול קצר, לא מתוזמן
+          ולא נחשב לציון, כדי להכיר את המסך.
         </p>
 
         <h2 className="mt-5 border-t border-line pt-5 text-[20px] font-semibold leading-7 text-ink-900">
           מה לצפות
         </h2>
         <p className="mt-2 text-[16px] leading-[26px] text-text">
-          הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. אין כל דבר שצריך לדעת
-          בעל פה: כל מה שנדרש נמצא בשאלה עצמה.
+          הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. בחלק של ידע טכנולוגי
+          נשאל על מושגים מהעולם הטכנולוגי — מי שמכיר אותם עונה בשניות ספורות. בכל שאר החלקים כל מה
+          שנדרש נמצא בשאלה עצמה, ואין מה ללמוד מראש.
         </p>
 
         {/* ASSESSMENT_DESIGN.md §2.2 — the anti-externalization declaration.

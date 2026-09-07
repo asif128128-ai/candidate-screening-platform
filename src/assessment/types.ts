@@ -7,7 +7,10 @@
 import type { Rng } from "./rng";
 
 export type Pillar = "reasoning" | "independence" | "tech" | "speed";
-export type BlockKey = "speed" | "reasoning" | "tech" | "investigate";
+// Blueprint v3 (0014_blueprint_v3_knowledge_block.sql) added `knowledge`.
+// Note it is a BLOCK, not a pillar: knowledge items carry pillar "tech" so
+// they score into the technology number alongside the tech block.
+export type BlockKey = "speed" | "knowledge" | "reasoning" | "tech" | "investigate";
 export type ItemKind =
   | "single_choice"
   | "multi_choice"

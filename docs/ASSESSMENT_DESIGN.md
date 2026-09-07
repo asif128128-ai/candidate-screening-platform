@@ -9,7 +9,7 @@ Status: **Decided.** Defines the assessment a candidate takes, the question bank
 3. No trivia, no LeetCode, no memorization, no personality test. Everything is either "figure it out from what is in front of you" or "what would a technically sensible person do next".
 4. Hundreds of candidates must not see the same test. Variability is built into content generation, not into a big hand-written pool.
 5. Zero runtime LLM dependency. Zero post-launch content maintenance.
-6. Total time ≈ 25 minutes (20:30 of items plus intros and the practice scene). Intense, not exhausting.
+6. Total time ≈ 25 minutes (19:30 of items plus intros and the practice scene). Intense, not exhausting.
 
 ## 2. Structure
 
@@ -18,10 +18,15 @@ Status: **Decided.** Defines the assessment a candidate takes, the question bank
 | # | Block (Hebrew name) | Pillar | Items | Time / item | Block time | Item kinds |
 |---|---|---|---|---|---|---|
 | 1 | חימום מהיר | Speed | 10 | 15 s | 2:30 | single choice / numeric |
-| 2 | חשיבה | Reasoning | 8 | 30 s | 4:00 | single choice / numeric / ordering |
-| 3 | אינסטינקט טכנולוגי | Tech aptitude | 8 | 30 s | 4:00 | single choice / multi choice |
-| 4 | חקירה | Independence | 4 | 150 s | 10:00 | investigation (4–5 artifacts, 3 sub-answers) |
-| | | | **30** | | **≈ 20:30** | |
+| 2 | ידע טכנולוגי | Tech aptitude | 10 | 15 s | 2:30 | single choice |
+| 3 | חשיבה | Reasoning | 6 | 30 s | 3:00 | single choice / numeric / ordering |
+| 4 | אינסטינקט טכנולוגי | Tech aptitude | 8 | 30 s | 4:00 | single choice / multi choice |
+| 5 | חקירה | Independence | 3 | 150 s | 7:30 | investigation (4–5 artifacts, 3 sub-answers) |
+| | | | **37** | | **≈ 19:30** | |
+
+**Blueprint v3** (`0014_blueprint_v3_knowledge_block.sql`) added the knowledge block and moved weight from the two long blocks to short ones, on the client's instruction ("I prefer more short questions than long ones" plus an explicit ask for technology-knowledge items). Seven more questions, one minute shorter than v2.
+
+**`ידע טכנולוגי` is a block, not a pillar.** Its items carry `pillar: "tech"`, so they score into the technology number alongside `אינסטינקט טכנולוגי` rather than adding a fifth score, a fifth weight and a fifth admin column for a distinction the hiring manager has not asked to see. Two consequences, both deliberate: the tech pillar is now roughly half recall (its labels say so), and the generator must keep the two blocks' pools apart, which is why `poolForBlock` finally honors the blueprint's per-block `pool` glob instead of filtering on pillar alone.
 
 **Blueprint v2** (`0013_blueprint_v2_fast_items.sql`) replaced v1's 27 items / 29:50 after the threat model in §2.2 was re-derived against a phone camera rather than retyping. The rows above are the shipped blueprint; the block order in this table is also the order the runner serves (`BLOCK_ORDER`, `blockKeyForPosition`), which v1's docs contradicted.
 
@@ -34,7 +39,7 @@ Session wall-clock cap: **75 minutes** from `started_at`. After that the session
 ### 2.1 Why this order
 Speed first: a short, low-stakes warm-up gets the candidate into the rhythm and calibrates the pace before the important material. Reasoning second while fresh. Tech third: its items are short and instinct-driven. Investigation last.
 
-**Known open question — investigation's position.** The original argument here was that investigation belongs *third*, not last, because independence is the hiring manager's most important pillar and should not be measured on a fatigued candidate. That argument was never implemented: the seed blueprint, `BLOCK_ORDER`, `blockKeyForPosition` and the runner have always served tech third and investigation last, while this document and the briefing screen told the candidate the opposite. Round 3 made the docs and the candidate-facing copy tell the truth about what the code does; it did **not** settle which order is actually better. The fatigue argument still stands on its merits and is worth revisiting with pilot data — investigation is now 10:00 of a 20:30 test, so where it sits matters more than it did. Whoever changes it must move the blueprint, `BLOCK_ORDER`, `blockKeyForPosition`, the briefing copy and this table together.
+**Known open question — investigation's position.** The original argument here was that investigation belongs *third*, not last, because independence is the hiring manager's most important pillar and should not be measured on a fatigued candidate. That argument was never implemented: the seed blueprint, `BLOCK_ORDER`, `blockKeyForPosition` and the runner have always served tech third and investigation last, while this document and the briefing screen told the candidate the opposite. Round 3 made the docs and the candidate-facing copy tell the truth about what the code does; it did **not** settle which order is actually better. The fatigue argument still stands on its merits and is worth revisiting with pilot data — investigation is now 7:30 of a 19:30 test, so where it sits matters more than it did. Whoever changes it must move the blueprint, `BLOCK_ORDER`, `blockKeyForPosition`, the briefing copy and this table together.
 
 ### 2.2 Why these time limits
 
@@ -359,7 +364,35 @@ In the difficulty-3 variant of the same scenario, the "Last rotated" line is abs
 > ג. לכבד את `Retry-After`, להוסיף backoff, ולבדוק אם יש תהליך נוסף שצורך את אותה מכסה ✔
 > ד. לעבור ל-polling כל 10 דקות במקום כל שעה
 
-### 3.5 Independence signals outside the investigation block
+### 3.5 Technology knowledge — block "ידע טכנולוגי"
+
+**What it measures.** Whether this person has actually been around technology. Not reasoning, not speed — recall. Twelve families, 10 items per session, 15 s each.
+
+**This block deliberately breaks §3's central rule** ("the convention is in the item"), which exists so the assessment never re-measures prior exposure. Here prior exposure *is* the measurement, on the client's explicit instruction (`DECISIONS_LOG.md` #25). Two things keep it defensible:
+
+1. **The terms are general, not insider.** What DNS is, what a `.csv` holds, which IP address is well-formed, what `git commit` does. These are things anyone genuinely curious about technology picks up on their own; they are not what a particular internship or a particular course teaches. Deep protocol semantics stay in the tech block, where the item states them.
+2. **The clock is the only anti-externalization defense this block has, so it is set at the floor.** A recall question is precisely what a phone LLM answers best and fastest — there is nothing to compute and nothing to navigate. What saves it is the asymmetry at 15 s: someone who knows answers in ~3 s, while the photo round trip needs 11–12 s at its absolute best (§2.2). **Raising this limit to 20–25 s gives the block away**, which is why it is 15 s despite the client's general "20–25 s" guidance.
+
+Accepted cost, stated plainly: this block will systematically favor candidates who have been around technology longer, and that is a real narrowing of who scores well. It is the client's call, it is a legitimate thing to hire for in this role, and it is bounded — the block is 10 of 37 items inside a pillar worth 0.25.
+
+| template_id | Task | Pool |
+|---|---|---|
+| `knowledge.what_is` | "מה זה X?" over general technology vocabulary (DNS, API, cache, webhook, uptime…) | 24 terms |
+| `knowledge.http_status` | What a common status code means (200/301/400/401/403/404/500/503) | 8 |
+| `knowledge.file_type` | What a given extension holds (`.csv`, `.json`, `.env`, `.log`, `.sql`…) | 8 |
+| `knowledge.tool_purpose` | What a widely-used tool is for (Git, Docker, PostgreSQL, Postman, Terraform…) | 10 |
+| `knowledge.command_purpose` | What a basic command does (`git commit`, `ls`, `ping`, `grep`, `curl`…) | 8 |
+| `knowledge.url_parts` | Which part of a generated URL is the protocol / subdomain / domain / path / query — the item that surfaces whether `www` is understood as one subdomain among many | ≈ 5k |
+| `knowledge.ip_valid` | Which of four is a valid IPv4 address (no rule stated — knowing the shape is the point) | ≈ 4k |
+| `knowledge.format_valid` | Which value is well-formed: email, port, hex colour, MAC, ISO date | ≈ 3k |
+| `knowledge.json_valid` | Which snippet is valid JSON; distractors are the mistakes people actually make | ≈ 2k |
+| `knowledge.units_bigger` | Which quantity is largest (GB/MB/KB, hours/minutes/ms) | ≈ 3k |
+| `knowledge.odd_one_out` | Three members of a real technology family plus one outsider (browsers, databases, cloud providers…) | 8 categories |
+| `knowledge.spot_syntax_error` | Four one-line snippets, one with a syntax error that is wrong in any language | ≈ 2k |
+
+Every family renders four options of the same *shape*, so the answer can never be found by comparing lengths — the bank audit's longest-option gate (§4.4) caught exactly that in `knowledge.json_valid`'s first version, where the valid object had two key-value pairs and several distractors had one.
+
+### 3.6 Independence signals outside the investigation block
 Two lightweight signals are also collected across all blocks and folded into Independence at low weight (`SCORING.md` §4.3):
 - Skip-vs-guess discipline: skipping an item they clearly could not do (vs. random guessing) — measured as guess rate on items answered in < 25 % of the time with wrong answers.
 - Use of the one on-page help affordance: each block intro has a collapsed "איך זה עובד" panel. Whether they open it is *not* scored (both behaviors are fine); it is shown to the admin as context only.
@@ -392,7 +425,7 @@ items are numbered 1..N in block order
 Investigation block: choose 4 distinct scenarios out of 12 with cohort balancing (§3.3.1); choose a cause variant and difficulty per scenario (mix 1/2/1); draw the next-action distractor set with the session-level constraints of §3.3; the generator builds the "world" then renders artifacts.
 
 ### 4.3 Bank size and uniqueness
-- 12 speed + 11 reasoning + 12 tech + 12 investigation = **47 template families**, each with the variant counts above (most ≥ 1,000; total > 500k distinct concrete items).
+- 12 speed + 12 knowledge + 11 reasoning + 12 tech + 12 investigation = **59 template families**, each with the variant counts above (most ≥ 1,000; total > 500k distinct concrete items).
 - Probability two candidates receive the same full assessment is effectively zero; the probability two candidates share even one identical *item* in a 500-candidate round is < 1 % for every family except the intentionally small one (`speed.bool_logic`), which is limited to at most one item per session and carries the least weight.
 - These numbers support the **content-collision** claim only. Resistance to preparation/word-of-mouth is a different property, addressed (and its limits stated) in §3.3.1.
 

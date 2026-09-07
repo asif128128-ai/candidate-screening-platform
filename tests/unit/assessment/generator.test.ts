@@ -4,16 +4,18 @@ import { blockKeyForPosition } from "@/lib/assessment-block-copy";
 import { scoreItem, type CandidateAnswer } from "@/assessment/scoring";
 import type { AnswerKey, GeneratedItem } from "@/assessment/types";
 
-// The seed blueprint (supabase/migrations/0013_blueprint_v2_fast_items.sql,
-// DATA_MODEL.md §3.3, as amended by DECISIONS_LOG.md #4/#9): 30 items,
-// weights 0.30/0.30/0.25/0.15.
+// The seed blueprint (supabase/migrations/0014_blueprint_v3_knowledge_block.sql,
+// DATA_MODEL.md §3.3, as amended by DECISIONS_LOG.md #4/#9/#25): 37 items,
+// weights 0.30/0.30/0.25/0.15. Note `knowledge` and `tech` share the `tech`
+// pillar but draw from disjoint pools.
 const BLUEPRINT: Blueprint = {
-  version: 2,
+  version: 3,
   blocks: [
     { key: "speed", pillar: "speed", count: 10, time_limit_s: 15, pool: "speed.*" },
-    { key: "reasoning", pillar: "reasoning", count: 8, time_limit_s: 30, pool: "reasoning.*" },
+    { key: "knowledge", pillar: "tech", count: 10, time_limit_s: 15, pool: "knowledge.*" },
+    { key: "reasoning", pillar: "reasoning", count: 6, time_limit_s: 30, pool: "reasoning.*" },
     { key: "tech", pillar: "tech", count: 8, time_limit_s: 30, pool: "tech.*" },
-    { key: "investigate", pillar: "independence", count: 4, time_limit_s: 150, pool: "investigate.*" },
+    { key: "investigate", pillar: "independence", count: 3, time_limit_s: 150, pool: "investigate.*" },
   ],
   weights: { reasoning: 0.3, independence: 0.3, tech: 0.25, speed: 0.15 },
   session_wall_clock_min: 75,
@@ -40,15 +42,34 @@ function correctAnswerFor(item: GeneratedItem): CandidateAnswer {
 const SEEDS = Array.from({ length: 1000 }, (_, i) => BigInt(i) * 6364136223846793005n + 1442695040888963407n);
 
 describe("generateSession — structural invariants over 1,000 seeds", () => {
-  it("always produces exactly 30 items, numbered 1..30 in block order", () => {
+  it("always produces exactly 37 items, numbered 1..37 in block order", () => {
     for (const seed of SEEDS) {
       const items = generateSession(BLUEPRINT, seed);
-      expect(items).toHaveLength(30);
-      expect(items.map((i) => i.position)).toEqual(Array.from({ length: 30 }, (_, k) => k + 1));
+      expect(items).toHaveLength(37);
+      expect(items.map((i) => i.position)).toEqual(Array.from({ length: 37 }, (_, k) => k + 1));
       expect(items.slice(0, 10).every((i) => i.blockKey === "speed")).toBe(true);
-      expect(items.slice(10, 18).every((i) => i.blockKey === "reasoning")).toBe(true);
-      expect(items.slice(18, 26).every((i) => i.blockKey === "tech")).toBe(true);
-      expect(items.slice(26, 30).every((i) => i.blockKey === "investigate")).toBe(true);
+      expect(items.slice(10, 20).every((i) => i.blockKey === "knowledge")).toBe(true);
+      expect(items.slice(20, 26).every((i) => i.blockKey === "reasoning")).toBe(true);
+      expect(items.slice(26, 34).every((i) => i.blockKey === "tech")).toBe(true);
+      expect(items.slice(34, 37).every((i) => i.blockKey === "investigate")).toBe(true);
+    }
+  });
+
+  // The knowledge and tech blocks share the `tech` pillar, so only the
+  // blueprint's per-block `pool` keeps them apart. If that were ignored (as it
+  // was before blueprint v3) a session could serve the same family twice.
+  it("draws each block strictly from its own pool, even where two blocks share a pillar", () => {
+    for (const seed of SEEDS.slice(0, 200)) {
+      const items = generateSession(BLUEPRINT, seed);
+      for (const item of items) {
+        if (item.blockKey === "knowledge") expect(item.templateId.startsWith("knowledge.")).toBe(true);
+        if (item.blockKey === "tech") expect(item.templateId.startsWith("tech.")).toBe(true);
+        if (item.blockKey === "speed") expect(item.templateId.startsWith("speed.")).toBe(true);
+        if (item.blockKey === "reasoning") expect(item.templateId.startsWith("reasoning.")).toBe(true);
+      }
+      // ...and therefore no family is ever served twice in one session.
+      const ids = items.map((i) => i.templateId);
+      expect(new Set(ids).size).toBe(ids.length);
     }
   });
 
@@ -113,13 +134,15 @@ describe("generateSession — structural invariants over 1,000 seeds", () => {
     for (const seed of SEEDS.slice(0, 200)) {
       const items = generateSession(BLUEPRINT, seed);
       const reasoning = items.filter((i) => i.blockKey === "reasoning").map((i) => i.difficulty).sort();
-      expect(reasoning).toEqual([1, 1, 2, 2, 2, 2, 3, 3]);
+      expect(reasoning).toEqual([1, 1, 2, 2, 2, 3]);
       const tech = items.filter((i) => i.blockKey === "tech").map((i) => i.difficulty).sort();
       expect(tech).toEqual([1, 1, 2, 2, 2, 2, 3, 3]);
       const investigate = items.filter((i) => i.blockKey === "investigate").map((i) => i.difficulty).sort();
-      expect(investigate).toEqual([1, 2, 2, 3]);
+      expect(investigate).toEqual([1, 2, 3]);
       const speed = items.filter((i) => i.blockKey === "speed").map((i) => i.difficulty);
       expect(speed.every((d) => d === 1)).toBe(true);
+      const knowledge = items.filter((i) => i.blockKey === "knowledge").map((i) => i.difficulty);
+      expect(knowledge.every((d) => d === 1)).toBe(true);
     }
   });
 

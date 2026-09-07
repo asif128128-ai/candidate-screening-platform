@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_CHOICE_TEMPLATES, INVESTIGATION_SCENARIOS, REASONING_TEMPLATES, SPEED_TEMPLATES, TECH_TEMPLATES } from "@/assessment/bank";
+import { ALL_CHOICE_TEMPLATES, INVESTIGATION_SCENARIOS, KNOWLEDGE_TEMPLATES, REASONING_TEMPLATES, SPEED_TEMPLATES, TECH_TEMPLATES } from "@/assessment/bank";
 import { createRng, deriveItemSeed } from "@/assessment/rng";
 import { scoreItem, type CandidateAnswer } from "@/assessment/scoring";
 import type { AnswerKey, Difficulty, InvestigationAnswerKey, ItemTemplate } from "@/assessment/types";
@@ -22,11 +22,12 @@ function correctAnswerFor(kind: string, key: AnswerKey): CandidateAnswer {
 }
 
 describe("bank registry sizes match ASSESSMENT_DESIGN.md §4.3", () => {
-  it("12 speed + 11 reasoning + 12 tech = 35 choice templates; 12 investigation scenarios", () => {
+  it("12 speed + 11 reasoning + 12 tech + 12 knowledge = 47 choice templates; 12 investigation scenarios", () => {
     expect(SPEED_TEMPLATES).toHaveLength(12);
     expect(REASONING_TEMPLATES).toHaveLength(11);
     expect(TECH_TEMPLATES).toHaveLength(12);
-    expect(ALL_CHOICE_TEMPLATES).toHaveLength(35);
+    expect(KNOWLEDGE_TEMPLATES).toHaveLength(12);
+    expect(ALL_CHOICE_TEMPLATES).toHaveLength(47);
     expect(INVESTIGATION_SCENARIOS).toHaveLength(12);
   });
 
@@ -36,6 +37,13 @@ describe("bank registry sizes match ASSESSMENT_DESIGN.md §4.3", () => {
     for (const t of SPEED_TEMPLATES) expect(t.id.startsWith("speed.")).toBe(true);
     for (const t of REASONING_TEMPLATES) expect(t.id.startsWith("reasoning.")).toBe(true);
     for (const t of TECH_TEMPLATES) expect(t.id.startsWith("tech.")).toBe(true);
+    // Knowledge families score into the `tech` pillar but must keep their own
+    // id prefix — that prefix is what the blueprint's `pool` selects on, and
+    // it is the only thing stopping the tech block from serving them.
+    for (const t of KNOWLEDGE_TEMPLATES) {
+      expect(t.id.startsWith("knowledge.")).toBe(true);
+      expect(t.pillar).toBe("tech");
+    }
   });
 
   it("every investigation scenario id is unique and has exactly 3 cause variants", () => {

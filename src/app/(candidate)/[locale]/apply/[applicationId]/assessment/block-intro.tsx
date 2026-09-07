@@ -34,7 +34,7 @@ function ChevronIcon({ open }: { open: boolean }) {
 export function BlockIntro({ block, onProceed }: { block: BlockCopy; onProceed: () => void }) {
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(Math.ceil(BLOCK_INTRO_AUTO_ADVANCE_MS / 1000));
-  // FINTECH_REDESIGN_PLAN.md §R2.2 block-intro item 1: which of the 4 fixed
+  // FINTECH_REDESIGN_PLAN.md §R2.2 block-intro item 1: which of the fixed
   // blocks this is, from the same order the runner's timer band uses.
   const blockPosition = BLOCK_ORDER.findIndex((k) => k === block.key) + 1;
 
@@ -60,10 +60,17 @@ export function BlockIntro({ block, onProceed }: { block: BlockCopy; onProceed: 
       data-block-key={block.key}
     >
       <div className="w-full max-w-[560px]">
-        {/* FINTECH_REDESIGN_PLAN.md §R2.2 block-intro item 1: a 4-segment
-            progress rail above the content column so the candidate can see
-            which of the 4 blocks this is at a glance, not just read it. */}
-        <div className="grid grid-cols-4 gap-1.5" aria-hidden="true">
+        {/* FINTECH_REDESIGN_PLAN.md §R2.2 block-intro item 1: a progress rail
+            above the content column so the candidate can see which block this
+            is at a glance, not just read it. One segment per block, derived
+            from BLOCK_ORDER rather than a hardcoded 4 — blueprint v3 added the
+            knowledge block, making it 5. Inline gridTemplateColumns because
+            Tailwind cannot generate a class from a runtime value. */}
+        <div
+          className="grid gap-1.5"
+          style={{ gridTemplateColumns: `repeat(${BLOCK_ORDER.length}, minmax(0, 1fr))` }}
+          aria-hidden="true"
+        >
           {BLOCK_ORDER.map((key, i) => {
             const segPosition = i + 1;
             const segClass =
@@ -72,7 +79,7 @@ export function BlockIntro({ block, onProceed }: { block: BlockCopy; onProceed: 
           })}
         </div>
         <p className="tnum mt-4 text-[14px] leading-5 text-ink-200">
-          חלק {blockPosition} מתוך 4
+          חלק {blockPosition} מתוך {BLOCK_ORDER.length}
         </p>
         <h1 className="mt-2 text-[36px] font-bold leading-[44px] tracking-[-0.01em] text-white">{block.nameHe}</h1>
 

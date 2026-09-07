@@ -19,12 +19,13 @@ const SESSION_COUNT = Number(process.env.BANK_AUDIT_SESSIONS ?? 20000);
 const COLLISION_SAMPLE = 500;
 
 const BLUEPRINT: Blueprint = {
-  version: 2,
+  version: 3,
   blocks: [
     { key: "speed", pillar: "speed", count: 10, time_limit_s: 15, pool: "speed.*" },
-    { key: "reasoning", pillar: "reasoning", count: 8, time_limit_s: 30, pool: "reasoning.*" },
+    { key: "knowledge", pillar: "tech", count: 10, time_limit_s: 15, pool: "knowledge.*" },
+    { key: "reasoning", pillar: "reasoning", count: 6, time_limit_s: 30, pool: "reasoning.*" },
     { key: "tech", pillar: "tech", count: 8, time_limit_s: 30, pool: "tech.*" },
-    { key: "investigate", pillar: "independence", count: 4, time_limit_s: 150, pool: "investigate.*" },
+    { key: "investigate", pillar: "independence", count: 3, time_limit_s: 150, pool: "investigate.*" },
   ],
   weights: { reasoning: 0.3, independence: 0.3, tech: 0.25, speed: 0.15 },
   session_wall_clock_min: 75,

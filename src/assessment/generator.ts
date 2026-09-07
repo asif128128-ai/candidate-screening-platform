@@ -53,9 +53,13 @@ export interface GenerateSessionOptions {
 // per-block `count` — generateChoiceBlock throws if they disagree.
 const DIFFICULTY_MIX: Record<string, Difficulty[]> = {
   speed: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  reasoning: [1, 1, 2, 2, 2, 2, 3, 3],
+  // Recall items have no meaningful difficulty ladder — you either know what
+  // DNS is or you don't — so the knowledge block is uniformly difficulty 1,
+  // like speed.
+  knowledge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  reasoning: [1, 1, 2, 2, 2, 3],
   tech: [1, 1, 2, 2, 2, 2, 3, 3],
-  investigate: [1, 2, 2, 3],
+  investigate: [1, 2, 3],
 };
 
 /**
@@ -80,7 +84,7 @@ const DIFFICULTY_MIX: Record<string, Difficulty[]> = {
 function difficultyMixFor(blockKey: string, count: number): Difficulty[] {
   const exact = DIFFICULTY_MIX[blockKey];
   if (exact && exact.length === count) return exact;
-  if (blockKey === "speed") return Array.from({ length: count }, () => 1 as Difficulty);
+  if (blockKey === "speed" || blockKey === "knowledge") return Array.from({ length: count }, () => 1 as Difficulty);
 
   const d1 = Math.max(1, Math.round(count * 0.25));
   const d3 = Math.max(1, Math.round(count * 0.25));
@@ -92,8 +96,33 @@ function difficultyMixFor(blockKey: string, count: number): Difficulty[] {
   ].slice(0, count);
 }
 
-function poolForPillar(pillar: Pillar): readonly ItemTemplate[] {
-  return ALL_CHOICE_TEMPLATES.filter((t) => t.pillar === pillar);
+/**
+ * The templates a block may draw from.
+ *
+ * The blueprint has always carried a per-block `pool` glob ("speed.*",
+ * "tech.*"), but the generator ignored it and filtered on `pillar` alone.
+ * That was fine while blocks and pillars were 1:1. Blueprint v3 breaks that
+ * assumption: the `knowledge` block scores into the `tech` pillar (so the
+ * hiring manager keeps one technology number rather than two), which means
+ * two blocks share a pillar. Filtering by pillar alone would let the tech
+ * block serve knowledge items and vice versa — and because the no-repeat rule
+ * in `pickTemplatesForBlock` is per block, the same family could be served
+ * twice in one session.
+ *
+ * So `pool` is now honored: an id prefix ("knowledge.*" -> "knowledge."),
+ * with the pillar filter as the fallback for a blueprint that omits it or
+ * uses "*".
+ */
+function poolForBlock(block: BlueprintBlock): readonly ItemTemplate[] {
+  const byPillar = ALL_CHOICE_TEMPLATES.filter((t) => t.pillar === block.pillar);
+  const glob = block.pool?.trim();
+  if (!glob || glob === "*") return byPillar;
+
+  const prefix = glob.endsWith("*") ? glob.slice(0, -1) : `${glob}.`;
+  const byPool = ALL_CHOICE_TEMPLATES.filter((t) => t.id.startsWith(prefix));
+  // A pool that matches nothing is a blueprint typo, not an instruction to
+  // serve an empty block — fall back rather than fail the candidate's session.
+  return byPool.length > 0 ? byPool : byPillar;
 }
 
 interface Picked {
@@ -138,7 +167,7 @@ function generateChoiceBlock(
   sessionSeed: bigint,
   startPosition: number,
 ): GeneratedItem[] {
-  const pool = poolForPillar(block.pillar);
+  const pool = poolForBlock(block);
   const mix = difficultyMixFor(block.key, block.count);
 
   // A dedicated selection RNG, independent of any single item's RNG, so
