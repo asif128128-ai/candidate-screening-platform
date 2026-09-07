@@ -130,7 +130,14 @@ export const template: ItemTemplate = {
   difficulties: [1, 2, 3],
   conventionsStated: "n/a",
   generate(rng: Rng, difficulty: Difficulty) {
-    const n = difficulty === 1 ? 4 : 5;
+    // Round 3 (ASSESSMENT_DESIGN.md §2.2): fixed at 4 entities at every
+    // difficulty. The n=5 shape needs 45-60 s of honest deduction from a
+    // strong candidate, which the 35 s reasoning limit cannot fairly give it —
+    // and re-timing the block for its slowest family would hand every other
+    // family back to the phone-LLM loop. Difficulty now scales through the
+    // constraint count and the non-adjacency requirement below, not the
+    // permutation count.
+    const n = 4;
     const people = rng.sample(NAME_POOL, n);
     const allOrders = permutations(people);
     const numConstraints = difficulty === 3 ? 4 : 3;

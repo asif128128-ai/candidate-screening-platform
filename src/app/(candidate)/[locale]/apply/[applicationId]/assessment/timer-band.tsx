@@ -17,14 +17,17 @@ import { Term } from "@/components/term";
 export function TimerBand({
   blockName,
   blockPosition,
+  totalBlocks,
   position,
   totalItems,
   remainingMs,
   totalMs,
 }: {
   blockName: string;
-  /** Which of the 4 fixed blocks this item belongs to (1-4). */
+  /** Which of the fixed blocks this item belongs to (1-based). */
   blockPosition: number;
+  /** How many blocks the blueprint has (5 since blueprint v3). */
+  totalBlocks: number;
   position: number;
   totalItems: number;
   remainingMs: number;
@@ -38,12 +41,12 @@ export function TimerBand({
   return (
     <div className="sticky top-0 z-20 bg-ink-900">
       <div className="rtl-row mx-auto h-16 max-w-[880px] items-center justify-between px-4 sm:px-6">
-        {/* FINTECH_REDESIGN_PLAN.md §R2.2 runner item 6: block-of-4 context
-            above the absolute item count, so "שאלה 11 מתוך 27" reads inside
-            "which of the 4 blocks am I in" instead of standing alone. */}
+        {/* FINTECH_REDESIGN_PLAN.md §R2.2 runner item 6: block context above
+            the absolute item count, so "שאלה 11 מתוך 37" reads inside "which
+            block am I in" instead of standing alone. */}
         <span data-testid="progress-label" className="flex flex-col gap-0.5">
           <span className="tnum text-[13px] font-semibold leading-5 text-ink-200">
-            חלק {blockPosition} מתוך 4 · {blockName}
+            חלק {blockPosition} מתוך {totalBlocks} · {blockName}
           </span>
           <span className="tnum text-base font-semibold leading-6 text-white">
             שאלה {position} מתוך {totalItems}

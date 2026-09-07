@@ -35,7 +35,8 @@ export const template: ItemTemplate = {
   generate(rng: Rng) {
     const cols = rng.sample(COLUMNS, 2);
     const colNames = cols.map((c) => c.name);
-    const ids = rng.shuffle([1, 2, 3, 4, 5, 6]).map((n) => n + rng.nextIntBetween(0, 3) * 10);
+    // Round 3 (ASSESSMENT_DESIGN.md §2.2): 6 -> 5 rows for the 15 s limit.
+    const ids = rng.shuffle([1, 2, 3, 4, 5]).map((n) => n + rng.nextIntBetween(0, 3) * 10);
     const rows = ids.map((id) => ({
       id,
       values: Object.fromEntries(cols.map((c) => [c.name, c.gen(rng)])) as Record<string, string>,

@@ -130,7 +130,7 @@ describe("rng", () => {
     const s1 = deriveItemSeed(42n, "speed.json_diff", 3);
     const s2 = deriveItemSeed(42n, "speed.json_diff", 3);
     const s3 = deriveItemSeed(42n, "speed.json_diff", 4);
-    const s4 = deriveItemSeed(42n, "speed.ip_valid", 3);
+    const s4 = deriveItemSeed(42n, "speed.log_gap", 3);
     expect(s1).toBe(s2);
     expect(s1).not.toBe(s3);
     expect(s1).not.toBe(s4);

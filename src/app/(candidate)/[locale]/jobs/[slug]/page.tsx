@@ -103,11 +103,11 @@ export default async function JobLandingPage({
             <span className="text-[16px] leading-[26px] text-text">
               <strong className="font-semibold">מבחן מקוון, במחשב (לא בטלפון)</strong>
             </span>
-            <Chip className="justify-self-end">כ-20 דקות</Chip>
+            <Chip className="justify-self-end">כ-25 דקות</Chip>
           </li>
         </ol>
         <p className="mt-4 text-[14px] leading-[22px] text-text-2">
-          כדאי לעבור את כל התהליך ברצף אחד מהמחשב — <Term>כ-25 דקות</Term>. אם בכל זאת תצטרכו לעצור,
+          כדאי לעבור את כל התהליך ברצף אחד מהמחשב — <Term>כ-30 דקות</Term>. אם בכל זאת תצטרכו לעצור,
           תקבלו קוד חזרה שמאפשר להמשיך מאותה נקודה.
         </p>
       </Card>
@@ -120,7 +120,7 @@ export default async function JobLandingPage({
         >
           להגשת מועמדות
         </Link>
-        <p className="text-[13px] leading-5 text-text-3">כ-25 דקות · במחשב</p>
+        <p className="text-[13px] leading-5 text-text-3">כ-30 דקות · במחשב</p>
       </div>
     </CandidateShell>
   );

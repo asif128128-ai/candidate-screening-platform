@@ -88,7 +88,9 @@ export const template: ItemTemplate = {
   difficulties: [1],
   conventionsStated: "n/a",
   generate(rng: Rng) {
-    const keys = rng.sample(KEY_POOL, 5);
+    // Round 3 (ASSESSMENT_DESIGN.md §2.2): 5 -> 4 keys, so the two blocks are
+    // a glance rather than a read at the 15 s limit.
+    const keys = rng.sample(KEY_POOL, 4);
     const objA: Record<string, unknown> = {};
     for (const k of keys) objA[k.name] = k.gen(rng);
     const objB: Record<string, unknown> = { ...objA };

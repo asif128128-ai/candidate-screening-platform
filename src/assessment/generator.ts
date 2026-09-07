@@ -43,20 +43,86 @@ export interface GenerateSessionOptions {
   scenarioUsageCounts?: Record<string, number>;
 }
 
-// Difficulty mixes are fixed per block per ASSESSMENT_DESIGN.md §3.2-§3.4
-// worked examples and SCORING.md §10's worked example (which reproduces
-// these exact counts): reasoning 2×d1/3×d2/1×d3, tech 2×d1/4×d2/1×d3,
-// investigate 1×d1/2×d2/1×d3. Speed has no stated difficulty axis (it is
-// scored uniformly per SCORING.md §3.4), so every speed item is difficulty 1.
+// Difficulty mixes are fixed per block per ASSESSMENT_DESIGN.md §3.2-§3.4.
+// Blueprint v2 (0013_blueprint_v2_fast_items.sql) grew reasoning 6->8 and
+// tech 7->8 items to hold each pillar's measurement steady at the much
+// shorter per-item limits, so both mixes scale to 2×d1/4×d2/2×d3;
+// investigate stays 1×d1/2×d2/1×d3. Speed has no stated difficulty axis (it
+// is scored uniformly per SCORING.md §3.4), so every speed item is
+// difficulty 1. This table must be updated together with the blueprint's
+// per-block `count` — generateChoiceBlock throws if they disagree.
 const DIFFICULTY_MIX: Record<string, Difficulty[]> = {
   speed: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  // Recall items have no meaningful difficulty ladder — you either know what
+  // DNS is or you don't — so the knowledge block is uniformly difficulty 1,
+  // like speed.
+  knowledge: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   reasoning: [1, 1, 2, 2, 2, 3],
-  tech: [1, 1, 2, 2, 2, 2, 3],
-  investigate: [1, 2, 2, 3],
+  tech: [1, 1, 2, 2, 2, 2, 3, 3],
+  investigate: [1, 2, 3],
 };
 
-function poolForPillar(pillar: Pillar): readonly ItemTemplate[] {
-  return ALL_CHOICE_TEMPLATES.filter((t) => t.pillar === pillar);
+/**
+ * The mix for a block of `count` items.
+ *
+ * `DIFFICULTY_MIX` above states the mix for the *shipped* blueprint, so it is
+ * length-specific — and a blueprint whose block counts differ used to make
+ * `generateChoiceBlock` throw. That was a live bug rather than a theoretical
+ * one: blueprint v1 (`0002_seed.sql`) is still a row in every deployed
+ * database, sessions are generated from whatever config a job points at, and
+ * `assessment_configs` is admin-editable. After v2 changed reasoning 6->8 and
+ * tech 7->8, *starting an assessment on any job still pointing at v1 threw*
+ * — a 500 at `POST /api/assessment/start`, i.e. a candidate who cannot begin
+ * the test at all.
+ *
+ * So an unrecognized count is derived rather than rejected: the same 25/50/25
+ * shape the shipped blocks use (speed stays uniformly difficulty 1, per
+ * SCORING.md §3.4), with the remainder given to difficulty 2. The exact
+ * shipped mixes above still win when the count matches, so v2's audited mix
+ * is unchanged.
+ */
+function difficultyMixFor(blockKey: string, count: number): Difficulty[] {
+  const exact = DIFFICULTY_MIX[blockKey];
+  if (exact && exact.length === count) return exact;
+  if (blockKey === "speed" || blockKey === "knowledge") return Array.from({ length: count }, () => 1 as Difficulty);
+
+  const d1 = Math.max(1, Math.round(count * 0.25));
+  const d3 = Math.max(1, Math.round(count * 0.25));
+  const d2 = Math.max(0, count - d1 - d3);
+  return [
+    ...Array.from({ length: d1 }, () => 1 as Difficulty),
+    ...Array.from({ length: d2 }, () => 2 as Difficulty),
+    ...Array.from({ length: d3 }, () => 3 as Difficulty),
+  ].slice(0, count);
+}
+
+/**
+ * The templates a block may draw from.
+ *
+ * The blueprint has always carried a per-block `pool` glob ("speed.*",
+ * "tech.*"), but the generator ignored it and filtered on `pillar` alone.
+ * That was fine while blocks and pillars were 1:1. Blueprint v3 breaks that
+ * assumption: the `knowledge` block scores into the `tech` pillar (so the
+ * hiring manager keeps one technology number rather than two), which means
+ * two blocks share a pillar. Filtering by pillar alone would let the tech
+ * block serve knowledge items and vice versa — and because the no-repeat rule
+ * in `pickTemplatesForBlock` is per block, the same family could be served
+ * twice in one session.
+ *
+ * So `pool` is now honored: an id prefix ("knowledge.*" -> "knowledge."),
+ * with the pillar filter as the fallback for a blueprint that omits it or
+ * uses "*".
+ */
+function poolForBlock(block: BlueprintBlock): readonly ItemTemplate[] {
+  const byPillar = ALL_CHOICE_TEMPLATES.filter((t) => t.pillar === block.pillar);
+  const glob = block.pool?.trim();
+  if (!glob || glob === "*") return byPillar;
+
+  const prefix = glob.endsWith("*") ? glob.slice(0, -1) : `${glob}.`;
+  const byPool = ALL_CHOICE_TEMPLATES.filter((t) => t.id.startsWith(prefix));
+  // A pool that matches nothing is a blueprint typo, not an instruction to
+  // serve an empty block — fall back rather than fail the candidate's session.
+  return byPool.length > 0 ? byPool : byPillar;
 }
 
 interface Picked {
@@ -101,11 +167,8 @@ function generateChoiceBlock(
   sessionSeed: bigint,
   startPosition: number,
 ): GeneratedItem[] {
-  const pool = poolForPillar(block.pillar);
-  const mix = DIFFICULTY_MIX[block.key] ?? (Array.from({ length: block.count }, () => 1 as Difficulty));
-  if (mix.length !== block.count) {
-    throw new Error(`generator: difficulty mix for block "${block.key}" has ${mix.length} entries, expected ${block.count}`);
-  }
+  const pool = poolForBlock(block);
+  const mix = difficultyMixFor(block.key, block.count);
 
   // A dedicated selection RNG, independent of any single item's RNG, so
   // which families are chosen doesn't depend on how many random draws an
@@ -181,7 +244,7 @@ function generateInvestigationBlock(
 
   chosen = selectionRng.shuffle(chosen);
 
-  const mix = DIFFICULTY_MIX[block.key] ?? [1, 2, 2, 3];
+  const mix = difficultyMixFor(block.key, chosen.length);
   const difficulties = selectionRng.shuffle(mix.slice(0, chosen.length));
 
   return chosen.map((scenario, i) => {

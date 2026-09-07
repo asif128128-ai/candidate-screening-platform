@@ -33,7 +33,9 @@ export const template: ItemTemplate = {
       s = 0;
     const lines: string[] = [];
     let matchCount = 0;
-    const lineCount = 8;
+    // Round 3 (ASSESSMENT_DESIGN.md §2.2): 8 -> 6 lines so a strong reader
+    // finishes inside the 15 s limit.
+    const lineCount = 6;
     for (let i = 0; i < lineCount; i++) {
       s += rng.nextIntBetween(1, 5);
       if (s >= 60) {

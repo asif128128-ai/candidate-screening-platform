@@ -23,7 +23,7 @@ Nobody types their phone number before knowing the pay and the engagement type. 
 - Title and the two-line hook.
 - **כרטיס תנאים** (the same structured card used in step 2): 85 ₪ לשעה · כ-18 שעות שבועיות (כ-3 × 6) · קבלן/ית עצמאי/ת, לא העסקה ישירה · אזור ראשון לציון, היברידי אפשרי, לא מרחוק בלבד · התחלה מיידית.
 - A **"מה התפקיד באמת"** card: two columns ("פיתוח · כ-50%" / "תפעול טכנולוגי · כ-50%") each with a one-line breakdown, followed by the honest line about the tech-ops/support component (FINTECH_REDESIGN_PLAN.md §R2.1): "חלק מהתפעול הוא תמיכה טכנית פנימית לעובדים — זה חלק אמיתי מהתפקיד, אבל זו לא משרת Help Desk. מי שרואה את התקלות מקרוב הוא מי שיודע מה כדאי לאוטמט ולייעל, וזו בדיוק ההזדמנות: להפוך את הארגון למקום טכנולוגי, אוטומטי ויעיל הרבה יותר — ואתם תהיו חלק מרכזי בזה."
-- **What the process is** ("איך התהליך עובד"), as a three-row numbered list: "1. טופס קצר — כ-3 דקות. 2. תיאור התפקיד ואישור התנאים — כ-2 דקות. 3. **מבחן מקוון — כ-20 דקות, במחשב** (לא בטלפון)." followed by: "כדאי לעבור את כל התהליך ברצף אחד מהמחשב — כ-25 דקות. אם בכל זאת תצטרכו לעצור, תקבלו קוד חזרה שמאפשר להמשיך מאותה נקודה."
+- **What the process is** ("איך התהליך עובד"), as a three-row numbered list: "1. טופס קצר — כ-3 דקות. 2. תיאור התפקיד ואישור התנאים — כ-2 דקות. 3. **מבחן מקוון — כ-25 דקות, במחשב** (לא בטלפון)." followed by: "כדאי לעבור את כל התהליך ברצף אחד מהמחשב — כ-30 דקות. אם בכל זאת תצטרכו לעצור, תקבלו קוד חזרה שמאפשר להמשיך מאותה נקודה."
 - Button "להגשת מועמדות". Below: link to the privacy notice.
 
 A candidate who would self-select out on rate, contractor status, location, or the computer requirement does so here, having given us nothing.
@@ -99,9 +99,11 @@ Server writes `job_confirmed_at`. The checkbox texts are part of the job row (`c
 
 Content, in order:
 
-1. **מה זה** — "מבחן קצר ואינטנסיבי, כ-20 דקות, 27 שאלות ב-4 חלקים: חימום מהיר, חשיבה, חקירה, אינסטינקט טכנולוגי. הוא בודק איך אתם חושבים ומתמודדים עם בעיות אמיתיות — לא מה שיננתם. לפני חלק החקירה יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך."
+1. **מה זה** — "מבחן קצר ואינטנסיבי, כ-25 דקות, 37 שאלות ב-5 חלקים: חימום מהיר, ידע טכנולוגי, חשיבה, אינסטינקט טכנולוגי, וחקירה. רוב השאלות קצרות מאוד. לפני חלק החקירה יש תרגול קצר, לא מתוזמן ולא נחשב לציון, כדי להכיר את המסך." (Block order matches the order the runner serves — `ASSESSMENT_DESIGN.md` §2.1. The old "לא מה שיננתם" claim was dropped when the knowledge block made it untrue — `DECISIONS_LOG.md` #25.)
 2. **הכללים** — לכל שאלה זמן קצוב משלה; אין חזרה אחורה; אפשר לדלג על שאלה, אבל מומלץ תמיד לנסות לענות — כל מה שנדרש נמצא בשאלה עצמה; רענון של הדף לא מאפס את השעון; אחרי שמתחילים — מסיימים באותו רצף (מגבלה כוללת של 75 דקות).
-3. **מה לצפות** — "הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. לא צריך הכנה, חיפוש באינטרנט או כלי AI — השאלות בנויות כך שהם פשוט לא עוזרים בזמן הנתון. אין כל דבר שצריך לדעת בעל פה: כל מה שנדרש נמצא בשאלה עצמה."
+3. **מה לצפות** — "הזמנים נבנו כך שרוב הסטודנטים החזקים מסיימים כל שאלה עם זמן לרזרבה. אין כל דבר שצריך לדעת בעל פה: כל מה שנדרש נמצא בשאלה עצמה."
+   Followed, under a rule, by the **anti-externalization declaration** (`ASSESSMENT_DESIGN.md` §2.5): "השאלות מהירות בכוונה — לרוב כמה עשרות שניות לכל אחת. הן בנויות כך שלפנות לאפליקציית AI ייקח יותר זמן ממה שזה יחסוך, ובינתיים השעון רץ. מה שמעניין אותנו זה איך **אתם** חושבים — לעבוד עם הראש שלכם, זה כל העניין."
+   This replaced the earlier claim that AI tools "פשוט לא עוזרים בזמן הנתון", which was not true at v1's 60–180 s limits. A one-line version (`AI_DECLARATION_HE`) repeats on every block intro.
 4. **גילוי נאות על ניטור** (`ANTI_CHEATING.md` §2 text). Checkbox: "קראתי ואני מסכים/ה". Records `consents(assessment_monitoring_v1)`.
 5. **בדיקת מכשיר** — viewport ≥ 900 px (else: "כדי להתחיל צריך מחשב עם מסך רחב"), JS on, cookie present, clock skew measured (`server_now` vs `Date.now()`), Fullscreen API available (informational).
 6. Button **"מתחילים"** → `startAssessment` action → session created → runner mounts and requests fullscreen (explained: "המבחן ייפתח במסך מלא כדי לעזור לך להתרכז").

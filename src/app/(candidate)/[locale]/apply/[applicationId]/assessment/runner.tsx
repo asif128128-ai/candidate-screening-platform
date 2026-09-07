@@ -388,9 +388,9 @@ export function AssessmentRunner({ applicationId }: { applicationId: string }) {
   const kind = item.kind as RunnerItemKind;
   const blockKey = blockKeyForPosition(item.position);
   const blockName = BLOCK_COPY[blockKey]?.nameHe ?? item.blockKey;
-  // FINTECH_REDESIGN_PLAN.md §R2.2 runner item 6: "חלק N מתוך 4" — N derived
-  // from the same fixed block order the intro screens already use, not a
-  // duplicated mapping.
+  // FINTECH_REDESIGN_PLAN.md §R2.2 runner item 6: "חלק N מתוך M" — both
+  // derived from the same fixed block order the intro screens already use, not
+  // a duplicated mapping and not a hardcoded 4 (blueprint v3 has 5 blocks).
   const blockPosition = BLOCK_ORDER.findIndex((k) => k === blockKey) + 1;
 
   return (
@@ -405,6 +405,7 @@ export function AssessmentRunner({ applicationId }: { applicationId: string }) {
       <TimerBand
         blockName={blockName}
         blockPosition={blockPosition}
+        totalBlocks={BLOCK_ORDER.length}
         position={item.position}
         totalItems={item.totalItems}
         remainingMs={remainingMs}

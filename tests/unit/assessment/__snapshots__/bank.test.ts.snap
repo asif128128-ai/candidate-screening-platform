@@ -5,9 +5,8 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "id",
-        "active",
         "priority",
+        "id",
         "retries",
         "status",
       ],
@@ -19,8 +18,7 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   "priority": 2,
   "id": 3579,
   "status": "pending",
-  "retries": 0,
-  "active": true
+  "retries": 0
 }
 \`\`\`
 
@@ -28,10 +26,9 @@ exports[`bank content snapshot (guards against accidental template drift) > free
 \`\`\`
 {
   "priority": 2,
-  "id": 3579,
+  "id": 9453,
   "status": "pending",
-  "retries": 0,
-  "active": false
+  "retries": 0
 }
 \`\`\`",
     },
@@ -41,51 +38,20 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "126..187.120",
-        "55.77.389.180",
-        "82.93.204.93",
-        "29.131.41",
+        "טל",
+        "נועה",
+        "ליאור",
+        "אלון",
       ],
-      "prompt": "כתובת IPv4 תקינה היא ארבעה מספרים בטווח 0–255, מופרדים בנקודות (למשל 192.168.1.1).
-איזו מהכתובות הבאות תקינה?",
-    },
-    "difficulty": 1,
-    "id": "speed.ip_valid",
-  },
-  {
-    "content": {
-      "options": [
-        "07:8",
-        "23-00",
-        "09:54",
-        "8:44",
-      ],
-      "prompt": "מקרא: \`\\d\` = ספרה בודדת, \`+\` = אחד או יותר מהתו הקודם, \`{n}\` = בדיוק n פעמים, \`^\`/\`$\` = תחילת/סוף המחרוזת.
-
-הביטוי הרגולרי: \`^\\d{2}:\\d{2}$\`
-איזו מהמחרוזות הבאות תואמת את הביטוי במלואו?",
-    },
-    "difficulty": 1,
-    "id": "speed.regex_match",
-  },
-  {
-    "content": {
-      "options": [
-        "מושהה",
-        "פעיל",
-        "סגור",
-        "בהמתנה",
-      ],
-      "prompt": "| id | סטטוס | עיר |
+      "prompt": "| id | עיר | שם |
 |---|---|---|
-| 26 | פעיל | חולון |
-| 25 | בהמתנה | רעננה |
-| 13 | סגור | נתניה |
-| 2 | מושהה | אשדוד |
-| 31 | פעיל | אשדוד |
-| 34 | מושהה | חולון |
+| 12 | לוד | אלון |
+| 5 | נתניה | יוסי |
+| 23 | חיפה | נועה |
+| 24 | הרצליה | אורי |
+| 21 | חולון | אורי |
 
-מה הערך בעמודה "סטטוס" עבור id = 31?",
+מה הערך בעמודה "שם" עבור id = 12?",
     },
     "difficulty": 1,
     "id": "speed.table_lookup",
@@ -93,22 +59,20 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "3",
-        "0",
-        "1",
         "4",
+        "2",
+        "0",
+        "5",
       ],
-      "prompt": "בכמה מהשורות הבאות מופיע \`INFO\` של השירות \`sync\`?
+      "prompt": "בכמה מהשורות הבאות מופיע \`ERROR\` של השירות \`search\`?
 
 \`\`\`
-12:00:02 ERROR export   quota exceeded order=88584
-12:00:05 INFO  notifications rate limit order=88860
-12:00:06 WARN  sync     retry scheduled order=88734
-12:00:10 WARN  sync     retry scheduled order=88755
-12:00:12 WARN  export   quota exceeded order=88837
-12:00:15 WARN  export   export ok order=88465
-12:00:20 ERROR notifications sent order=88056
-12:00:21 ERROR notifications sent order=88462
+12:00:01 INFO  search   query timeout order=88396
+12:00:03 INFO  reports  generation failed order=88874
+12:00:04 WARN  search   query timeout order=88236
+12:00:07 INFO  search   query timeout order=88304
+12:00:12 WARN  billing  retry scheduled order=88257
+12:00:15 WARN  search   index stale order=88176
 \`\`\`",
     },
     "difficulty": 1,
@@ -117,13 +81,13 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "/env/logs/logs/users.yaml",
-        "/env/logs/logs",
-        "/env/logs/users.yaml",
-        "/env/logs/prod/./users.yaml",
+        "/srv/data/tmp",
+        "/srv/data/prod.yaml",
+        "/srv/data/backup/./prod.yaml",
+        "/srv/data/tmp/prod.yaml",
       ],
       "prompt": "\`..\` פירושו "תיקייה אחת למעלה" ו-\`.\` פירושו "אותה תיקייה".
-מה הנתיב המלא שמתקבל מ-\`/env/logs/prod/../logs/./logs/../users.yaml\`?",
+מה הנתיב המלא שמתקבל מ-\`/srv/data/backup/../tmp/./data/../prod.yaml\`?",
     },
     "difficulty": 1,
     "id": "speed.path_resolve",
@@ -136,8 +100,8 @@ exports[`bank content snapshot (guards against accidental template drift) > free
       ],
       "prompt": "מקרא: \`&&\` = וגם (and), \`||\` = או (or), \`!\` = לא (not).
 
-נתון: A = אמת, B = שקר, C = אמת.
-מה הערך של הביטוי \`!A || (B && C)\`?",
+נתון: A = שקר, B = אמת, C = שקר.
+מה הערך של הביטוי \`A && !B && C\`?",
     },
     "difficulty": 1,
     "id": "speed.bool_logic",
@@ -145,10 +109,10 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "[18, 21, 13, 4, -3]",
-        "[13, 16, 24, 31, 39]",
-        "[16, 28, 26, 24, 25]",
-        "[13, 19, 12, 10, 6]",
+        "[10, 10, 13, 22, 28]",
+        "[5, 2, -6, -6, -6]",
+        "[7, 9, 15, 20, 22]",
+        "[6, 16, 9, 3, 13]",
       ],
       "prompt": "איזו מהרשימות הבאות ממוינת בסדר עולה (מהקטן לגדול)?",
     },
@@ -158,26 +122,13 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "גרם",
-        "קילוגרם",
-        "מיליגרם",
-        "קיץ",
-      ],
-      "prompt": "שלושה מהפריטים הבאים שייכים לאותה קטגוריה, ואחד שונה. איזה?",
-    },
-    "difficulty": 1,
-    "id": "speed.odd_one_out",
-  },
-  {
-    "content": {
-      "options": [
-        "18:30",
-        "16:30",
-        "15:30",
-        "17:30",
+        "07:30",
+        "09:30",
+        "11:30",
+        "10:30",
       ],
       "prompt": "בתקופה הנוכחית השעה בישראל מאוחרת ב-3 שעות משעון UTC.
-כשהשעה ב-UTC היא 13:30, מה השעה בישראל?",
+כשהשעה ב-UTC היא 06:30, מה השעה בישראל?",
     },
     "difficulty": 1,
     "id": "speed.timezone_shift",
@@ -185,12 +136,12 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "+30%",
-        "+5%",
-        "+10%",
+        "+0%",
+        "-15%",
         "-10%",
+        "+10%",
       ],
-      "prompt": "מ-430 ל-473, זה שינוי של כמה אחוזים?",
+      "prompt": "מ-288 ל-259, זה שינוי של כמה אחוזים?",
     },
     "difficulty": 1,
     "id": "speed.percent_change",
@@ -199,13 +150,13 @@ exports[`bank content snapshot (guards against accidental template drift) > free
     "content": {
       "options": [
         "1000 מ"ש",
-        "1250 מ"ש",
-        "250 מ"ש",
-        "750 מ"ש",
+        "600 מ"ש",
+        "800 מ"ש",
+        "200 מ"ש",
       ],
       "prompt": "ריצה "בטור" (serial): הזמנים מצטברים אחד אחרי השני. ריצה "במקביל" (parallel): הזמן הכולל הוא הזמן הארוך ביותר מביניהם, כי כולם רצים יחד.
 
-4 שרתים, כל אחד לוקח 250 מ"ש (ms), רצים במקביל. מה הזמן הכולל?",
+4 שרתים, כל אחד לוקח 200 מ"ש (ms), רצים בטור. מה הזמן הכולל?",
     },
     "difficulty": 1,
     "id": "speed.units_math",
@@ -213,14 +164,14 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "לא מאוזן — נשבר במיקום 3",
-        "לא מאוזן — נשבר במיקום 5",
-        "מאוזן",
+        "לא מאוזן — נשבר במיקום 7",
+        "לא מאוזן — נשבר במיקום 6",
         "לא מאוזן — נשבר במיקום 4",
+        "מאוזן",
       ],
       "prompt": "האם רצף הסוגריים הבא מאוזן? אם לא, באיזה מיקום (מספר התו, מ-1) הוא נשבר?
 
-\`([])([])\`",
+\`[{()(}}]\`",
     },
     "difficulty": 1,
     "id": "speed.bracket_balance",
@@ -228,15 +179,37 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "3",
-        "5",
-        "2",
-        "8",
+        "בקשות שהצליחו: 2388 מתוך 2051",
+        "שטח אחסון בשימוש: 1052 GB מתוך 1466 GB",
+        "קובץ הייצוא: 814 שורות, 25234 בייט",
+        "שיעור השלמה: 43%",
       ],
-      "prompt": "כמה ימים יש בין 14 במרץ לבין 19 במרץ (אותה שנה)?",
+      "prompt": "אחד מהנתונים בלוח הבקרה לא יכול להיות נכון. איזה?",
     },
     "difficulty": 1,
-    "id": "speed.date_diff",
+    "id": "speed.smell_the_number",
+  },
+  {
+    "content": {
+      "options": [
+        "בין 10:16:50 ל-10:20:50",
+        "בין 10:16:38 ל-10:16:45",
+        "בין 10:20:54 ל-10:21:00",
+        "בין 10:20:50 ל-10:20:54",
+      ],
+      "prompt": "בין אילו שתי שורות עברה הכי הרבה זמן?
+
+\`\`\`
+10:16:38 notifications batch ok
+10:16:45 notifications batch ok
+10:16:50 notifications queue drained
+10:20:50 notifications sync ok
+10:20:54 notifications queue drained
+10:21:00 notifications queue drained
+\`\`\`",
+    },
+    "difficulty": 1,
+    "id": "speed.log_gap",
   },
   {
     "content": {
@@ -244,12 +217,12 @@ exports[`bank content snapshot (guards against accidental template drift) > free
 
 | קלט | פלט |
 |---|---|
-| \`[6, 6, 9]\` | \`[7, 7, 10]\` |
-| \`[12, 10, 1]\` | \`[13, 11, 2]\` |
-| \`[11, 2, 6]\` | \`[12, 3, 7]\` |
-| \`[1, 12, 10]\` | \`[2, 13, 11]\` |
+| \`[8, 6, 12, 4]\` | \`[10, 8, 14, 6]\` |
+| \`[1, 4, 3, 3]\` | \`[3, 6, 5, 5]\` |
+| \`[3, 12, 5, 6]\` | \`[5, 14, 7, 8]\` |
+| \`[3, 7, 7, 2]\` | \`[5, 9, 9, 4]\` |
 
-מה הפלט עבור הקלט \`[1, 10, 3]\`? (מספרים מופרדים בפסיק, למשל: 1, 2, 3)",
+מה הפלט עבור הקלט \`[4, 1, 10, 7]\`? (מספרים מופרדים בפסיק, למשל: 1, 2, 3)",
     },
     "difficulty": 1,
     "id": "reasoning.rule_induction",
@@ -258,7 +231,7 @@ exports[`bank content snapshot (guards against accidental template drift) > free
     "content": {
       "prompt": "לפניכם רצף מספרים:
 
-7, 9, 11, 13, 15, ?
+1, 5, 9, 13, 17, ?
 
 מה המספר הבא ברצף?",
     },
@@ -269,10 +242,10 @@ exports[`bank content snapshot (guards against accidental template drift) > free
     "content": {
       "figureSvg": "<svg viewBox="0 0 232 232" width="232" height="232" role="img" aria-label="רשת 3 על 3, התא הימני-תחתון חסר"><g transform="translate(0,0) scale(0.72)"><circle cx="50" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(80,0) scale(0.72)"><circle cx="32" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="68" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(160,0) scale(0.72)"><circle cx="20" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="50" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="80" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(0,80) scale(0.72)"><polygon points="50,36 36,62 64,62" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(80,80) scale(0.72)"><polygon points="32,36 18,62 46,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="68,36 54,62 82,62" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(160,80) scale(0.72)"><polygon points="20,36 6,62 34,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="50,36 36,62 64,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="80,36 66,62 94,62" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(0,160) scale(0.72)"><rect x="38" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(80,160) scale(0.72)"><rect x="20" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/><rect x="56" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/></g><g transform="translate(160,160)"><rect x="0" y="0" width="72" height="72" fill="none" stroke="#999999" stroke-width="2" stroke-dasharray="6 4"/><text x="36" y="46" text-anchor="middle" font-size="32" fill="#999999">?</text></g></svg>",
       "options": [
+        "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="triangle x3 מלא"><polygon points="20,36 6,62 34,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="50,36 36,62 64,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="80,36 66,62 94,62" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
+        "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="circle x3 מלא"><circle cx="20" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="50" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="80" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
         "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="square x3 מלא"><rect x="8" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/><rect x="38" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/><rect x="68" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
         "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="square x1 מלא"><rect x="38" y="38" width="24" height="24" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
-        "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="circle x3 מלא"><circle cx="20" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="50" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/><circle cx="80" cy="50" r="12" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
-        "<svg viewBox="0 0 100 100" width="72" height="72" role="img" aria-label="triangle x3 מלא"><polygon points="20,36 6,62 34,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="50,36 36,62 64,62" fill="#333333" stroke="#222" stroke-width="3"/><polygon points="80,36 66,62 94,62" fill="#333333" stroke="#222" stroke-width="3"/></svg>",
       ],
       "optionsFormat": "svg",
       "prompt": "לפניכם רשת 3x3 עם שני כללים: כל שורה משתמשת בצורה קבועה, וכל עמודה קובעת את מספר הצורות בתא. התא הימני-תחתון חסר.
@@ -285,15 +258,15 @@ exports[`bank content snapshot (guards against accidental template drift) > free
   {
     "content": {
       "options": [
-        "1 שירה · 2 אלון · 3 נועה · 4 יוסי",
-        "1 יוסי · 2 אלון · 3 נועה · 4 שירה",
-        "1 שירה · 2 נועה · 3 יוסי · 4 אלון",
-        "1 אלון · 2 יוסי · 3 שירה · 4 נועה",
+        "1 שירה · 2 מאיה · 3 דנה · 4 אורי",
+        "1 אורי · 2 שירה · 3 מאיה · 4 דנה",
+        "1 מאיה · 2 שירה · 3 אורי · 4 דנה",
+        "1 שירה · 2 דנה · 3 אורי · 4 מאיה",
       ],
-      "prompt": "4 אנשים (שירה, יוסי, נועה, אלון) יושבים בשורה של 4 מקומות, מימין לשמאל (מקום 1 הוא הימני ביותר). ידוע:
-1. נועה לא יושב/ת בקצה (לא במקום הראשון ולא באחרון)
-2. נועה ואלון לא יושבים זה לצד זה
-3. יוסי יושב/ת מיד מימין לאלון
+      "prompt": "4 אנשים (דנה, אורי, שירה, מאיה) יושבים בשורה של 4 מקומות, מימין לשמאל (מקום 1 הוא הימני ביותר). ידוע:
+1. יש בדיוק אדם אחד בין שירה לאורי
+2. מאיה יושב/ת באחד משני הקצוות
+3. אורי יושב/ת מיד מימין למאיה
 
 איזה סידור ישיבה מתאים לכל התנאים?",
     },
@@ -304,9 +277,9 @@ exports[`bank content snapshot (guards against accidental template drift) > free
     "content": {
       "options": [
         "Blocked",
+        "InProgress",
         "Open",
         "Done",
-        "InProgress",
       ],
       "prompt": "Open --assign--> InProgress
 InProgress --block--> Blocked
@@ -316,7 +289,7 @@ Done --reopen--> Open
 
 (כל אירוע שלא מצויר מהמצב הנוכחי מתעלמים ממנו)
 
-משימה מתחילה במצב \`Open\`. מתרחשים לפי הסדר האירועים: assign, unblock, finish, finish.
+משימה מתחילה במצב \`Open\`. מתרחשים לפי הסדר האירועים: reopen, unblock, assign, finish.
 
 באיזה מצב המשימה בסוף?",
     },
@@ -326,18 +299,18 @@ Done --reopen--> Open
   {
     "content": {
       "options": [
-        "בדיוק 6 כרטיסים מקיימים: עדיפות = 3",
-        "בדיוק 1 כרטיסים מקיימים: צוות = "מרכז"",
-        "בדיוק 4 כרטיסים מקיימים: סטטוס = "סגור"",
-        "בדיוק 7 כרטיסים מקיימים: סטטוס שונה מ-"סגור"",
+        "בדיוק 3 כרטיסים מקיימים: סטטוס שונה מ-"סגור"",
+        "בדיוק 7 כרטיסים מקיימים: שעות פתיחה גדול מ-24",
+        "בדיוק 5 כרטיסים מקיימים: עדיפות = 3",
+        "בדיוק 5 כרטיסים מקיימים: צוות = "מרכז"",
       ],
       "prompt": "| id | צוות | סטטוס | עדיפות | שעות מאז הפתיחה |
 |---|---|---|---|---|
-| 1 | דרום | פתוח | 3 | 3 |
-| 2 | שרון | פתוח | 2 | 53 |
-| 3 | שרון | פתוח | 3 | 8 |
-| 4 | דרום | סגור | 1 | 65 |
-| 5 | מרכז | בטיפול | 3 | 32 |
+| 1 | מרכז | בטיפול | 3 | 54 |
+| 2 | דרום | סגור | 2 | 28 |
+| 3 | דרום | פתוח | 3 | 13 |
+| 4 | דרום | בטיפול | 2 | 63 |
+| 5 | מרכז | סגור | 2 | 35 |
 
 איזה מהמשפטים הבאים נכון לפי הטבלה?",
     },
@@ -348,18 +321,18 @@ Done --reopen--> Open
     "content": {
       "items": [
         "ההרשאות הוגדרו",
-        "החשבונית הראשונה הופקה",
         "המנוי הופעל",
+        "המשתמש נרשם",
         "כרטיס אשראי נוסף",
-        "הגיבוי הראשון רץ",
+        "אימות אימייל נשלח",
       ],
       "prompt": "לפניכם 5 אירועים (לא בסדר הנכון) ורמזים חלקיים. שחזרו את הסדר הכרונולוגי הנכון.
 
 רמזים:
-1. "הגיבוי הראשון רץ" קרה לפני "כרטיס אשראי נוסף".
-2. "כרטיס אשראי נוסף" קרה לפני "המנוי הופעל".
-3. "המנוי הופעל" קרה לפני "ההרשאות הוגדרו".
-4. "ההרשאות הוגדרו" קרה לפני "החשבונית הראשונה הופקה".",
+1. "המשתמש נרשם" קרה לפני "ההרשאות הוגדרו".
+2. "ההרשאות הוגדרו" קרה לפני "כרטיס אשראי נוסף".
+3. "כרטיס אשראי נוסף" קרה לפני "המנוי הופעל".
+4. "המנוי הופעל" קרה לפני "אימות אימייל נשלח".",
     },
     "difficulty": 1,
     "id": "reasoning.ordering_clues",
@@ -368,10 +341,10 @@ Done --reopen--> Open
     "content": {
       "prompt": "לפניכם כלל הצפנה (לא ידוע מראש) שמודגם בשתי דוגמאות:
 
-"ספר" -> "סספפרר"
-"נהר" -> "ננההרר"
+"ילד" -> "דלי"
+"שולחן" -> "ןחלוש"
 
-לפי אותו הכלל, מה ההצפנה של "בית"?",
+לפי אותו הכלל, מה ההצפנה של "עיר"?",
     },
     "difficulty": 1,
     "id": "reasoning.cipher_rule",
@@ -382,7 +355,7 @@ Done --reopen--> Open
 
 \`\`\`
 total = 0
-for i from 1 to 4:
+for i from 4 to 6:
     total = total + i
 print(total)
 \`\`\`",
@@ -392,30 +365,14 @@ print(total)
   },
   {
     "content": {
-      "prompt": "מתוך 37 מועמדים, 12 הם "עם ניסיון", 14 הם "מהאזור", ומתוכם 8 הם גם וגם. כמה מועמדים אינם לא זה ולא זה (neither)?",
+      "prompt": "מתוך 45 בקשות, 18 הם "שאושרו החודש", 15 הם "בטיפול צוות התמיכה", ומתוכם 6 הם גם וגם. כמה בקשות אינם לא זה ולא זה (neither)?",
     },
     "difficulty": 1,
     "id": "reasoning.set_counts",
   },
   {
     "content": {
-      "options": [
-        "אוכל",
-        "דגים",
-        "בניין",
-        "להקשה",
-      ],
-      "prompt": "מברג : להברגה
-פטיש : ?
-
-איזו מילה משלימה את הזוג השני כך שהיחס בין המילים זהה ליחס בזוג הראשון?",
-    },
-    "difficulty": 1,
-    "id": "reasoning.analogy_structural",
-  },
-  {
-    "content": {
-      "prompt": "צריך לקנות בדיוק 13 יחידות של פריט מסוים. אפשר לקנות חבילה של 5 יחידות ב-40 ₪, או יחידה בודדת ב-11 ₪ (אפשר לקנות יותר מהצורך אם זה יוצא זול יותר). מה העלות המינימלית האפשרית?",
+      "prompt": "צריך לקנות בדיוק 21 יחידות של פריט מסוים. אפשר לקנות חבילה של 4 יחידות ב-32 ₪, או יחידה בודדת ב-12 ₪ (אפשר לקנות יותר מהצורך אם זה יוצא זול יותר). מה העלות המינימלית האפשרית?",
       "unit": "₪",
     },
     "difficulty": 1,
@@ -424,17 +381,17 @@ print(total)
   {
     "content": {
       "options": [
-        "שיעור הפגיעה במטמון ירד באופן חד, וזה מה שגורם לשגיאות ה-500 בנתיב /orders",
-        "יש בעיה בהרשאות של המשתמש שמונעת ממנו לגשת לנתיב /orders, וזה מה שמניב את השגיאות",
-        "הפריסה האחרונה (version 2.4.1) הכניסה שגיאת קוד בנתיב /orders",
+        "שיעור הפגיעה במטמון ירד בפתאומיות, וזה מה שגרם לעובד (worker) לחרוג מהזיכרון ולקרוס",
+        "יש בעיית הרשאות בעובד (worker) שמונעת ממנו לגשת לתור, וזו הסיבה לחריגת הזיכרון",
+        "תור המשימות (queue) גדל מהר יותר משהעובד (worker) מספיק לעבד, וגרם לחריגת זיכרון",
       ],
       "prompt": "\`\`\`
-05:12:01 INFO  deploy   version=2.4.1 rolled out
-05:12:03 INFO  cache    hit_rate=0.88
-05:12:05 ERROR api      500 Internal Server Error path=/orders
-05:12:06 ERROR api      TypeError: cannot read property 'total' of undefined
-05:12:07 ERROR api      500 Internal Server Error path=/orders
-05:12:09 INFO  auth     login ok user=771
+17:30:00 INFO  worker   queue_size=5
+17:30:15 INFO  worker   queue_size=40
+17:30:16 WARN  worker   queue_size=120
+17:30:17 ERROR worker   OOM: heap limit exceeded
+17:30:18 INFO  cache    hit_rate=0.85
+17:30:20 ERROR worker   process restarted after crash
 \`\`\`
 
 מה הסיבה הסבירה ביותר לבעיה?",
@@ -445,19 +402,19 @@ print(total)
   {
     "content": {
       "options": [
-        "לבקש מהספק מפתח API נוסף ולפצל את הבקשות בין שני המפתחות השונים כדי לעקוף את המגבלה הקיימת",
-        "להריץ את הסקריפט מחדש מיד בלי להמתין כלל, כי סביר שמדובר בתקלת רשת זמנית ולא במכסה",
-        "לכבד את Retry-After, להוסיף backoff, ולבדוק אם יש תהליך נוסף שצורך את אותה מכסה",
-        "לעבור ל-polling תדיר הרבה יותר כדי לפצות על הבקשות שנכשלו ולוודא שכלום לא מתפספס בדרך",
+        "לבקש מהמשתמש להתחבר מחדש מאפס בכל פעם שה-access token פג, במקום להשתמש ב-refresh token",
+        "לשנות את כתובת ה-API לכתובת חלופית, כי כנראה מדובר בבעיה בשרת ולא בטוקן עצמו",
+        "להשתמש ב-refresh token כדי לקבל access token חדש ולנסות שוב",
+        "להתעלם מהשגיאה ולנסות לשלוח שוב את אותה בקשה עם אותו access token שכבר פג תוקף",
       ],
       "prompt": "סקריפט סנכרון שרץ כל שעה מתחיל לקבל מה-API של ספק SaaS את התשובה:
 
 \`\`\`
-HTTP/1.1 429 Too Many Requests
-{"error":"rate_limited","limit":"1000/hour","reset":"2026-09-04T15:00:00Z"}
+HTTP/1.1 401 Unauthorized
+{"error":"invalid_token"}
 \`\`\`
 
-מתוך התיעוד של הספק: "קוד 429 מוחזר כשחשבון חרג ממכסת הבקשות. Retry-After הוא מספר השניות עד שאפשר לנסות שוב. המכסה משותפת לכל המפתחות של אותו חשבון."
+מתוך התיעוד: "קוד 401 מוחזר כשה-access token פג תוקף או שגוי. יש להשתמש ב-refresh token כדי לקבל access token חדש; אין צורך להתחבר מחדש מהתחלה."
 
 מה הפעולה הנכונה?",
     },
@@ -477,7 +434,7 @@ HTTP/1.1 429 Too Many Requests
 | עורך | ✔ | ✔ | ✘ |
 | מנהל | ✔ | ✔ | ✔ |
 
-משימה: אדם בצוות צריך לפרסם דוח סופי ללקוח. איזה תפקיד הכי "קטן" (עם הכי מעט הרשאות) שעדיין מספיק כדי לבצע את המשימה?",
+משימה: אדם בצוות צריך רק לצפות בדוחות הקיימים, ולא לגעת בהם. איזה תפקיד הכי "קטן" (עם הכי מעט הרשאות) שעדיין מספיק כדי לבצע את המשימה?",
     },
     "difficulty": 1,
     "id": "tech.minimal_access",
@@ -485,21 +442,21 @@ HTTP/1.1 429 Too Many Requests
   {
     "content": {
       "options": [
-        "5",
-        "4",
-        "6",
+        "1",
+        "3",
         "2",
+        "0",
       ],
       "prompt": "| id | team | status | amount |
 |---|---|---|---|
-| 1 | מרכז | open | 338 |
-| 2 | מרכז | closed | 425 |
-| 3 | צפון | open | 127 |
-| 4 | דרום | open | 126 |
-| 5 | צפון | closed | 67 |
-| 6 | מרכז | closed | 211 |
-| 7 | מרכז | open | 156 |
-| 8 | מרכז | closed | 239 |
+| 1 | דרום | open | 138 |
+| 2 | דרום | open | 169 |
+| 3 | צפון | open | 77 |
+| 4 | מרכז | open | 234 |
+| 5 | מרכז | open | 259 |
+| 6 | צפון | open | 97 |
+| 7 | מרכז | open | 63 |
+| 8 | דרום | closed | 319 |
 
 \`\`\`sql
 SELECT COUNT(*) FROM tickets WHERE status = 'closed';
@@ -513,19 +470,19 @@ SELECT COUNT(*) FROM tickets WHERE status = 'closed';
   {
     "content": {
       "options": [
-        "צריך להתקין מחדש את חבילת ה-Redis client, כי הגרסה הנוכחית כנראה פגומה או לא תואמת",
-        "REDIS_URL ב-production עדיין מצביע לשרת staging (cache-stg) אבל על פורט אחר שלא פתוח שם",
-        "אין קשר בין שגיאת ה-Redis לבין קובץ הסביבה, מדובר בתקלה זמנית ברשת של הספק",
-        "NODE_ENV=production גורם ל-Node לחסום חיבורים יוצאים לשירותים פנימיים כמו Redis באופן מובנה",
+        "DB_POOL_SIZE קטן מדי משמעותית ל-production, כך שהחיבורים נתקעים בהמתנה ארוכה עד לפקיעת הזמן",
+        "הפורט של מסד הנתונים ב-production שונה (5433) — כנראה שגיאת הקלדה או שהחומה (firewall) לא פותחת אותו",
+        "LOG_LEVEL=info ב-production מסתיר לגמרי את השגיאה האמיתית שהייתה אמורה להופיע ברמת debug בסביבת staging",
+        "ALLOWED_ORIGIN שונה בטעות בין שתי הסביבות, ולכן הדפדפן חוסם את הבקשה לפני שהיא בכלל מגיעה לשרת",
       ],
-      "prompt": "האפליקציה עובדת ב-staging ונכשלת ב-production עם השגיאה \`ECONNREFUSED to redis\`. אלה קובצי הסביבה (ערכים סודיים הוסתרו):
+      "prompt": "האפליקציה עובדת ב-staging ונכשלת ב-production עם השגיאה \`connect ETIMEDOUT\`. אלה קובצי הסביבה (ערכים סודיים הוסתרו):
 
 \`\`\`
 # staging
-REDIS_URL=redis://cache-stg.internal:6379
+DATABASE_URL=postgres://app:***@db-stg.internal:5432/app
 
 # production
-REDIS_URL=redis://cache-stg.internal:6380
+DATABASE_URL=postgres://app:***@db-prod.internal:5433/app
 \`\`\`
 
 מה ההסבר הסביר ביותר?",
@@ -536,10 +493,10 @@ REDIS_URL=redis://cache-stg.internal:6380
   {
     "content": {
       "options": [
-        "polling כל שנייה כדי לא לפספס אף עדכון מלאי, גם אם המערכת תומכת ב-webhook",
         "polling כל 24 שעות — מספיק כי מדובר בעדכון מלאי שאינו קריטי לזמן אמת ברוב המקרים",
-        "webhook — הספק שולח התראה ברגע שהאירוע קורה, ואין צורך לבדוק שוב ושוב",
+        "polling כל שנייה כדי לא לפספס אף עדכון מלאי, גם אם המערכת תומכת ב-webhook",
         "ייצוא קובץ ידני פעם בשבוע — נותן תמונה מלאה של המלאי בלי להעמיס על המערכות",
+        "webhook — הספק שולח התראה ברגע שהאירוע קורה, ואין צורך לבדוק שוב ושוב",
       ],
       "prompt": "מערכת חיצונית תומכת ב-webhooks, וצריך לדעת מיד כשמזמינים מוצר כדי לעדכן מלאי בזמן אמת
 
@@ -551,12 +508,12 @@ REDIS_URL=redis://cache-stg.internal:6380
   {
     "content": {
       "options": [
-        "לבדוק אם האתר עולה מרשת אחרת (למשל נתונים סלולריים) לפני שמניחים שהשרת נפל",
-        "להפעיל מחדש את השרת מיד, כי סביר שמדובר בתקלה זמנית בתהליך שדורשת אתחול מלא",
-        "לבדוק את תעודת ה-TLS של האתר, כי שגיאת אבטחה בדפדפן היא הסיבה הנפוצה ביותר לכך",
-        "לפתוח קריאת שירות דחופה לצוות התשתיות, כדי שיבדקו את זמינות השרת מול המפקח",
+        "לבדוק את רשומות ה-DNS של הדומיין, כי הפניה שגויה לשרת אחר היא הגורם הנפוץ לשגיאת אבטחה כזו",
+        "להפעיל מחדש את השרת, כי לרוב שגיאת אבטחה בדפדפן נובעת מתהליך תקוע שדורש אתחול",
+        "לבדוק את זמן התגובה (latency) של השרת, כי עומס גבוה עלול לגרום לשגיאת אבטחה בדפדפן",
+        "לבדוק את תוקף תעודת ה-TLS ולמי היא שייכת (expiry, common name)",
       ],
-      "prompt": "האתר לא נטען בדפדפן שלכם, אבל עמיתים אחרים מדווחים שהוא עובד להם כרגיל
+      "prompt": "הדפדפן מציג שגיאת תעודת אבטחה (certificate) באתר
 
 מה הבדיקה הראשונה והזולה ביותר שכדאי לעשות?",
     },
@@ -566,10 +523,10 @@ REDIS_URL=redis://cache-stg.internal:6380
   {
     "content": {
       "options": [
-        "לבנות שירות backend מלא עם מסד נתונים משלו רק לצורך העתקה בין שני גיליונות",
-        "להשאיר את זה ידני כי מדובר ב"רק העתק-הדבק" שלוקח כמה דקות בכל פעם",
-        "סקריפט מתוזמן (scheduled script) שמעתיק את השורות החדשות אוטומטית כל יום",
         "לבקש מכל אחד בצוות להעתיק את השורות לגיליון שלו בנפרד, בלי תיאום ביניהם",
+        "סקריפט מתוזמן (scheduled script) שמעתיק את השורות החדשות אוטומטית כל יום",
+        "להשאיר את זה ידני כי מדובר ב"רק העתק-הדבק" שלוקח כמה דקות בכל פעם",
+        "לבנות שירות backend מלא עם מסד נתונים משלו רק לצורך העתקה בין שני גיליונות",
       ],
       "prompt": "כל יום מישהו מעתיק ידנית עשרות שורות חדשות מגיליון Google Sheets אחד לגיליון אחר, לפי אותו כלל קבוע, בערך באותה שעה
 
@@ -581,35 +538,15 @@ REDIS_URL=redis://cache-stg.internal:6380
   {
     "content": {
       "options": [
-        "להמיר את כולם לפורמט E.164 אחיד (למשל +972521234567) לפני שמירה, ולא רק להסיר מקפים",
-        "לשמור רק את 4 הספרות האחרונות של כל מספר לצורך פרטיות, ולוותר על שאר הספרות במסד הנתונים",
-        "להשאיר כל מספר בפורמט שבו הוא הוזן במקור, כי כל מערכת שממירה מיוזמתה עלולה לפגוע בערכים תקינים",
-        "להסיר רק את המקפים ולהשאיר את שאר ההבדלים בפורמט כפי שהם, מבלי לאחד קידומת מדינה",
-      ],
-      "prompt": "טור מספרי טלפון מגיע ממקורות שונים בפורמטים לא אחידים:
-
-- \`050-1234567\`
-- \`0521234567\`
-- \`+972-52-9876543\`
-- \`03 6001234\`
-
-מה כלל הנרמול הנכון לפני שמירה במסד הנתונים?",
-    },
-    "difficulty": 1,
-    "id": "tech.data_normalize",
-  },
-  {
-    "content": {
-      "options": [
         "להקטין את db-1 — הניצול שלו סביר לתצורה הזאת, ואין כאן בזבוז ממשי שמצדיק לגעת דווקא בשרת מסד הנתונים",
-        "להקטין (downsize) את worker-2 — ניצול חד-ספרתי על תצורה יקרה מאוד הוא הבזבוז הגדול ביותר כאן",
         "להקטין את web-1 — הניצול שלו כבר גבוה יחסית ותנודתי, והקטנה עלולה לגרום לעומס בשעות שיא ולפגיעה בזמינות",
+        "להקטין (downsize) את worker-2 — ניצול חד-ספרתי על תצורה יקרה מאוד הוא הבזבוז הגדול ביותר כאן",
       ],
       "prompt": "| שרת | תצורה | ניצול ממוצע | עלות חודשית | הערה |
 |---|---|---|---|---|
-| web-1 | 4 vCPU / 16GB | 72% | 900 ₪ | — |
-| worker-2 | 8 vCPU / 32GB | 3% | 1800 ₪ | — |
-| db-1 | 2 vCPU / 8GB | 58% | 600 ₪ | — |
+| web-1 | 4 vCPU / 16GB | 70% | 900 ₪ | — |
+| worker-2 | 8 vCPU / 32GB | 6% | 1800 ₪ | — |
+| db-1 | 2 vCPU / 8GB | 61% | 600 ₪ | — |
 
 רשימת השרתים למעלה מציגה ניצול ממוצע (CPU) על פני החודש האחרון. איזה שינוי חוסך הכי הרבה בלי לפגוע בפעילות?",
     },
@@ -619,10 +556,10 @@ REDIS_URL=redis://cache-stg.internal:6380
   {
     "content": {
       "options": [
-        "סודות (secrets) נשמרים במנהל סודות ייעודי (secrets manager) ולא בקוד",
-        "חשבון ה-root מוגן ב-MFA ומשמש רק למקרי חירום, כשהעבודה השוטפת דרך חשבונות משנה",
+        "כל מפתח בצוות משתמש בחשבון אישי משלו עם הרשאות מותאמות לתפקיד",
         "דלי אחסון עם קבצי לקוחות שמוגדר כפרטי, וגישה רק דרך קישורים חתומים וזמניים",
         "חשבון מנהל אחד ("admin") שכל הצוות משתמש בו במקום חשבונות אישיים",
+        "חשבון ה-root מוגן ב-MFA ומשמש רק למקרי חירום, כשהעבודה השוטפת דרך חשבונות משנה",
       ],
       "prompt": "מבין ארבע הפרקטיקות הבאות, שלוש בטוחות ואחת מסוכנת. איזו מהן מסוכנת?",
     },
@@ -632,14 +569,14 @@ REDIS_URL=redis://cache-stg.internal:6380
   {
     "content": {
       "options": [
-        "22",
-        "19",
-        "24",
-        "18",
+        "14",
+        "11",
+        "10",
+        "13",
       ],
-      "prompt": "מתוך התיעוד: "כל קריאה מחזירה עד 50 רשומות (page size). מותר עד 60 קריאות בדקה."
+      "prompt": "מתוך התיעוד: "כל קריאה מחזירה עד 200 רשומות (page size). מותר עד 60 קריאות בדקה."
 
-יש 914 רשומות למשוך.
+יש 1981 רשומות למשוך.
 
 כמה קריאות API נדרשות בסך הכול כדי למשוך את כל הרשומות?",
     },
@@ -649,37 +586,22 @@ REDIS_URL=redis://cache-stg.internal:6380
   {
     "content": {
       "options": [
-        "Git מוחק אוטומטית commits ישנים יותר משבוע כדי לחסוך מקום בדיסק, כחלק ממנגנון ניקוי תקופתי מובנה, גם אם הם לא מוזגו",
-        "השינויים נמחקו סופית כי הן מעולם לא נדחפו (push) לשרת מרוחק כלשהו — זו הסיבה היחידה האפשרית שיכולה להסביר את זה",
-        "ה-commits היו קיימים רק ב-feature/login ומעולם לא מוזגו חזרה ל-main; מחיקת ה-branch איבדה את הגישה הרגילה אליהם",
-        "merge של main לתוך feature/login מוחק תמיד באופן אוטומטי את כל השינויים המקומיים שהיו קיימים על ה-branch מלכתחילה",
+        "signup_date -> Country",
+        "full_name -> Name",
+        "country_code -> Country",
+        "email_address -> Email",
       ],
-      "prompt": "דנה עבדה על branch בשם feature/login, ביצעה שם כמה commits, ואז ביצעה merge של main לתוך feature/login (כדי להתעדכן). לאחר מכן היא מחקה בטעות את branch feature/login מבלי למזג אותו חזרה ל-main. השינויים שלה נעלמו.
-
-מה קרה כאן, בסבירות הגבוהה ביותר?",
-    },
-    "difficulty": 2,
-    "id": "tech.git_what_happened",
-  },
-  {
-    "content": {
-      "options": [
-        "last_name -> FamilyName",
-        "job_title -> Title",
-        "phone_number -> Title",
-        "first_name -> GivenName",
-      ],
-      "prompt": "שדות מקור (מערכת A): first_name, last_name, phone_number, job_title
-שדות יעד (מערכת B): GivenName, FamilyName, Phone, Title
+      "prompt": "שדות מקור (מערכת A): full_name, email_address, signup_date, country_code
+שדות יעד (מערכת B): Name, Email, CreatedAt, Country
 
 המיפוי המוצע בין שתי המערכות:
 
 | שדה מקור | שדה יעד |
 |---|---|
-| first_name | GivenName |
-| last_name | FamilyName |
-| phone_number | Title |
-| job_title | Title |
+| full_name | Name |
+| email_address | Email |
+| signup_date | Country |
+| country_code | Country |
 
 איזו שורה במיפוי שגויה?",
     },
@@ -687,24 +609,182 @@ REDIS_URL=redis://cache-stg.internal:6380
     "id": "tech.field_mapping_error",
   },
   {
+    "content": {
+      "options": [
+        "חיבור מוצפן שמעביר את התעבורה דרך רשת אחרת",
+        "תוכנה שנצרכת כשירות בענן במקום להתקין אותה מקומית",
+        "קריאה שהמערכת השולחת אוטומטית כשקורה אירוע",
+        "תוכנה שהקוד שלה פתוח לצפייה ולשימוש",
+      ],
+      "prompt": "מה זה \`open source\`?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.what_is",
+  },
+  {
+    "content": {
+      "options": [
+        "הבקשה הצליחה",
+        "השירות אינו זמין כרגע",
+        "הכתובת עברה לצמיתות לכתובת אחרת",
+        "מזוהה, אבל אין הרשאה לפעולה הזו",
+      ],
+      "prompt": "בתשובה מהשרת התקבל הקוד \`301\`. מה המשמעות שלו?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.http_status",
+  },
+  {
+    "content": {
+      "options": [
+        "אוסף קבצים דחוס לקובץ אחד",
+        "שאילתות או פקודות למסד נתונים",
+        "נתונים מובנים במבנה של מפתחות וערכים",
+        "רישום כרונולוגי של אירועים שהמערכת כתבה",
+      ],
+      "prompt": "קיבלתם קובץ עם הסיומת \`.log\`. מה הוא מכיל?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.file_type",
+  },
+  {
+    "content": {
+      "options": [
+        "אריזה של אפליקציה עם כל התלויות שלה לקונטיינר",
+        "מסד נתונים רלציוני",
+        "גיליונות אלקטרוניים, חישובים וניתוח נתונים",
+        "ניהול משימות ותקלות של צוותי פיתוח",
+      ],
+      "prompt": "למה משמש \`PostgreSQL\`?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.tool_purpose",
+  },
+  {
+    "content": {
+      "options": [
+        "מושך למחשב את השינויים האחרונים מהמאגר המרוחק",
+        "מחפש שורות שמכילות טקסט מסוים",
+        "מעביר אותך לתיקייה אחרת",
+        "שולח בקשת רשת לכתובת ומדפיס את התשובה",
+      ],
+      "prompt": "מה עושה הפקודה \`grep\`?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.command_purpose",
+  },
+  {
+    "content": {
+      "options": [
+        "/api/v2/items",
+        "from=2026-01-01",
+        "reports",
+        "orenlog.com",
+      ],
+      "prompt": "מהו הנתיב (path) בכתובת הבאה?
+
+\`https://reports.orenlog.com/api/v2/items?from=2026-01-01\`",
+    },
+    "difficulty": 1,
+    "id": "knowledge.url_parts",
+  },
+  {
+    "content": {
+      "options": [
+        "95.202.176.157",
+        "117.43.43.48.197",
+        "75.185.114",
+        "214.129.436.235",
+      ],
+      "prompt": "איזו מהכתובות הבאות היא כתובת IP תקינה?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.ip_valid",
+  },
+  {
+    "content": {
+      "options": [
+        "47913",
+        "94354",
+        "-875",
+        "4733.6",
+      ],
+      "prompt": "איזה מהערכים הבאים הוא מספר פורט תקין?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.format_valid",
+  },
+  {
+    "content": {
+      "options": [
+        "{"amount" "dana", "name": "dana"}",
+        "{"id": "open", "active": 900}",
+        "{"id": 483 "name": 340}",
+        "{amount: 716, "name": 260}",
+      ],
+      "prompt": "איזה מהקטעים הבאים הוא JSON תקין?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.json_valid",
+  },
+  {
+    "content": {
+      "options": [
+        "748 TB",
+        "329 TB",
+        "421 GB",
+        "377 MB",
+      ],
+      "prompt": "איזה מהערכים הבאים הוא הגדול ביותר?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.units_bigger",
+  },
+  {
+    "content": {
+      "options": [
+        "PostgreSQL",
+        "SQLite",
+        "MySQL",
+        "Azure",
+      ],
+      "prompt": "איזה מהבאים לא שייך לקבוצה?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.odd_one_out",
+  },
+  {
+    "content": {
+      "options": [
+        "status = fetch(status);",
+        "count = 41;",
+        "send("error);",
+        "status = fetch(count);",
+      ],
+      "prompt": "באיזו מהשורות הבאות יש שגיאת תחביר?",
+    },
+    "difficulty": 1,
+    "id": "knowledge.spot_syntax_error",
+  },
+  {
     "cause": "a",
     "content": {
       "q1": {
         "options": [
-          "כתובת ה-endpoint שהוגדרה בצד החנות מצביעה לנתיב ישן שכבר לא קיים בגשר מאז ניקוי נתיבים אחרון בפריסה, ולכן כל הבקשות מקבלות שגיאת נתיב לא נמצא",
-          "שרת הגשר בין החנות ל-CRM קרס בשקט אחרי עדכון לילי ולא עלה בחזרה, כך שכל הבקשות הנכנסות מהחנות נענות בשגיאת חיבור ולא בקוד סטטוס תקין",
-          "מודול שליחת ה-webhooks בצד החנות הושבת בטעות בעדכון האחרון שם, כך שההזמנות כלל לא נשלחות יותר לגשר ולא מגיעות אליו בכלל בשום צורה",
           "ה-secret לחתימת ה-webhook הוחלף בצד החנות בעדכון האחרון, אבל הגשר ממשיך לאמת חתימות מול הסוד הישן שכבר אינו בתוקף, ולכן כל הבקשות נדחות",
           "שדרוג ה-Node שבוצע השבוע שינה את אופן פענוח גוף הבקשה, כך שהגשר דוחה בקשות תקינות בגלל שגיאת פרסור JSON ולא בגלל בעיית אימות כלשהי",
+          "שרת הגשר בין החנות ל-CRM קרס בשקט אחרי עדכון לילי ולא עלה בחזרה, כך שכל הבקשות הנכנסות מהחנות נענות בשגיאת חיבור ולא בקוד סטטוס תקין",
+          "כתובת ה-endpoint שהוגדרה בצד החנות מצביעה לנתיב ישן שכבר לא קיים בגשר מאז ניקוי נתיבים אחרון בפריסה, ולכן כל הבקשות מקבלות שגיאת נתיב לא נמצא",
+          "מודול שליחת ה-webhooks בצד החנות הושבת בטעות בעדכון האחרון שם, כך שההזמנות כלל לא נשלחות יותר לגשר ולא מגיעות אליו בכלל בשום צורה",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
+          "לבקש מהחנות לשלוח מחדש ידנית את כל ההזמנות מאתמול בערב, בלי לתקן את מה שגרם לדחייה מלכתחילה",
           "לעשות rollback מיידי לשדרוג ה-Node של אתמול, בלי לבדוק קודם אם זה בכלל קשור לתקלה בחתימת ה-webhook",
           "לעדכן את ה-secret החדש בהגדרות הגשר ולוודא שההזמנה הבאה מתקבלת ב-200",
           "להוריד את כל ה-Logs של השבוע האחרון ולעבור עליהם שורה-שורה לפני שנוגעים בהגדרות הגשר",
-          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -713,12 +793,12 @@ REDIS_URL=redis://cache-stg.internal:6380
       },
       "tabs": [
         {
-          "body": "18:42:11  POST /webhooks/store  200  order=A-77383  sig=ok
-19:05:37  POST /webhooks/store  200  order=A-77384  sig=ok
-21:14:02  POST /webhooks/store  401  order=A-77385  sig=invalid
-21:14:09  POST /webhooks/store  401  order=A-77385  sig=invalid (retry 1)
-22:30:55  POST /webhooks/store  401  order=A-77386  sig=invalid
-23:02:10  POST /webhooks/store  401  order=A-77387  sig=invalid
+          "body": "18:42:11  POST /webhooks/store  200  order=A-77381  sig=ok
+19:05:37  POST /webhooks/store  200  order=A-77382  sig=ok
+21:14:02  POST /webhooks/store  401  order=A-77383  sig=invalid
+21:14:09  POST /webhooks/store  401  order=A-77383  sig=invalid (retry 1)
+22:30:55  POST /webhooks/store  401  order=A-77384  sig=invalid
+23:02:10  POST /webhooks/store  401  order=A-77385  sig=invalid
 08:10:20  GET  /health           200",
           "key": "log",
           "label": "Logs – integration",
@@ -726,8 +806,8 @@ REDIS_URL=redis://cache-stg.internal:6380
         {
           "body": "Endpoint: https://crm-bridge.example.co.il/webhooks/store
 Status: Active
-Signing secret: whsec_…9b6
-Last rotated: 21:02 by רועי@store.example.co.il",
+Signing secret: whsec_…50b
+Last rotated: 21:02 by טל@store.example.co.il",
           "key": "settings",
           "label": "Webhook settings (Store)",
         },
@@ -752,19 +832,19 @@ Last rotated: 21:02 by רועי@store.example.co.il",
     "content": {
       "q1": {
         "options": [
-          "הסיסמאות של כל העובדים שלא מצליחים להתחבר פגו בדיוק בו-זמנית ביום שני בבוקר המוקדם, וזו הסיבה המשותפת לכשל שלהם",
+          "שרת ה-IdP איטי היום בצורה חריגה בגלל עומס גבוה מהרגיל, וזה גורם לחלק מהבקשות להיכשל באופן אקראי לגמרי",
           "הדומיין החדש (example-tech.co.il) לא נמצא ברשימת הדומיינים המורשים ב-IdP, ולכן כל בקשת התחברות ממנו נדחית מיד",
           "יש תקלה כללית ולא ברורה בשירות ה-SaaS עצמו שגורמת לכשלי התחברות אקראיים אצל חלק מהעובדים בארגון",
-          "שרת ה-IdP איטי היום בצורה חריגה בגלל עומס גבוה מהרגיל, וזה גורם לחלק מהבקשות להיכשל באופן אקראי לגמרי",
+          "הסיסמאות של כל העובדים שלא מצליחים להתחבר פגו בדיוק בו-זמנית ביום שני בבוקר המוקדם, וזו הסיבה המשותפת לכשל שלהם",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
-          "לבקש מהעובדים לנסות להתחבר שוב כמה פעמים, בלי לתקן את רשימת הדומיינים שגורמת לדחייה",
-          "לאסוף רשימה של כל העובדים בחברה ולבדוק כל אחד לפני שמוסיפים את הדומיין שכבר אותר כחסר",
-          "למחוק את חשבונות המשתמשים החסומים וליצור חשבונות חדשים, במקום להוסיף את הדומיין לרשימה המורשית",
           "להוסיף את example-tech.co.il לרשימת הדומיינים המורשים ב-IdP ולוודא שהעובדים החסומים מצליחים להתחבר",
+          "לבקש מהעובדים לנסות להתחבר שוב כמה פעמים, בלי לתקן את רשימת הדומיינים שגורמת לדחייה",
+          "לחקור לעומק את איטיות האתר שדווחה בצ'אט, למרות שלוג האימות מצביע במפורש על דומיין לא מורשה",
+          "למחוק את חשבונות המשתמשים החסומים וליצור חשבונות חדשים, במקום להוסיף את הדומיין לרשימה המורשית",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -811,7 +891,7 @@ Last rotated: 21:02 by רועי@store.example.co.il",
         "options": [
           "ה-API החיצוני של המקור מחזיר תמיד רק את העמוד הראשון של הנתונים בכל קריאה בודדת שנשלחת אליו, וכל שאר הרשומות נמצאות בעמודים הבאים שהקוד כלל לא מבקש ולא מושך אליו",
           "טבלת המקור שונתה שם בעדכון סכימה אחרון שבוצע לפני כמה ימים על ידי צוות אחר לגמרי בפרויקט, והשאילתה של הדוח היומי עדיין מפנה לשם הישן שכבר לא קיים במסד הנתונים בכלל",
-          "ה-cron רץ ב-22:00 UTC (לפני חצות בישראל), ומחפש CURRENT_DATE לפי UTC — בזמן שהנתונים עצמם נכתבים לפי שעון ישראל, כך שהיום עדיין לא התחיל מבחינת ה-UTC כשהשאילתה רצה",
+          "ה-cron רץ ב-23:00 UTC (לפני חצות בישראל), ומחפש CURRENT_DATE לפי UTC — בזמן שהנתונים עצמם נכתבים לפי שעון ישראל, כך שהיום עדיין לא התחיל מבחינת ה-UTC כשהשאילתה רצה",
           "שדרוג ספריית ה-PDF export שבוצע השבוע בשקט על ידי מישהו מהצוות שובר את יצירת הקובץ הסופי בתהליך הפלט, אף שהשאילתה עצמה עדיין מחזירה נתונים תקינים למסד",
         ],
         "prompt": "מה שורש הבעיה?",
@@ -819,9 +899,9 @@ Last rotated: 21:02 by רועי@store.example.co.il",
       "q2": {
         "options": [
           "לתקן את השאילתה כך שתשתמש בטווח התאריכים לפי שעון ישראל ולא לפי UTC, ולוודא שהדוח הבא מכיל שורות",
-          "לפתוח פנייה למנהל/ת ולתאר בקצרה את התקלה בדיוק כפי שדווחה בכרטיס המקורי, ולבקש הנחיה מפורשת על הצעד הבא לפני שבודקים משהו בעצמך",
-          "להריץ את הדוח ידנית כל לילה בשעה מאוחרת יותר, במקום לתקן את השאילתה שתלויה שגוי באזור הזמן",
           "לבדוק לעומק את שדרוג ספריית ה-PDF export מהשבוע, למרות שהלוג מראה 0 שורות עוד לפני יצירת הקובץ",
+          "להריץ את הדוח ידנית כל לילה בשעה מאוחרת יותר, במקום לתקן את השאילתה שתלויה שגוי באזור הזמן",
+          "למחוק את הגדרת ה-cron הקיימת ולבנות אחת חדשה מאפס, במקום פשוט לתקן את טווח התאריכים בשאילתה",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -830,7 +910,7 @@ Last rotated: 21:02 by רועי@store.example.co.il",
       },
       "tabs": [
         {
-          "body": "תזמון: 22:00 UTC כל יום
+          "body": "תזמון: 23:00 UTC כל יום
 שאילתה: SELECT * FROM events WHERE event_date = CURRENT_DATE",
           "key": "cron",
           "label": "הגדרת cron",
@@ -861,18 +941,18 @@ Last rotated: 21:02 by רועי@store.example.co.il",
     "content": {
       "q1": {
         "options": [
-          "מישהו שינה בטעות את תעריפי החיוב מול ספק הענן, כך שאותה כמות משאבים בדיוק מחויבת כעת במחיר גבוה פי כמה",
-          "יש דליפת נתונים מדלי אחסון ציבורי שגורמת להורדות חוזרות ולחיוב עצום ומתמשך על תעבורת רשת יוצאת בכל שעה",
           "autoscale נשאר דלוק בסביבת ה-dev מאז בדיקת עומסים לפני 3 שבועות, ויצר הרבה יותר מכונות ממה שנדרש בפועל",
+          "יש דליפת נתונים מדלי אחסון ציבורי שגורמת להורדות חוזרות ולחיוב עצום ומתמשך על תעבורת רשת יוצאת בכל שעה",
           "עדכון תעודת ה-TLS שבוצע השבוע הפעיל בטעות תהליך רקע כבד שממשיך לצרוך משאבי מחשוב באופן רציף עד עכשיו",
+          "מישהו שינה בטעות את תעריפי החיוב מול ספק הענן, כך שאותה כמות משאבים בדיוק מחויבת כעת במחיר גבוה פי כמה",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
-          "למחוק את כל סביבת ה-dev לגמרי כדי לעצור את החיוב מיד, כולל מכונות ונתונים שעדיין בשימוש",
-          "לבקש מהספק זיכוי כספי על החיוב החריג, בלי לכבות את המנגנון שממשיך ליצור מכונות נוספות",
           "לחקור לעומק את חידוש תעודת ה-TLS מהשבוע, למרות שהוא בוצע בהצלחה וללא שינויי קונפיגורציה",
+          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
+          "לבקש מהספק זיכוי כספי על החיוב החריג, בלי לכבות את המנגנון שממשיך ליצור מכונות נוספות",
           "לכבות את ה-autoscale בסביבת dev ולהחזיר אותה למספר המכונות הרגיל, ולוודא שהחיוב יורד בהתאם",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
@@ -889,7 +969,7 @@ Network: 90 ₪",
           "label": "פירוט חיוב",
         },
         {
-          "body": "סביבת dev: 13 מכונות פעילות (רגיל: 2-3)
+          "body": "סביבת dev: 11 מכונות פעילות (רגיל: 2-3)
 סביבת prod: 4 מכונות (רגיל)",
           "key": "instances",
           "label": "רשימת מכונות פעילות",
@@ -916,19 +996,19 @@ Network: 90 ₪",
     "content": {
       "q1": {
         "options": [
-          "אורי משויך לקבוצה הלא נכונה במערכת בעקבות מיגרציה קודמת, וזו הקבוצה שחוסמת ממנו את פעולת הייצוא",
+          "ל-טל יש תפקיד Viewer שאינו כולל הרשאת export, בעוד ליאור משויך ל-Analyst שכן כוללת",
+          "טל משויך לקבוצה הלא נכונה במערכת בעקבות מיגרציה קודמת, וזו הקבוצה שחוסמת ממנו את פעולת הייצוא",
           "הדפדפן של המשתמש איטי מדי ומתנתק לפני שהייצוא מסתיים, בעוד עמיתיו משתמשים בדפדפן מעודכן יותר",
           "יש דגל פיצ'ר (feature flag) שחוסם ייצוא לארגון הזה כולו, וזו הסיבה שהמשתמש הספציפי לא מצליח לייצא",
-          "ל-אורי יש תפקיד Viewer שאינו כולל הרשאת export, בעוד שירה משויך ל-Analyst שכן כוללת",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
           "לעבור על כל יומן ההרשאות של השנה האחרונה לכל המשתמשים לפני שמתקנים את התפקיד שכבר אותר כשגוי",
-          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
+          "לשנות את התפקיד של טל ל-Analyst (כפי שהיה אמור מלכתחילה) ולוודא שהייצוא עובד",
           "לפתוח פנייה למנהל/ת ולתאר בקצרה את התקלה בדיוק כפי שדווחה בכרטיס המקורי, ולבקש הנחיה מפורשת על הצעד הבא לפני שבודקים משהו בעצמך",
-          "לשנות את התפקיד של אורי ל-Analyst (כפי שהיה אמור מלכתחילה) ולוודא שהייצוא עובד",
+          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -943,18 +1023,18 @@ Viewer: view=✔ export=✘",
           "label": "מטריצת הרשאות",
         },
         {
-          "body": "אורי: role=Viewer
-שירה: role=Analyst",
+          "body": "טל: role=Viewer
+ליאור: role=Analyst",
           "key": "users",
           "label": "רשומת משתמשים",
         },
         {
-          "body": "לפני חודשיים: אורי שויך לתפקיד Viewer בטעות בזמן מיגרציה (אמור היה להיות Analyst כמו שאר הצוות)",
+          "body": "לפני חודשיים: טל שויך לתפקיד Viewer בטעות בזמן מיגרציה (אמור היה להיות Analyst כמו שאר הצוות)",
           "key": "auditlog",
           "label": "יומן שינויי הרשאות",
         },
         {
-          "body": "שירה: הדפדפן שלי קצת איטי היום, מישהו עוד מרגיש ככה?",
+          "body": "ליאור: הדפדפן שלי קצת איטי היום, מישהו עוד מרגיש ככה?",
           "decoy": true,
           "key": "chat",
           "label": "צ'אט תמיכה",
@@ -969,19 +1049,19 @@ Viewer: view=✔ export=✘",
     "content": {
       "q1": {
         "options": [
-          "טוקן ההתחברות מול הספק פג בשעה קבועה כל יום אחר הצהריים בדיוק, ומחדש את עצמו רק לאחר כמה דקות עיכוב מיותרות לגמרי",
-          "report_job שנוסף לפני שבוע משתמש באותו מפתח API כמו sync_job, וביחד הם חורגים מהמכסה היומית המשותפת אחר הצהריים",
           "יש הגבלת burst שנחצית שוב ושוב בגלל ריצה מקבילית של כמה תהליכים באותה שנייה בדיוק כל אחר צהריים בערך",
+          "report_job שנוסף לפני שבוע משתמש באותו מפתח API כמו sync_job, וביחד הם חורגים מהמכסה היומית המשותפת אחר הצהריים",
+          "טוקן ההתחברות מול הספק פג בשעה קבועה כל יום אחר הצהריים בדיוק, ומחדש את עצמו רק לאחר כמה דקות עיכוב מיותרות לגמרי",
           "שדרוג גרסת ה-Node שבוצע בשקט בשרת בסוף השבוע שינה לגמרי את אופן ניהול החיבורים הפתוחים, וגרם לכשלים אקראיים בסנכרון",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
-          "לבדוק לעומק את שדרוג גרסת ה-Node מהשבוע, למרות שהתיעוד מצביע במפורש על חריגת מכסה יומית משותפת",
+          "לאסוף את כל לוגי הסנכרון של השנה שעברה בכל השירותים לפני שמפרידים בין שתי העבודות שכבר אותרו",
           "להריץ שוב את sync_job ידנית בכל פעם שהוא נכשל אחר הצהריים, בלי לתקן את חריגת המכסה המשותפת",
-          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
           "להפריד בין sync_job ל-report_job למפתחות API נפרדים, או לתאם ביניהם כך שלא יחרגו מהמכסה המשותפת",
+          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -990,14 +1070,14 @@ Viewer: view=✔ export=✘",
       },
       "tabs": [
         {
-          "body": "14:03  sync_job  429 quota_exceeded
-14:33  sync_job  429 quota_exceeded
+          "body": "15:03  sync_job  429 quota_exceeded
+15:33  sync_job  429 quota_exceeded
 09:00  sync_job  200 ok",
           "key": "log",
           "label": "לוג סנכרון",
         },
         {
-          "body": "מתוך התיעוד: "מכסה יומית של 5000 קריאות, משותפת לכל המפתחות (API keys) של אותו חשבון. המכסה מתאפסת בחצות UTC."",
+          "body": "מתוך התיעוד: "מכסה יומית של 10000 קריאות, משותפת לכל המפתחות (API keys) של אותו חשבון. המכסה מתאפסת בחצות UTC."",
           "key": "limitsdoc",
           "label": "תיעוד מגבלות API",
         },
@@ -1023,19 +1103,19 @@ report_job: רץ כל 10 דקות (נוסף לפני שבוע, משתמש באו
     "content": {
       "q1": {
         "options": [
-          "עדכון עיצוב הטופס שבוצע בשקט השבוע על ידי הצוות שינה את מבנה השדות הפנימי ברקע התהליך, וגרם בטעות לשליחה כפולה של אותם נתונים בדיוק לשרת",
-          "המשתמש לחץ פעמיים על הכפתור בכוונה ברורה תוך שנייה אחת כדי לוודא שההרשמה שלו נקלטה בהצלחה במערכת, וכך יצר בטעות שתי רשומות זהות לגמרי בטבלה",
           "הלקוח שולח שוב את הבקשה אוטומטית אחרי timeout של 3000ms בלי לבדוק אם הבקשה הראשונה בכל זאת הצליחה, ובלי מזהה ייחודי (idempotency key) שמונע כפילות בצד השרת",
+          "המשתמש לחץ פעמיים על הכפתור בכוונה ברורה תוך שנייה אחת כדי לוודא שההרשמה שלו נקלטה בהצלחה במערכת, וכך יצר בטעות שתי רשומות זהות לגמרי בטבלה",
+          "עדכון עיצוב הטופס שבוצע בשקט השבוע על ידי הצוות שינה את מבנה השדות הפנימי ברקע התהליך, וגרם בטעות לשליחה כפולה של אותם נתונים בדיוק לשרת",
           "יש שני מנויי webhook פעילים שנרשמו בטעות על אותו אירוע הרשמה בהגדרות המערכת החיצונית, כך שכל שליחת טופס בודדת יוצרת שתי רשומות זהות לגמרי במקביל אצל שני המנויים הפעילים",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
-          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
+          "לבקש מהצוות למחוק ידנית כפילויות כל בוקר, בלי לתקן את הלקוח שממשיך לשלוח בקשות כפולות",
+          "למחוק את כל הרשומות הכפולות מיד בלי לגבות אותן קודם ובלי לוודא שאף אחת מהן אינה הרשומה האמיתית היחידה",
           "להוסיף idempotency key לבקשת ההרשמה בצד הלקוח והשרת, כך שבקשה חוזרת לא תיצור רשומה כפולה",
           "לחקור לעומק את עדכון עיצוב הטופס מהשבוע, למרות שהקוד מראה בבירור retry אוטומטי ללא idempotency",
-          "לפתוח פנייה למנהל/ת ולתאר בקצרה את התקלה בדיוק כפי שדווחה בכרטיס המקורי, ולבקש הנחיה מפורשת על הצעד הבא לפני שבודקים משהו בעצמך",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -1078,9 +1158,9 @@ id=502 email=a@x.com created_at=10:02:04 (זהה לחלוטין)",
     "content": {
       "q1": {
         "options": [
-          "כתובת השולח בתבנית המייל שגויה ומצביעה בטעות לדומיין שאינו קיים בכלל ברשת, ולכן כל שרתי הדואר המקבלים דוחים כל הודעה בודדת מיד עם קבלתה בלי שום חריגים",
-          "בדיקת האימות של הספק מראה DMARC=FAIL בגלל רשומת TXT חסרה תחת _dmarc.example-mail.co.il, לפי תיעוד הספק זה גורם לדחייה/spam לדומיינים חדשים",
           "עיצוב ה-HTML החדש שעודכן בשקט השבוע בתבנית ההודעה גורם לספקי המייל השונים לסמן את ההודעה כחשודה ולחסום אותה באופן מיידי",
+          "בדיקת האימות של הספק מראה DMARC=FAIL בגלל רשומת TXT חסרה תחת _dmarc.notices.example.co.il, לפי תיעוד הספק זה גורם לדחייה/spam לדומיינים חדשים",
+          "כתובת השולח בתבנית המייל שגויה ומצביעה בטעות לדומיין שאינו קיים בכלל ברשת, ולכן כל שרתי הדואר המקבלים דוחים כל הודעה בודדת מיד עם קבלתה בלי שום חריגים",
           "הנמענים נמצאים ברשימת ההשעיה (suppression list) הכללית של הספק בעקבות דיווחי spam קודמים ורבים שהתקבלו מאותו דומיין בדיוק",
         ],
         "prompt": "מה שורש הבעיה?",
@@ -1089,8 +1169,8 @@ id=502 email=a@x.com created_at=10:02:04 (זהה לחלוטין)",
         "options": [
           "להוסיף את רשומת ה-DMARC (TXT) החסרה תחת _dmarc בדומיין, ולוודא שהאימות עובר ושהמיילים מגיעים",
           "לבקש מכל הלקוחות לחפש ידנית בתיקיית ה-spam שלהם, במקום לתקן את סיבת הדחייה בצד השולח",
+          "לאסוף רשימה מלאה של כל הלקוחות שלא קיבלו מייל בחודש האחרון לפני שמוסיפים את רשומת ה-DNS החסרה",
           "לחקור לעומק את עיצוב ה-HTML החדש בתבנית, למרות שמסך האימות מצביע במפורש על כשל DMARC",
-          "לעבור לדומיין שליחה אחר לגמרי ולוותר על הדומיין החדש, בלי לבדוק קודם מה בדיוק חסר באימות שלו",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -1099,7 +1179,7 @@ id=502 email=a@x.com created_at=10:02:04 (זהה לחלוטין)",
       },
       "tabs": [
         {
-          "body": "דומיין: example-mail.co.il
+          "body": "דומיין: notices.example.co.il
 SPF: PASS
 DKIM: PASS
 DMARC: FAIL — רשומת TXT חסרה",
@@ -1112,8 +1192,8 @@ DMARC: FAIL — רשומת TXT חסרה",
           "label": "תיעוד הספק",
         },
         {
-          "body": "example-mail.co.il: TXT (SPF) קיים, DKIM CNAME קיים
-_dmarc.example-mail.co.il: לא קיימת רשומה",
+          "body": "notices.example.co.il: TXT (SPF) קיים, DKIM CNAME קיים
+_dmarc.notices.example.co.il: לא קיימת רשומה",
           "key": "dns",
           "label": "רשומות DNS נוכחיות",
         },
@@ -1133,19 +1213,19 @@ _dmarc.example-mail.co.il: לא קיימת רשומה",
     "content": {
       "q1": {
         "options": [
-          "כלל redirect חדש שנוסף לאחרונה יוצר לולאת הפניה בין הדומיין לעצמו, וזו הסיבה לשגיאת האבטחה בדפדפן",
-          "רשומת ה-DNS של תת-הדומיין מצביעה בטעות לשרת ישן שהוצא משימוש, ולכן הדפדפן מתחבר לתעודה שלא שייכת לכתובת המבוקשת",
           "תעודת ה-TLS של תת-הדומיין פגה כי החידוש האוטומטי כובה ידנית לפני 90 יום, ומאז אף אחד לא חידש אותה ידנית",
           "שרת ה-DNS הפנימי נפל הבוקר ולא עונה לשאילתות, כך שהדפדפן לא מצליח לפתור את הכתובת כלל",
+          "רשומת ה-DNS של תת-הדומיין מצביעה בטעות לשרת ישן שהוצא משימוש, ולכן הדפדפן מתחבר לתעודה שלא שייכת לכתובת המבוקשת",
+          "כלל redirect חדש שנוסף לאחרונה יוצר לולאת הפניה בין הדומיין לעצמו, וזו הסיבה לשגיאת האבטחה בדפדפן",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
-          "לבדוק את תוקף כל התעודות בכל תת-הדומיינים בחברה לפני שמחדשים את זו שכבר ידוע שפגה",
           "לחדש את התעודה מיד ולהפעיל מחדש את החידוש האוטומטי כדי שזה לא יקרה שוב",
+          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
           "לבקש מהמשתמשים ללחוץ 'המשך בכל זאת' בהתראת הדפדפן במקום לטפל בתעודה עצמה",
-          "לפתוח פנייה למנהל/ת ולתאר בקצרה את התקלה בדיוק כפי שדווחה בכרטיס המקורי, ולבקש הנחיה מפורשת על הצעד הבא לפני שבודקים משהו בעצמך",
+          "לבדוק לעומק את כללי ה-redirect בפרוקסי, למרות שהודעת השגיאה מצביעה במפורש על בעיית תוקף תעודה",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -1186,18 +1266,18 @@ _dmarc.example-mail.co.il: לא קיימת רשומה",
     "content": {
       "q1": {
         "options": [
-          "הסודות (credentials) של משימת הגיבוי הוחלפו בשקט לפני שלושה שבועות על ידי מישהו בצוות, כך שכל הרצה מאז נכשלת על שגיאת הרשאה שלא הוצגה בלוג",
-          "התזמון של הגיבוי השתנה בטעות ליום שלא קיים בחלק מהחודשים, בעקבות עדכון הגדרות אחרון, כך שהריצה פשוט לא מתרחשת ולא נכתב שום קובץ",
           "יש בעיית רשת מתמשכת בין שרת הגיבוי לדלי היעד בשעות הלילה המוקדמות, שגורמת לחיבור להיסגר לפני שהנתונים מספיקים להיכתב במלואם",
-          "דלי היעד לגיבוי מלא כמעט לגמרי (98%), כך שהגיבויים נכשלים בשקט וכותבים 0 בייטים בלי לדווח שגיאה, למרות שהסטטוס מוצג כ-success",
+          "הסודות (credentials) של משימת הגיבוי הוחלפו בשקט לפני שלושה שבועות על ידי מישהו בצוות, כך שכל הרצה מאז נכשלת על שגיאת הרשאה שלא הוצגה בלוג",
+          "דלי היעד לגיבוי מלא כמעט לגמרי (96%), כך שהגיבויים נכשלים בשקט וכותבים 0 בייטים בלי לדווח שגיאה, למרות שהסטטוס מוצג כ-success",
+          "התזמון של הגיבוי השתנה בטעות ליום שלא קיים בחלק מהחודשים, בעקבות עדכון הגדרות אחרון, כך שהריצה פשוט לא מתרחשת ולא נכתב שום קובץ",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
-          "לבדוק לעומק את הגדרת התזמון של הגיבוי, למרות שההיסטוריה מראה שהיא לא השתנתה ושהריצות מתבצעות בזמן",
           "למחוק גיבויים ישנים כדי לפנות מקום מיד, בלי לבדוק אם מישהו עדיין תלוי באחד מהם לצורך שחזור",
           "להגדיל את מכסת דלי היעד (או לפנות מקום/להוסיף אחסון) ולהריץ גיבוי מחדש כדי לוודא שהוא כותב בהצלחה",
+          "להריץ שוב את הגיבוי כפי שהוא, בלי לפנות מקום בדלי היעד קודם, ולקוות שהריצה הבאה תעבור בכל זאת",
           "לעבור על כל היסטוריית הגיבויים של השנה האחרונה בכל המערכות לפני שנוגעים בהגדרת המכסה",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
@@ -1215,7 +1295,7 @@ _dmarc.example-mail.co.il: לא קיימת רשומה",
           "label": "היסטוריית הרצות גיבוי",
         },
         {
-          "body": "נפח בשימוש: 98% מהמכסה
+          "body": "נפח בשימוש: 96% מהמכסה
 (המכסה לא הוגדלה מזה 6 חודשים למרות גידול בנתונים)",
           "key": "bucket",
           "label": "ניצול דלי היעד לגיבוי",
@@ -1242,18 +1322,18 @@ _dmarc.example-mail.co.il: לא קיימת רשומה",
       "q1": {
         "options": [
           "ההזמנות שנשלחות לעובדים חדשים פגות תוקף אחרי 7 ימים ללא הארכה אוטומטית, וזו הסיבה שההוספה נכשלת",
-          "הגעתם למכסת המקומות של התוכנית (50/50); אי אפשר להוסיף עובד חדש בלי לפנות מקום או לשדרג את התוכנית",
           "יש תקלה זמנית בשירות ה-SaaS עצמו שגורמת לשגיאות אקראיות בזמן הוספת משתמשים חדשים למערכת",
           "הדומיין של העובדים החדשים לא נמצא ברשימת הדומיינים המורשים ב-SSO, ולכן ההזמנה שלהם נדחית בשלב האימות",
+          "הגעתם למכסת המקומות של התוכנית (48/50); אי אפשר להוסיף עובד חדש בלי לפנות מקום או לשדרג את התוכנית",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
-          "לבדוק לעומק את רשימת הדומיינים המורשית ב-SSO של הארגון, למרות שמסך התוכנית מראה בבירור שהמכסה מלאה",
+          "לבקש מהעובד החדש לחכות בסבלנות בלי לטפל בבעיה בכלל, עד שמקום יתפנה מעצמו איכשהו במקרה",
+          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
           "לדווח למי שמאשר תקציב עם נתוני הניצול (כולל 6 המשתמשים הלא פעילים) ולהציע לפנות מקומות לא בשימוש או לשדרג את התוכנית",
           "לפתוח פנייה למנהל/ת ולתאר בקצרה את התקלה בדיוק כפי שדווחה בכרטיס המקורי, ולבקש הנחיה מפורשת על הצעד הבא לפני שבודקים משהו בעצמך",
-          "לבקש מהעובד החדש לחכות בסבלנות בלי לטפל בבעיה בכלל, עד שמקום יתפנה מעצמו איכשהו במקרה",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },
@@ -1263,7 +1343,7 @@ _dmarc.example-mail.co.il: לא קיימת רשומה",
       "tabs": [
         {
           "body": "תוכנית: Business — 50 מקומות
-בשימוש: 50 מתוך 50 (50/50)",
+בשימוש: 48 מתוך 50 (48/50)",
           "key": "plan",
           "label": "מסך תוכנית ומכסה",
         },
@@ -1273,7 +1353,7 @@ _dmarc.example-mail.co.il: לא קיימת רשומה",
           "label": "הודעת שגיאה במערכת",
         },
         {
-          "body": "50 משתמשים פעילים, מתוכם 6 לא התחברו מעל 4 חודשים",
+          "body": "48 משתמשים פעילים, מתוכם 6 לא התחברו מעל 4 חודשים",
           "key": "users",
           "label": "רשימת משתמשים",
         },
@@ -1295,17 +1375,17 @@ _dmarc.example-mail.co.il: לא קיימת רשומה",
         "options": [
           "הקובץ נבחר עם קידוד Windows-1255 בעוד שהוא בפועל UTF-8, וזה מייצר תווים משובשים בעברית",
           "מיפוי השדות בייבוא הפוך בין שם פרטי למשפחה, כך שהתוכן מוצג בעמודה הלא נכונה אך לא משובש",
-          "עמודות הקובץ הוזזו בגלל פסיק שהופיע בתוך שם מוקף מרכאות, וזה מה שגורם לתווים המשובשים בתצוגה",
           "שדרוג דפדפן הצוות שבוצע השבוע משנה את אופן קידוד הטקסט המועתק, וגורם לתווים המשובשים בתצוגה",
+          "עמודות הקובץ הוזזו בגלל פסיק שהופיע בתוך שם מוקף מרכאות, וזה מה שגורם לתווים המשובשים בתצוגה",
         ],
         "prompt": "מה שורש הבעיה?",
       },
       "q2": {
         "options": [
-          "לחקור לעומק את שדרוג דפדפן הצוות מהשבוע, למרות שהגדרות הייבוא מראות בבירור קידוד שגוי שנבחר",
+          "לתקן ידנית כל שם משובש אחד-אחד ברשימה, במקום לתקן את הקידוד ולייבא את כל הקובץ מחדש",
           "לבטל את הייבוא, לבחור UTF-8 כקידוד הנכון ולייבא מחדש כדי לוודא שהשמות מוצגים תקין",
-          "למחוק את כל הרשומות שיובאו ולהתחיל איסוף נתונים מאפס, כולל רשומות שלא נפגעו כלל מהתקלה",
-          "לעבור על כל קבצי הייבוא ההיסטוריים לפני שמתקנים את הקידוד השגוי בקובץ הנוכחי",
+          "לפתוח פנייה למנהל/ת ולתאר בקצרה את התקלה בדיוק כפי שדווחה בכרטיס המקורי, ולבקש הנחיה מפורשת על הצעד הבא לפני שבודקים משהו בעצמך",
+          "לסמן את הכרטיס כ'בבדיקה' ולחכות בסבלנות עד מחר לראות אם התקלה חוזרת על עצמה מחדש או נעלמת לבד בלי שום התערבות",
         ],
         "prompt": "מה הפעולה הראשונה שלך עכשיו?",
       },

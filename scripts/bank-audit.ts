@@ -19,16 +19,20 @@ const SESSION_COUNT = Number(process.env.BANK_AUDIT_SESSIONS ?? 20000);
 const COLLISION_SAMPLE = 500;
 
 const BLUEPRINT: Blueprint = {
-  version: 1,
+  version: 3,
   blocks: [
-    { key: "speed", pillar: "speed", count: 10, time_limit_s: 20, pool: "speed.*" },
-    { key: "reasoning", pillar: "reasoning", count: 6, time_limit_s: 75, pool: "reasoning.*" },
-    { key: "tech", pillar: "tech", count: 7, time_limit_s: 60, pool: "tech.*" },
-    { key: "investigate", pillar: "independence", count: 4, time_limit_s: 180, pool: "investigate.*" },
+    { key: "speed", pillar: "speed", count: 10, time_limit_s: 15, pool: "speed.*" },
+    { key: "knowledge", pillar: "tech", count: 10, time_limit_s: 15, pool: "knowledge.*" },
+    { key: "reasoning", pillar: "reasoning", count: 6, time_limit_s: 30, pool: "reasoning.*" },
+    { key: "tech", pillar: "tech", count: 8, time_limit_s: 30, pool: "tech.*" },
+    { key: "investigate", pillar: "independence", count: 3, time_limit_s: 150, pool: "investigate.*" },
   ],
   weights: { reasoning: 0.3, independence: 0.3, tech: 0.25, speed: 0.15 },
   session_wall_clock_min: 75,
 };
+
+/** Blueprint v2 total (0013_blueprint_v2_fast_items.sql). */
+const EXPECTED_ITEM_COUNT = BLUEPRINT.blocks.reduce((sum, b) => sum + b.count, 0);
 
 const NON_INVESTIGATION_CONTENT_BUDGET = 1600;
 const ARTIFACT_BODY_BUDGET = 900;
@@ -237,15 +241,15 @@ for (let i = 0; i < SESSION_COUNT; i++) {
     continue;
   }
 
-  if (items.length !== 27) {
-    fail(`session ${i}: expected 27 items, got ${items.length}`);
+  if (items.length !== EXPECTED_ITEM_COUNT) {
+    fail(`session ${i}: expected ${EXPECTED_ITEM_COUNT} items, got ${items.length}`);
     continue;
   }
 
   const positions = items.map((it) => it.position);
-  const expectedPositions = Array.from({ length: 27 }, (_, k) => k + 1);
+  const expectedPositions = Array.from({ length: EXPECTED_ITEM_COUNT }, (_, k) => k + 1);
   if (JSON.stringify(positions) !== JSON.stringify(expectedPositions)) {
-    fail(`session ${i}: item positions not sequential 1..27: ${positions.join(",")}`);
+    fail(`session ${i}: item positions not sequential 1..${EXPECTED_ITEM_COUNT}: ${positions.join(",")}`);
   }
 
   const byBlock = new Map<string, GeneratedItem[]>();
