@@ -46,6 +46,14 @@ jobs:
       NODE_ENV: test
       APP_BASE_URL: http://127.0.0.1:3000
       DATABASE_URL: postgresql://app_user:ci_test_password@127.0.0.1:5432/screening_ci
+      # The integration/e2e suites need a second, superuser connection for
+      # setup and cleanup, because RLS (DATA_MODEL.md §6.3) denies app_user
+      # the cross-table writes those fixtures do. They derive it by stripping
+      # the credentials off DATABASE_URL and relying on peer auth, which is
+      # true on a developer Mac but not against the CI Postgres container —
+      # there it becomes user "runner" with no password and every afterAll
+      # cleanup fails. Set the documented override explicitly instead.
+      TEST_DB_SUPERUSER_URL: postgresql://postgres:postgres@127.0.0.1:5432/screening_ci
       SUPABASE_URL: https://dummy.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: dummy
       SUPABASE_ANON_KEY: dummy
