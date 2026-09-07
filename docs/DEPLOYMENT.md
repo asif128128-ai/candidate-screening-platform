@@ -96,6 +96,29 @@ Node version is pinned in `package.json` (`"engines": {"node": "22.x"}`) and `.n
 `sync: false` = entered once in the Render dashboard (secret). `generateValue: true` lets Render generate the cookie secret.
 
 ## 5. Migrations
+
+> **One-time production grant (applied 2026-09-07).** The boot/health migration check reads
+> `supabase_migrations.schema_migrations`, but `app_user` had neither `USAGE` on that schema nor
+> `SELECT` on the table. `health-check.ts` treats the resulting error as "unknown" rather than a
+> failure, so `/api/health` reported `"migrations":"ok"` unconditionally — **the mismatch guard
+> described below had never actually run in production.** Fixed with:
+>
+> ```sql
+> grant usage on schema supabase_migrations to app_user;
+> grant select on supabase_migrations.schema_migrations to app_user;
+> ```
+>
+> Deliberately applied directly rather than as a numbered migration: a new migration file bumps
+> `EXPECTED_SCHEMA_VERSION`, which would have made the *running* build look stale and returned 503
+> the moment the grant took effect. **A fresh environment needs these two grants**, so fold them
+> into the next migration that ships together with its own deploy.
+>
+> Also discovered the same day: this project's `supabase_migrations.schema_migrations` table did not
+> exist at all — the schema had been applied without the Supabase CLI, so `db push` would have tried
+> to replay `0001` against live data. History was repaired (`supabase migration repair --status
+> applied 0001..0012`) before pushing `0013`/`0014`.
+
+
 - Tool: **Supabase CLI** (`supabase db push`) against `MIGRATION_DATABASE_URL`, run either from a developer machine or via the manual GitHub Actions workflow `migrate` (workflow_dispatch, uses the repository secret). Migrations are plain SQL, forward-only, numbered, idempotent where cheap (`create … if not exists` for extensions and enums via `do $$ … $$` guards).
 - **When:** run once at setup and again whenever a release includes a new migration file. The app does **not** run migrations at boot (a boot-time migration on a single instance is a way to get a stuck deploy with no human watching). Instead, the app checks at boot that the DB's `schema_migrations` head matches the version compiled into the build; on mismatch it logs a loud error, reports to Sentry, and `/api/health` returns 503 with `{"reason":"migration_pending"}` so the deploy is rolled back automatically by Render's health check, keeping the previous version live.
 - Order for a release with a migration: `supabase db push` → merge/push to `main` → Render deploys. This is safe **only** because migrations follow the **expand/contract rule**, which is enforced, not merely stated:
