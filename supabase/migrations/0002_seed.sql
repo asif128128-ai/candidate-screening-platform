@@ -29,6 +29,14 @@ values (
 )
 on conflict (key) do nothing;
 
+-- Rate corrected 85 -> 90 to match production, which was updated through the
+-- admin UI without the seed following. This edits an already-applied migration
+-- on purpose: the statement is `... on conflict (slug) do nothing`, so it is
+-- inert on every database that already has this job, and the only effect is
+-- that a NEW environment (a developer's local DB, CI, a rebuilt staging) seeds
+-- the real rate instead of a stale one. Both the numeric column and the
+-- confirmation sentence carry the figure, and they must always agree — the
+-- candidate ticks a box saying they understood a specific number.
 insert into jobs (
   slug, title_he, summary_he, description_he, description_html,
   hourly_rate_ils, hours_per_week, days_per_week, hours_per_day,
@@ -50,7 +58,7 @@ select
   '<p><strong>תפעול טכנולוגי (~50%)</strong> — תשתיות ו-Cloud, הרשאות ומערכות SaaS, נתונים ודוחות, כלי AI, Logs ותקלות, מערכות פנימיות ותחזוקה טכנולוגית שוטפת. חלק מזה הוא תמיכה טכנית פנימית לעובדים — זה חלק אמיתי מהתפקיד. זו לא משרת Help Desk: המטרה הרחבה היא להפוך את הארגון למקום טכנולוגי, אוטומטי ויעיל הרבה יותר, ואת/ה תהיו חלק מרכזי בזה.</p>'
   '<p><strong>מה מצפים ממך:</strong> עצמאות גבוהה. לקבל בעיה לא לגמרי מוגדרת, לחקור, לבדוק, להחליט ולהתקדם — בלי לחכות שיגידו לך מה הצעד הבא. סקרנות טכנולוגית אמיתית ורוחב: תוכנה, APIs, Database, Cloud, הרשאות, אבטחה בסיסית, אוטומציה.</p>'
   '<p><strong>מה מקבלים:</strong> אחריות משמעותית, חשיפה טכנולוגית רחבה מאוד, ניסיון אמיתי מעולם ה-Production, ולמידה מהירה. בהמשך — לא מובטח, אבל אפשרי — הרחבה למשרה מלאה, יותר אחריות ושכר גבוה יותר.</p>',
-  85.00, 18.0, 3.0, 6.0,
+  90.00, 18.0, 3.0, 6.0,
   'קבלן/ית עצמאי/ת (נותן/ת שירותים)',
   'אזור ראשון לציון',
   'היברידי אפשרי, לא מרחוק בלבד',
@@ -58,7 +66,7 @@ select
   true,
   '[
     "הבנתי שהתפקיד משלב פיתוח תוכנה עם תפעול טכנולוגי, כולל חלק של תחזוקה ותמיכה טכנית פנימית.",
-    "הבנתי את התנאים: 85 ₪ לשעה, כ-18 שעות שבועיות (כ-3 ימים × 6 שעות), התקשרות כנותן/ת שירותים עצמאי/ת, תחילת עבודה מיידית.",
+    "הבנתי את התנאים: 90 ₪ לשעה, כ-18 שעות שבועיות (כ-3 ימים × 6 שעות), התקשרות כנותן/ת שירותים עצמאי/ת, תחילת עבודה מיידית.",
     "הבנתי שהעבודה דורשת יכולת להגיע פיזית לאזור ראשון לציון (היברידי אפשרי, לא מרחוק בלבד)."
   ]'::jsonb,
   14,
