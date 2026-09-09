@@ -113,6 +113,15 @@ Node version is pinned in `package.json` (`"engines": {"node": "22.x"}`) and `.n
 > the moment the grant took effect. **A fresh environment needs these two grants**, so fold them
 > into the next migration that ships together with its own deploy.
 >
+> **Written, not yet shipped (2026-09-09):** `0015_migration_check_grants.sql` exists on the local
+> tag `staged/purge-grants`, together with `0016_cv_purge_worker_grants.sql` (the missing
+> `update (attempts, last_error) on cv_purge_queue` grant). Both are held back deliberately: the
+> outage fix of 2026-09-09 had to reach Render without a migration step, and adding any migration
+> file bumps `EXPECTED_SCHEMA_VERSION` and would itself have forced one. Ship them via the `migrate`
+> workflow **before** the commit that re-adds them. Until then the CV purge worker records
+> `attempts`/`last_error` on a best-effort basis and logs `cv_purge_bookkeeping_failed` when the
+> grant is absent — the retry itself is unaffected.
+>
 > Also discovered the same day: this project's `supabase_migrations.schema_migrations` table did not
 > exist at all — the schema had been applied without the Supabase CLI, so `db push` would have tried
 > to replay `0001` against live data. History was repaired (`supabase migration repair --status
@@ -161,13 +170,26 @@ No storage policies (server-only access via service role).
 13. Put a yearly calendar reminder on the hiring manager's calendar: "annual runtime/dependency bump — book half a day of developer time" (`ARCHITECTURE.md` §8).
 
 ## 9. Health check
-`GET /api/health` → 200 `{"status":"ok","db":"ok","storage":"ok","migrations":"ok","email":"ok","sweep_age_min":37,"cv_purge_backlog":0}`; any failure → 503 with the failing component; a purge backlog older than 24 h or a sweep older than 3 h returns 503 too (so UptimeRobot emails). No git SHA in the public response (it is on the admin Settings page). DB check is `select 1` with a 500 ms timeout via the pooled connection; storage check is a `HEAD` on the bucket (cached 60 s). The handler also runs the hourly maintenance sweep when it wins the lock (`ARCHITECTURE.md` §8) — bounded to 2 s so the health response stays fast. Render restarts the instance after consecutive failures and rolls back a deploy whose first health checks fail.
+`GET /api/health` → 200 `{"status":"ok","db":"ok","storage":"ok","migrations":"ok","email":"ok","sweep_age_min":37,"cv_purge_backlog":0}`. No git SHA in the public response (it is on the admin Settings page). DB check is `select 1` with a 500 ms timeout via the pooled connection; storage check is a `HEAD` on the bucket (cached 60 s). Render restarts the instance after consecutive failures and rolls back a deploy whose first health checks fail.
+
+**Two severities, and the distinction matters.** Render reads a non-200 as "this instance cannot serve traffic" and fails/rolls back the deploy, so 503 is reserved for exactly that:
+
+| Condition | Response | Why |
+|---|---|---|
+| `db_error` | **503** | Database unreachable; nothing works |
+| `migration_pending` | **503** | DB schema is not the one this build was compiled against — serving would read/write the wrong shape. This is the guard that auto-rolls-back a deploy whose migration was never applied |
+| `sweep_stale` (> 3 h) | **200**, `"status":"degraded"` | Needs a human, but this instance serves correctly |
+| `cv_purge_backlog` (> 24 h) | **200**, `"status":"degraded"` | Same — operational backlog, not an inability to serve |
+
+Degraded conditions are reported in a `degraded: [...]` array and raised to Sentry (→ `ALERT_EMAIL`) instead of being surfaced by returning a failure code.
+
+> **Why this changed (2026-09-09).** Both degraded conditions used to return 503, and the maintenance sweep ran *inside* this handler. That combination made outages self-sustaining: the sweep only ran as a side effect of the endpoint being probed, so once no instance was serving `/api/health` for three hours, `sweep_age_min` passed 180 and stayed there — and from that point every deploy failed its own health check and rolled back, with the original fault long since fixed. A short outage became a permanent, un-deployable one. The sweep now runs on its own hourly timer (`src/lib/sweep-scheduler.ts`, started lazily on the first probe — same nodejs/edge bundling constraint that `src/lib/outage-boot-check.ts` documents), and `checkDb()` is read-only and only *reports* staleness.
 
 ## 10. Runtime hardening
 - Node 22 started with `--max-old-space-size=384` (Starter has 512 MB); Scenario D in `TEST_STRATEGY.md` §8 verifies a 150-start burst stays under 300 MB RSS.
 - Postgres pool: **max 20**, idle timeout 30 s, connect timeout 5 s, statement timeout 10 s (set on the pooler connection). Supavisor transaction mode; `SET LOCAL` request context per transaction.
 - **Graceful shutdown**: the standalone server handles `SIGTERM` by stopping accepting connections, waiting up to 10 s for in-flight requests (Render's grace period is 30 s), then closing the pool. Answer handling is a single transaction, so a kill mid-request rolls back cleanly and the client's retry (idempotent by `item_id` + `item_token`) completes it.
-- **Boot sequence**: env check → migration version check → Sentry init → outage-credit pass (`ARCHITECTURE.md` §5.2) → listen. Health returns 503 until all steps pass.
+- **Boot sequence**: env check → migration version check → Sentry init → outage-credit pass (`ARCHITECTURE.md` §5.2) → listen. Health returns 503 until all steps pass. The env check runs from `startCommand` in `render.yaml`, not from `prestart` — `prestart` only fires for `pnpm start`, and this service boots the standalone server with plain `node`, so for a period it was silently not running at all.
 - Next.js `output: 'standalone'` for a small image and fast cold start (Render Starter does not sleep, but deploys restart the process).
 - Uploads streamed to Storage, never written to the local disk.
 - `Cache-Control: no-store` on all candidate/admin HTML; immutable caching on hashed static assets.

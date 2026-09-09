@@ -39,7 +39,19 @@ services:
       corepack enable && NODE_ENV=development pnpm install --frozen-lockfile && pnpm build &&
       ([ -d public ] && cp -r public .next/standalone/public || true) &&
       cp -r .next/static .next/standalone/.next/static
-    startCommand: node .next/standalone/server.js
+    # `prestart` (package.json) runs scripts/check-env.ts, which is what
+    # DEPLOYMENT.md §3 promises: "refuses to boot with a readable
+    # Hebrew/English message if any required variable is missing or
+    # malformed". But `prestart` only fires for `pnpm start` — this service
+    # starts the standalone server with plain `node`, so the check was
+    # silently never running on Render. A missing var (e.g. ITEM_TOKEN_SECRET,
+    # added to this blueprint after the service was first created, and NOT
+    # backfilled into an existing service by Render) therefore surfaced as
+    # loadEnv() throwing inside request handlers instead of as a clear boot
+    # failure. Invoked via node_modules/.bin directly rather than
+    # `pnpm exec`, so it does not depend on corepack shims surviving from
+    # the build step into the start step.
+    startCommand: ./node_modules/.bin/tsx scripts/check-env.ts && node .next/standalone/server.js
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:

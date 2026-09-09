@@ -5,14 +5,21 @@ import { afterAll, describe, expect, it } from "vitest";
 // actually protect the surrounding transaction — once that query failed
 // (e.g. the schema doesn't exist, exactly the case on this local-Postgres
 // stand-in, which has no Supabase CLI managing that schema), Postgres
-// aborted the whole transaction, so the very next statement
-// (`run_maintenance_sweep()`) failed too with a generic cascading error,
-// silently and permanently disabling the sweep from that point on.
+// aborted the whole transaction, so every following statement in it failed
+// too with a generic cascading error.
 //
 // This suite reproduces the original bug directly against this local
 // Postgres (no `supabase_migrations` schema exists here — see
-// scripts/local-pg-setup.sh / supabase/test-stubs.sql) and proves
-// run_maintenance_sweep() still runs despite it.
+// scripts/local-pg-setup.sh / supabase/test-stubs.sql) and proves the
+// statements after the failed lookup still execute.
+//
+// The sweep is no longer one of those statements: it used to run inside
+// checkDb(), which made the platform's only scheduler a side effect of the
+// liveness probe and turned any outage longer than the 180-minute staleness
+// threshold into a permanent, un-deployable one. It now lives in
+// `runSweep()` on its own timer (src/lib/sweep-scheduler.ts). Both halves
+// of that split are asserted below: checkDb() must NOT sweep, runSweep()
+// must.
 
 const hasDb = !!process.env.DATABASE_URL;
 
@@ -27,11 +34,12 @@ process.env.ITEM_TOKEN_SECRET ??= "test-item-token-secret-0123456789012345";
 describe.runIf(hasDb)("checkDb() (integration, local Postgres — no supabase_migrations schema)", () => {
   let withSystem: typeof import("@/db/postgres").withSystem;
   let checkDb: typeof import("@/lib/health-check").checkDb;
+  let runSweep: typeof import("@/lib/health-check").runSweep;
   let closePool: typeof import("@/db/postgres").closePool;
 
   it("the supabase_migrations schema genuinely does not exist here (precondition for the repro)", async () => {
     ({ withSystem, closePool } = await import("@/db/postgres"));
-    ({ checkDb } = await import("@/lib/health-check"));
+    ({ checkDb, runSweep } = await import("@/lib/health-check"));
 
     const rows = await withSystem((tx) =>
       tx<{ exists: boolean }[]>`
@@ -41,21 +49,53 @@ describe.runIf(hasDb)("checkDb() (integration, local Postgres — no supabase_mi
     expect(rows[0]?.exists).toBe(false);
   });
 
-  it("run_maintenance_sweep() still runs and maintenance.last_sweep still advances despite the schema-version lookup failing", async () => {
-    // Force the sweep's hourly lock open so this call is guaranteed to win
-    // it (otherwise a sweep run earlier in this test session could make
-    // this a no-op and the assertion below wouldn't prove anything).
-    await withSystem((tx) => tx`update maintenance set last_sweep = now() - interval '2 hours' where id = true`);
-
-    const before = await withSystem((tx) => tx<{ last_sweep: Date }[]>`select last_sweep from maintenance where id = true`);
-
+  it("the statements after the failing schema-version lookup still execute (savepoint isolates the failure)", async () => {
+    // Both of these are read *after* the lookup that fails. Under the
+    // original bug the transaction was already aborted by this point and
+    // they threw instead of returning values.
     const result = await checkDb();
 
     expect(result.ok).toBe(true);
     expect(result.schemaVersion).toBeNull(); // the lookup failed, as expected — but harmlessly
+    expect(result.sweepAgeMin).not.toBeNull();
+    expect(Number.isFinite(result.purgeBacklog)).toBe(true);
+  });
 
-    const after = await withSystem((tx) => tx<{ last_sweep: Date }[]>`select last_sweep from maintenance where id = true`);
-    expect(new Date(after[0]!.last_sweep).getTime()).toBeGreaterThan(new Date(before[0]!.last_sweep).getTime());
+  it("checkDb() does NOT run the sweep — the probe is read-only", async () => {
+    await withSystem(
+      (tx) => tx`update maintenance set last_sweep = now() - interval '2 hours' where id = true`,
+    );
+    const before = await withSystem(
+      (tx) => tx<{ last_sweep: Date }[]>`select last_sweep from maintenance where id = true`,
+    );
+
+    await checkDb();
+
+    const after = await withSystem(
+      (tx) => tx<{ last_sweep: Date }[]>`select last_sweep from maintenance where id = true`,
+    );
+    expect(new Date(after[0]!.last_sweep).getTime()).toBe(new Date(before[0]!.last_sweep).getTime());
+  });
+
+  it("runSweep() runs the sweep and maintenance.last_sweep advances", async () => {
+    // Force the sweep's hourly lock open so this call is guaranteed to win
+    // it (otherwise a sweep run earlier in this test session could make
+    // this a no-op and the assertion below wouldn't prove anything).
+    await withSystem(
+      (tx) => tx`update maintenance set last_sweep = now() - interval '2 hours' where id = true`,
+    );
+    const before = await withSystem(
+      (tx) => tx<{ last_sweep: Date }[]>`select last_sweep from maintenance where id = true`,
+    );
+
+    await runSweep();
+
+    const after = await withSystem(
+      (tx) => tx<{ last_sweep: Date }[]>`select last_sweep from maintenance where id = true`,
+    );
+    expect(new Date(after[0]!.last_sweep).getTime()).toBeGreaterThan(
+      new Date(before[0]!.last_sweep).getTime(),
+    );
   });
 
   afterAll(async () => {

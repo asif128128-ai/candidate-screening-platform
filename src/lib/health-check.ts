@@ -4,6 +4,20 @@ import { withSystem } from "@/db/postgres";
 // tested directly (Next.js route handler modules only recognize a fixed set
 // of exports, so testable business logic lives here instead — see
 // IMPLEMENTATION_STATE.md's health-check red-team fix entry).
+//
+// `checkDb()` is deliberately READ-ONLY. It used to also run the hourly
+// maintenance sweep, which coupled the platform's only scheduler to its
+// liveness probe and made outages self-sustaining:
+//
+//   sweep runs only inside /api/health  ->  service unhealthy for 3 h
+//   ->  no instance serving /api/health  ->  sweep never runs
+//   ->  sweep_age_min > 180 forever      ->  every future deploy fails its
+//                                            health check and rolls back
+//
+// i.e. any outage longer than the staleness threshold became permanent and
+// un-deployable. The sweep now runs on its own interval
+// (src/lib/sweep-scheduler.ts), independent of whether anything is probing
+// this endpoint, and the probe only *reports* staleness.
 
 export interface CheckDbResult {
   ok: boolean;
@@ -25,10 +39,9 @@ export async function checkDb(): Promise<CheckDbResult> {
     // `supabase_migrations` schema genuinely doesn't exist, as on this
     // local-Postgres stand-in, or any other transient error), Postgres
     // aborts the *whole transaction*, and every subsequent statement in it
-    // — including `run_maintenance_sweep()` below — then fails too with a
-    // generic "current transaction is aborted" error, silently disabling the
-    // sweep. Fixed by running this optional lookup inside its own SAVEPOINT
-    // and rolling back to it (not the whole transaction) on failure, so a
+    // then fails too with a generic "current transaction is aborted" error.
+    // Fixed by running this optional lookup inside its own SAVEPOINT and
+    // rolling back to it (not the whole transaction) on failure, so a
     // failure here can never poison anything that runs after it in this tx.
     let schemaVersion: string | null = null;
     try {
@@ -42,10 +55,6 @@ export async function checkDb(): Promise<CheckDbResult> {
     } catch {
       schemaVersion = null; // treated as "unknown" by the caller, not a hard failure locally
     }
-
-    // Opportunistically run the sweep — no-ops if another caller already
-    // won this hour's lock (ARCHITECTURE.md §8).
-    await tx`select run_maintenance_sweep()`;
 
     const maintenanceRows = await tx<{ last_sweep: Date }[]>`
       select last_sweep from maintenance where id = true
@@ -62,5 +71,17 @@ export async function checkDb(): Promise<CheckDbResult> {
     const count = purgeRows[0]?.count ?? "0";
 
     return { ok: true, schemaVersion, sweepAgeMin, purgeBacklog: Number(count) };
+  });
+}
+
+/**
+ * Runs the hourly maintenance sweep (ARCHITECTURE.md §8). `run_maintenance_sweep()`
+ * holds its own once-per-hour lock and no-ops immediately if another caller
+ * already won this hour, so calling this more often than hourly — or from
+ * more than one instance — is harmless.
+ */
+export async function runSweep(): Promise<void> {
+  await withSystem(async (tx) => {
+    await tx`select run_maintenance_sweep()`;
   });
 }
